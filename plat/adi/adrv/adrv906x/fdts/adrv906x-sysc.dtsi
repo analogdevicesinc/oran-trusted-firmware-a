@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2022, Analog Devices Incorporated, All Rights Reserved
+ */
+
+#include "adrv906x_def.h"
+/ {
+	/* eMMC, SystemC only. Using 0 as node address to differentiate it from SDHCI driver */
+	mmc@0 {
+		compatible = "arm,pl180", "arm,primecell";
+		reg = <EMMC_0_BASE 0x1000>;
+		max-frequency = <12000000>;
+		clocks = <&sysclk>, <&sysclk>;
+		clock-names = "mclk", "apb_pclk";
+		status = "disabled";
+	};
+
+	/* SD, SystemC only. Using 1 as node address to differentiate it from SDHCI driver */
+	mmc@1 {
+		compatible = "arm,pl180", "arm,primecell";
+		reg = <SD_0_BASE 0x1000>;
+		max-frequency = <12000000>;
+		clocks = <&sysclk>, <&sysclk>;
+		clock-names = "mclk", "apb_pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_mmc1_sd>;
+		status = "disabled";
+	};
+};

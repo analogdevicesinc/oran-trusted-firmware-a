@@ -22,6 +22,7 @@
 #define SPANSION_ID		0x01U
 #define MACRONIX_ID		0xC2U
 #define MICRON_ID		0x2CU
+#define ST_ID			0x20U
 
 #define BANK_SIZE		0x1000000U
 
@@ -74,6 +75,11 @@ static inline int spi_nor_read_fsr(uint8_t *fsr)
 static inline int spi_nor_write_en(void)
 {
 	return spi_nor_reg(SPI_NOR_OP_WREN, NULL, 0U, SPI_MEM_DATA_OUT);
+}
+
+static inline int spi_nor_write_disable(void)
+{
+	return spi_nor_reg(SPI_NOR_OP_WRDIS, NULL, 0U, SPI_MEM_DATA_OUT);
 }
 
 /*
@@ -274,6 +280,28 @@ static int spi_nor_read_bar(void)
 	return 0;
 }
 
+static int spi_nor_erase(unsigned int offset)
+{
+	int ret;
+	
+	nor_dev.erase_op.addr.val = offset;
+	
+	if ((nor_dev.flags & SPI_NOR_USE_BANK) != 0U) {
+		ret = spi_nor_write_bar(nor_dev.erase_op.addr.val);
+		if (ret != 0) {
+			return ret;
+		}
+	}
+	
+	/* Write Enable */
+	ret = spi_nor_write_en();
+	if (ret != 0) {
+		return ret;
+	}
+
+	return spi_mem_exec_op(&nor_dev.erase_op);
+}
+
 int spi_nor_read(unsigned int offset, uintptr_t buffer, size_t length,
 		 size_t *length_read)
 {
@@ -322,6 +350,94 @@ int spi_nor_read(unsigned int offset, uintptr_t buffer, size_t length,
 	return 0;
 }
 
+int spi_nor_write(unsigned int offset, uintptr_t buffer, size_t length)
+{
+	int ret;
+	size_t buf_len;
+	size_t rd_len;
+	uint8_t *wr_buf = (uint8_t *)buffer;
+	uint32_t selected_sector = 0;
+	unsigned int buffer_offset = 0;
+	uint8_t *buf = (uint8_t *) nor_dev.erase_op.data.buf;
+
+	VERBOSE("%s offset %i length %zu\n", __func__, offset, length);
+
+	while(length != 0) {
+
+		selected_sector = offset / nor_dev.erase_size;
+		
+		/* Read sector data */
+		ret = spi_nor_read((nor_dev.erase_size * selected_sector), (uintptr_t)buf, nor_dev.erase_size, &rd_len);
+		if (rd_len != nor_dev.erase_size) {
+			spi_nor_clean_bar();
+			return -1;
+		}
+		/* Erase Operation */
+		ret = spi_nor_erase(nor_dev.erase_size * selected_sector);
+		if (ret != 0) {
+			return ret;
+		}
+
+		/* Calulate length to write in a sector */
+		buffer_offset = offset - (nor_dev.erase_size * selected_sector);
+		buf_len = nor_dev.erase_size - buffer_offset;
+		if (length < buf_len) {
+			buf_len = length;
+		}
+		
+		/* Update Buffer */
+		memcpy(buf + buffer_offset, wr_buf, buf_len);
+		
+		nor_dev.write_op.data.buf = (void *)buf;
+		nor_dev.write_op.data.nbytes = nor_dev.program_size;
+
+		for (uint32_t i = 0; i < (nor_dev.erase_size/nor_dev.program_size); i++) {
+			
+			nor_dev.write_op.addr.val = (nor_dev.erase_size * selected_sector) + (i * nor_dev.program_size);
+			
+			/* Write Enable */
+			ret = spi_nor_write_en();
+			if (ret != 0) {
+				spi_nor_clean_bar();
+				return ret;
+			}
+
+			ret = spi_mem_exec_op(&nor_dev.write_op);
+			if (ret != 0) {
+				spi_nor_clean_bar();
+				return ret;
+			}
+
+			/* Check for write in progress*/
+			ret = spi_nor_wait_ready();
+			if (ret != 0) {
+				spi_nor_clean_bar();
+				return ret;
+			}
+			unsigned char *bufPtr = (unsigned char *)(nor_dev.write_op.data.buf) + nor_dev.program_size;
+			nor_dev.write_op.data.buf = (void *)bufPtr;
+		}
+		offset = offset + buf_len;
+		wr_buf = wr_buf + buf_len;
+		/* Update Length */
+		length = length - buf_len;
+	}
+
+	if ((nor_dev.flags & SPI_NOR_USE_BANK) != 0U) {
+		ret = spi_nor_clean_bar();
+		if (ret != 0) {
+			return ret;
+		}
+	}
+	/* Disable Write enable */
+	ret = spi_nor_write_disable();
+	if (ret != 0) {
+		return ret;
+	}
+
+	return 0;
+}
+
 int spi_nor_init(unsigned long long *size, unsigned int *erase_size)
 {
 	int ret;
@@ -334,7 +450,7 @@ int spi_nor_init(unsigned long long *size, unsigned int *erase_size)
 	nor_dev.read_op.addr.buswidth = SPI_MEM_BUSWIDTH_1_LINE;
 	nor_dev.read_op.data.buswidth = SPI_MEM_BUSWIDTH_1_LINE;
 	nor_dev.read_op.data.dir = SPI_MEM_DATA_IN;
-
+	
 	if (plat_get_nor_data(&nor_dev) != 0) {
 		return -EINVAL;
 	}
@@ -346,6 +462,35 @@ int spi_nor_init(unsigned long long *size, unsigned int *erase_size)
 	}
 
 	*size = nor_dev.size;
+	/* Erase operation checks*/
+	if (nor_dev.erase_op.cmd.opcode != 0U) {
+		assert(nor_dev.erase_op.data.buf != NULL);
+		assert(nor_dev.erase_size != 0U);
+		assert(nor_dev.program_size != 0U);
+		assert((nor_dev.erase_size % nor_dev.program_size) == 0U);
+		assert(nor_dev.write_op.cmd.opcode != 0U);
+
+		if (nor_dev.erase_size > nor_dev.size) {
+			return -EINVAL;
+		}
+
+		*erase_size = nor_dev.erase_size;
+	}
+	
+	/* Write operation checks*/
+	if (nor_dev.write_op.cmd.opcode != 0U) {
+		assert(nor_dev.erase_op.data.buf != NULL);
+		assert(nor_dev.erase_size != 0U);
+		assert(nor_dev.program_size != 0U);
+		assert((nor_dev.erase_size % nor_dev.program_size) == 0U);
+		assert(nor_dev.erase_op.cmd.opcode != 0U);
+
+		if (nor_dev.erase_size > nor_dev.size) {
+			return -EINVAL;
+		}
+
+		*erase_size = nor_dev.erase_size;
+	}
 
 	ret = spi_nor_read_id(&id);
 	if (ret != 0) {
@@ -373,6 +518,8 @@ int spi_nor_init(unsigned long long *size, unsigned int *erase_size)
 			break;
 		case MICRON_ID:
 			break;
+		case ST_ID:
+			break;	
 		default:
 			ret = spi_nor_quad_enable();
 			break;

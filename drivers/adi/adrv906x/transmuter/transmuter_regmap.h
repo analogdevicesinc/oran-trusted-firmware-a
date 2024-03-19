@@ -1,0 +1,20 @@
+/*
+ * Copyright (c) 2024, Analog Devices Incorporated, All Rights Reserved
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
+#ifndef __TRANSMUTER_REGMAP_H__
+#define __TRANSMUTER_REGMAP_H__
+
+#define TRANSMUTER_EDGE_STATUS_BASE     0x00000188
+#define TRANSMUTER_ENABLE_BASE  0x00000000
+#define TRANSMUTER_LEVEL_EDGE_BASE      0x00000038
+#define TRANSMUTER_NEG_MASK_BASE        0x000000A8
+#define TRANSMUTER_POS_MASK_BASE        0x00000070
+#define TRANSMUTER_RAW_STATUS_BASE      0x00000150
+#define TRANSMUTER_STATUS_BASE  0x00000118
+#define TRANSMUTER_TRIGGER_BASE 0x000000E0
+
+
+#endif /* __TRANSMUTER_REGMAP_H__ */

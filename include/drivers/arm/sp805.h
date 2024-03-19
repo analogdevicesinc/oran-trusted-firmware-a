@@ -12,6 +12,7 @@
 /* SP805 register offset */
 #define SP805_WDOG_LOAD_OFF		UL(0x000)
 #define SP805_WDOG_CTR_OFF		UL(0x008)
+#define SP805_WDOG_INTCLR_OFF		UL(0x00c)
 #define SP805_WDOG_LOCK_OFF		UL(0xc00)
 
 /* Magic word to unlock the wd registers */
@@ -20,6 +21,7 @@
 /* Register field definitions */
 #define SP805_CTR_RESEN			(U(1) << 1)
 #define SP805_CTR_INTEN			(U(1) << 0)
+#define SP805_INTCLR_INTCLR			(U(1) << 0)
 
 #ifndef __ASSEMBLER__
 
@@ -30,6 +32,7 @@
 void sp805_start(uintptr_t base, unsigned int ticks);
 void sp805_stop(uintptr_t base);
 void sp805_refresh(uintptr_t base, unsigned int ticks);
+void sp805_ping(uintptr_t base);
 
 #endif /* __ASSEMBLER__ */
 

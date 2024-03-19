@@ -26,6 +26,10 @@ static inline void sp805_write_wdog_lock(uintptr_t base, uint32_t value)
 	mmio_write_32(base + SP805_WDOG_LOCK_OFF, value);
 }
 
+static inline void sp805_write_wdog_intclr(uintptr_t base, uint32_t value)
+{
+	mmio_write_32(base + SP805_WDOG_INTCLR_OFF, value);
+}
 
 /* Public API implementation */
 
@@ -47,5 +51,12 @@ void sp805_refresh(uintptr_t base, unsigned int ticks)
 {
 	sp805_write_wdog_lock(base, WDOG_UNLOCK_KEY);
 	sp805_write_wdog_load(base, ticks);
+	sp805_write_wdog_lock(base, 0U);
+}
+
+void sp805_ping(uintptr_t base)
+{
+	sp805_write_wdog_lock(base, WDOG_UNLOCK_KEY);
+	sp805_write_wdog_intclr(base, 1U);
 	sp805_write_wdog_lock(base, 0U);
 }

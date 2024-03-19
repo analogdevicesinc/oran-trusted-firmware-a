@@ -1,0 +1,199 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2023, Analog Devices Incorporated, All Rights Reserved
+ */
+
+/dts-v1/;
+
+#define GPIO_ACTIVE_HIGH        0 /* From u-boot: include/dt-bindings/gpio/gpio.h.*/
+#define GPIO_ACTIVE_LOW         1
+
+#define PHY_INTERFACE_MODE_RMII   6 /* From u-boot include/phy_interface.h */
+#define PHY_INTERFACE_MODE_RGMII  7
+
+#include "adrv906x_def.h"
+#include "pinctrl-adi-adrv906x.h"
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	/* Boot-related information.
+	 * Populated by BL31. Intentionally left blank here.
+	 */
+	boot {
+		device = "";
+		slot = "";
+		te-slot = "";
+		plat = "";
+		lifecycle-state {
+			description = "";
+			deployed = <0>;
+		};
+	};
+
+	memory {
+		/* U-Boot seems to require that these addr/size properties are set here,
+		 * even though it should use the parent properties.
+		 */
+		#address-cells = <1>;
+		#size-cells = <1>;
+		device_type = "memory";
+		/* Populated by BL31. Intentionally left blank here */
+		reg = <0x0 0x0>;
+	};
+
+	firmware {
+		psci {
+			compatible = "arm,psci-1.0";
+			method = "smc";
+			u-boot,dm-pre-reloc;
+		};
+	};
+
+	watchdog {
+		compatible = "arm,smc-wdt";
+		timeout-sec = <60>;
+	};
+
+	uart0: uart@PL011_0_BASE_UADDR {
+		compatible = "arm,pl011", "arm,primecell";
+		reg = <PL011_0_BASE 0x1000>;
+		clocks = <&sysclk>, <&sysclk>;
+		clock-names = "uartclk", "apb_pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_uart0>;
+		status = "disabled";
+	};
+
+	uart1: uart@PL011_1_BASE_UADDR {
+		compatible = "arm,pl011", "arm,primecell";
+		reg = <PL011_1_BASE 0x1000>;
+		clocks = <&sysclk>, <&sysclk>;
+		clock-names = "uartclk", "apb_pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_uart1>;
+		status = "disabled";
+	};
+
+	/* Populated by BL31. Intentionally left blank here */
+	sysclk: sysclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+	};
+
+	/* Populated by BL31. Intentionally left blank here */
+	mmcclk: mmcclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+	};
+
+	dwmac_clkin: dwmac_clkin {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <250000000>;
+		u-boot,dm-pre-reloc;
+	};
+
+	dwmac_clk: dwmac_clk {
+		compatible = "adi,adrv906x-1g-clock";
+		reg = <EMAC_1G_YODA 0x04>;
+		reg-names = "emac1gyoda";
+		#clock-cells = <1>;
+		clocks = <&dwmac_clkin>;
+		clock-names = "dwmac_clkin";
+		status = "okay";
+		u-boot,dm-pre-reloc;
+	};
+
+	pinctrl_primary: pinctrl {
+		compatible = "adi,adrv906x-pinctrl";
+		reg = <PINCTRL_BASE 0x1000>;
+		adi,pin-info = <ADI_ADRV906X_PIN_COUNT ADI_ADRV906X_DIO_PIN_COUNT ADI_ADRV906X_DIO_PIN_START>;	
+	};
+
+	gpio: gpio@GPIO_MODE_NONSECURE_BASE_UADDR {
+		compatible = "adi,adrv906x-gpio";
+		reg = <GPIO_MODE_NONSECURE_BASE 0x800>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpios = <ADI_ADRV906X_PIN_COUNT>;
+	}; 
+
+	qspi0: spi@QSPI_0_BASE_UADDR {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "adi,spi3";
+		reg = <QSPI_0_BASE 0xff>,
+		      <QSPI_0_TX_DDE_BASE 0xff>,
+		      <QSPI_0_RX_DDE_BASE 0xff>;
+		clocks = <&sysclk>;
+		clock-names = "spi";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_qspi>;
+		bus-num = <0>;
+		status = "disabled";
+	};
+
+	mmc0_phy: phy@EMMC_0_PHY_BASE_UADDR {
+		compatible = "adi,sdhci-phy";
+		reg = <EMMC_0_PHY_BASE 0x100>;
+		#phy-cells = <0>;
+		adi,dcode-legacy = <0x78>;
+		adi,dcode-hs200 = <0x00>;
+		adi,dcode-hs400 = <0x08>;
+		status = "disabled";
+	};
+
+	/* SDHCI: eMMC interface */
+	mmc0: mmc@EMMC_0_BASE_UADDR {
+		compatible = "adi,sdhci";
+		reg = <EMMC_0_BASE 0x300>;
+		clocks = <&mmcclk>;
+		clock-names = "core";
+		phys = <&mmc0_phy>;
+		phy-names = "phy_adi_sdhci";
+		max-frequency = <196608000>;
+		bus-width = <8>;
+		mmc-hs400-1_8v;
+		mmc-hs400-enhanced-strobe;
+		non-removable;
+		status = "disabled";
+		enable-phy-config;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	/* SDHCI: SD interface */
+	mmc1: mmc@SD_0_BASE_UADDR {
+		compatible = "adi,sdhci";
+		reg = <SD_0_BASE 0x300>;
+		clocks = <&mmcclk>;
+		clock-names = "core";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_mmc1_sd>;
+		max-frequency = <50000000>;
+		bus-width = <4>;
+		status = "disabled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	emac0: ethernet@EMAC_1G_BASE_UADDR {
+		compatible = "snps,dwmac-5.20";
+		reg = <EMAC_1G_BASE 0x1168>;
+		phy-mode = "rgmii";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_emac>;
+		snps,reset-gpio = <&gpio ADI_ADRV906X_PIN_88 GPIO_ACTIVE_LOW>;
+		snps,reset-active-low;
+		snps,reset-delays-us = <1000 1000 1000>;
+		status = "disabled";
+		clocks = <&dwmac_clk PHY_INTERFACE_MODE_RGMII>;
+		clock-names = "dwmac_clk";
+	};
+};
+
+#include "adrv906x-pinctrl.dtsi"

@@ -12,6 +12,7 @@
 #include <stdint.h>
 
 #include <arch_helpers.h>
+#include <plat/common/platform.h>
 
 /********************************************************************
  * A simple timer driver providing synchronous delay functionality.
@@ -29,7 +30,14 @@ typedef struct timer_ops {
 
 static inline uint64_t timeout_cnt_us2cnt(uint32_t us)
 {
-	return ((uint64_t)us * (uint64_t)read_cntfrq_el0()) / 1000000ULL;
+	/* TODO: Confirm this change is what we want */
+	/* Use the platform's value for syscnt rather than the CNTFRQ_EL0 register.
+	 * This allows this function to be used across clock frequency changes that
+	 * occur in BL stages that can't update CNTFRQ_EL0 (i.e. BL2).
+	 * This assumes that plat_get_syscnt_freq2() returns the right frequency
+	 * for the current clock source.
+	 */
+	return ((uint64_t)us * (uint64_t)plat_get_syscnt_freq2()) / 1000000ULL;
 }
 
 static inline uint64_t timeout_init_us(uint32_t us)

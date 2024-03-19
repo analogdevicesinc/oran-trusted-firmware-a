@@ -14,6 +14,17 @@
 
 #include "opteed_private.h"
 
+/* NOTE: OPTEE currently is not masking interrupts for any of these handlers in OPTEE
+* resulting in OPTEE being in a state where NS interrupts could appear and cause a 
+* switch back to the normal world, regardless of if we are handling exceptions in BL31
+* or OPTEE. This can cause Linux to halt during a sensitive sequence like reset, and 
+* result in the sequence breaking/not completing. Therefore, we are removing any jumps
+* to OPTEE during the PSCI handlers regardless of the definition of EL3_EXCEPTION_HANDLING
+* since the PSCI functions are called in a SMC context with interrupts masked out, and leaving
+* that context to go to OPTEE would open this possibility of a NS interrupt breaking the sequence.
+* The original OPTEE code is being left here uncompiled using #IF 0. If OPTEE is updated to
+* ignore interrupts during these calls, then the code can be restored by removing the #IF 0 surrounded code*/
+
 /*******************************************************************************
  * The target cpu is being turned on. Allow the OPTEED/OPTEE to perform any
  * actions needed. Nothing at the moment.
@@ -28,6 +39,12 @@ static void opteed_cpu_on_handler(u_register_t target_cpu)
  ******************************************************************************/
 static int32_t opteed_cpu_off_handler(u_register_t unused)
 {
+	/*Jumping to OPTEE here opens up a scenario for a NS interrupt to break the 
+	* off sequence, so stay in BL31 if EL3 exception handling is enabled
+	*/
+	return 0;
+
+#if 0
 	int32_t rc = 0;
 	uint32_t linear_id = plat_my_core_pos();
 	optee_context_t *optee_ctx = &opteed_sp_context[linear_id];
@@ -53,6 +70,7 @@ static int32_t opteed_cpu_off_handler(u_register_t unused)
 	set_optee_pstate(optee_ctx->state, OPTEE_PSTATE_OFF);
 
 	 return 0;
+#endif
 }
 
 /*******************************************************************************
@@ -61,6 +79,12 @@ static int32_t opteed_cpu_off_handler(u_register_t unused)
  ******************************************************************************/
 static void opteed_cpu_suspend_handler(u_register_t max_off_pwrlvl)
 {
+	/*Jumping to OPTEE here opens up a scenario for a NS interrupt to break the 
+	* suspend sequence, so stay in BL31 if EL3 exception handling is enabled
+	*/
+	return;
+
+#if 0
 	int32_t rc = 0;
 	uint32_t linear_id = plat_my_core_pos();
 	optee_context_t *optee_ctx = &opteed_sp_context[linear_id];
@@ -84,6 +108,7 @@ static void opteed_cpu_suspend_handler(u_register_t max_off_pwrlvl)
 
 	/* Update its context to reflect the state OPTEE is in */
 	set_optee_pstate(optee_ctx->state, OPTEE_PSTATE_SUSPEND);
+#endif
 }
 
 /*******************************************************************************
@@ -130,6 +155,11 @@ static void opteed_cpu_on_finish_handler(u_register_t unused)
  ******************************************************************************/
 static void opteed_cpu_suspend_finish_handler(u_register_t max_off_pwrlvl)
 {
+	/*Jumping to OPTEE here opens up a scenario for a NS interrupt to break the 
+	* suspend sequence, so stay in BL31 if EL3 exception handling is enabled
+	*/
+	return;
+#if 0
 	int32_t rc = 0;
 	uint32_t linear_id = plat_my_core_pos();
 	optee_context_t *optee_ctx = &opteed_sp_context[linear_id];
@@ -153,6 +183,7 @@ static void opteed_cpu_suspend_finish_handler(u_register_t max_off_pwrlvl)
 
 	/* Update its context to reflect the state OPTEE is in */
 	set_optee_pstate(optee_ctx->state, OPTEE_PSTATE_ON);
+#endif
 }
 
 /*******************************************************************************
@@ -170,6 +201,12 @@ static int32_t opteed_cpu_migrate_info(u_register_t *resident_cpu)
  ******************************************************************************/
 static void opteed_system_off(void)
 {
+	/*Jumping to OPTEE here opens up a scenario for a NS interrupt to break the 
+	* off sequence, so stay in BL31 if EL3 exception handling is enabled
+	*/
+	return;
+
+#if 0
 	uint32_t linear_id = plat_my_core_pos();
 	optee_context_t *optee_ctx = &opteed_sp_context[linear_id];
 
@@ -182,6 +219,7 @@ static void opteed_system_off(void)
 	/* Enter OPTEE. We do not care about the return value because we
 	 * must continue the shutdown anyway */
 	opteed_synchronous_sp_entry(optee_ctx);
+#endif
 }
 
 /*******************************************************************************
@@ -190,6 +228,12 @@ static void opteed_system_off(void)
  ******************************************************************************/
 static void opteed_system_reset(void)
 {
+	/*Jumping to OPTEE here opens up a scenario for a NS interrupt to break the 
+	* reset sequence, so stay in BL31 if EL3 exception handling is enabled
+	*/
+	return;
+
+#if 0
 	uint32_t linear_id = plat_my_core_pos();
 	optee_context_t *optee_ctx = &opteed_sp_context[linear_id];
 
@@ -202,6 +246,7 @@ static void opteed_system_reset(void)
 	/* Enter OPTEE. We do not care about the return value because we
 	 * must continue the reset anyway */
 	opteed_synchronous_sp_entry(optee_ctx);
+#endif
 }
 
 

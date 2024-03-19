@@ -30,6 +30,7 @@ static int mtd_open(io_dev_info_t *dev_info, const uintptr_t spec,
 static int mtd_seek(io_entity_t *entity, int mode, signed long long offset);
 static int mtd_read(io_entity_t *entity, uintptr_t buffer, size_t length,
 		    size_t *length_read);
+static int mtd_write(io_entity_t *entity, const uintptr_t buffer, size_t length, size_t *length_written);
 static int mtd_close(io_entity_t *entity);
 static int mtd_dev_open(const uintptr_t dev_spec, io_dev_info_t **dev_info);
 static int mtd_dev_close(io_dev_info_t *dev_info);
@@ -43,6 +44,7 @@ static const io_dev_funcs_t mtd_dev_funcs = {
 	.open		= mtd_open,
 	.seek		= mtd_seek,
 	.read		= mtd_read,
+	.write		= mtd_write,
 	.close		= mtd_close,
 	.dev_close	= mtd_dev_close,
 };
@@ -228,6 +230,36 @@ static int mtd_read(io_entity_t *entity, uintptr_t buffer, size_t length,
 
 	assert(*out_length == length);
 	cur->pos += *out_length;
+
+	return 0;
+}
+
+static int mtd_write(io_entity_t *entity, const uintptr_t buffer,
+                     size_t length, size_t *length_written)
+{
+	mtd_dev_state_t *cur;
+	io_mtd_ops_t *ops;
+	int ret;
+
+	assert(entity->info != (uintptr_t)NULL);
+	assert((length > 0U) && (buffer != (uintptr_t)NULL));
+
+	cur = (mtd_dev_state_t *)entity->info;
+	ops = &cur->dev_spec->ops;
+	assert(ops->write != NULL);
+
+	VERBOSE("Write at %llx from %lx, length %zu\n", cur->base + cur->pos, buffer, length);
+	if ((cur->base + cur->pos + length) > cur->dev_spec->device_size) {
+		return -EINVAL;
+	}
+
+	ret = ops->write(cur->base + cur->pos + cur->extra_offset, buffer, length);
+	if (ret < 0) {
+		return ret;
+	}
+
+	*length_written = length;
+	cur->pos += *length_written;
 
 	return 0;
 }

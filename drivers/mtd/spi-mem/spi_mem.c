@@ -287,3 +287,35 @@ int spi_mem_init_slave(void *fdt, int bus_node, const struct spi_bus_ops *ops)
 
 	return spi_mem_set_speed_mode();
 }
+
+/*
+ * spi_mem_init_slave_nofdt() - SPI slave device initialization without fdt support.
+ * @mode: Mode of operation.
+ * @cs: Chip select to be used.
+ * @ops: The SPI bus ops defined.
+ *
+ * This function first checks that @ops are supported and then initializes
+ * the SPI slave device.
+ *
+ * Return: 0 in case of success, a negative error code otherwise.
+ */
+int spi_mem_init_slave_nofdt(int mode, unsigned int cs, unsigned int max_hz, const struct spi_bus_ops *ops)
+{
+	int ret;
+
+	ret = spi_mem_check_bus_ops(ops);
+	if (ret != 0)
+		return ret;
+
+	/* Setup CS */
+	spi_slave.cs = cs;
+
+	/* Get max slave frequency */
+	spi_slave.max_hz = max_hz;
+
+	/* Setup mode and ops*/
+	spi_slave.mode = mode;
+	spi_slave.ops = ops;
+
+	return spi_mem_set_speed_mode();
+}

@@ -1,0 +1,138 @@
+/*
+ * Copyright (c) 2015-2020, ARM Limited and Contributors. All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
+#include <assert.h>
+
+#include <platform_def.h>
+
+#include <arch_helpers.h>
+#include <drivers/console.h>
+#include <lib/mmio.h>
+#include <lib/psci/psci.h>
+#include <platform.h>
+
+#include <plat_err.h>
+#include <plat_int_gicv3.h>
+#include <plat_mailbox.h>
+#include <plat_status_reg.h>
+
+/*******************************************************************************
+ * Platform handler called when a power domain is about to be turned on. The
+ * mpidr determines the CPU to be turned on.
+ ******************************************************************************/
+static int plat_pwr_domain_on(u_register_t mpidr)
+{
+	int cpu_id = plat_core_pos_by_mpidr(mpidr);
+	uintptr_t hold_base = PLAT_TM_HOLD_BASE;
+	unsigned int pos = PLATFORM_CORE_COUNT;
+
+	if (cpu_id < 0)
+		return PSCI_E_INTERN_FAIL;
+
+	pos = (unsigned int)cpu_id;
+
+	/* Find the requested CPU's HOLD_STATE register, then set it to 'GO' */
+	hold_base += pos * PLAT_TM_HOLD_ENTRY_SIZE;
+	mmio_write_64(hold_base, PLAT_TM_HOLD_STATE_GO);
+
+	/* No cache maintenance here, as hold_base is mapped as device memory. */
+
+	/* Make sure that the write has completed */
+	dsb();
+	isb();
+
+	/* Wake up the core */
+	sev();
+
+	return PSCI_E_SUCCESS;
+}
+
+/*******************************************************************************
+ * Platform handler called when a power domain has just been powered on after
+ * being turned off earlier. The target_state encodes the low power state that
+ * each level has woken up from.
+ ******************************************************************************/
+static void plat_pwr_domain_on_finish(const psci_power_state_t *target_state)
+{
+	/* Program GIC per-cpu distributor or re-distributor interface */
+	plat_gic_pcpu_init();
+
+	/* Enable GIC CPU interface */
+	plat_gic_cpuif_enable();
+}
+
+/*******************************************************************************
+ * Platform handler called to check the validity of the non secure
+ * entrypoint. Returns PSCI_E_SUCCESS if the entrypoint is valid, or
+ * PSCI_E_INVALID_ADDRESS otherwise.
+ ******************************************************************************/
+int plat_validate_ns_entrypoint(uintptr_t entrypoint)
+{
+	/*
+	 * Check if the non secure entrypoint lies within the non
+	 * secure DRAM.
+	 */
+	if ((entrypoint >= NS_DRAM_BASE) && (entrypoint <
+					     (NS_DRAM_BASE + NS_DRAM_SIZE_MIN)))
+		return PSCI_E_SUCCESS;
+
+	return PSCI_E_INVALID_ADDRESS;
+}
+
+/*******************************************************************************
+ * Platform handler called to perform a soft reset
+ ******************************************************************************/
+static int plat_system_reset2(int is_vendor, int reset_type, u_register_t cookie)
+{
+	/* Clear the reset cause registers on a "normal" shutdown */
+	if (plat_rd_status_reg(RESET_CAUSE) == WATCHDOG_RESET)
+		plat_wr_status_reg(RESET_CAUSE, RESET_VALUE);
+	if (plat_rd_status_reg(RESET_CAUSE_NS) == WATCHDOG_RESET)
+		plat_wr_status_reg(RESET_CAUSE_NS, RESET_VALUE);
+
+	NOTICE("Warm reset command received\n");
+
+	console_flush();
+	return plat_warm_reset();
+}
+
+/*******************************************************************************
+ * Platform handlers and setup function.
+ ******************************************************************************/
+static const plat_psci_ops_t plat_psci_pm_ops = {
+	.pwr_domain_on			= plat_pwr_domain_on,
+	.pwr_domain_on_finish		= plat_pwr_domain_on_finish,
+	.validate_ns_entrypoint		= plat_validate_ns_entrypoint,
+	.system_reset2			= plat_system_reset2,
+/* TODO: Determine which, if any, of these additional ops need to be supported */
+#if 0
+	.cpu_standby			=,
+	.pwr_domain_off			=,
+	.pwr_domain_pwr_down_wfi	=,
+	.pwr_domain_pwr_down_wfi	=,
+	.system_off			=,
+	.system_reset			=,
+	.validate_power_state		=,
+#endif
+};
+
+/*******************************************************************************
+ * Setup PSCI ops.
+ * NOTE: This is declared as "non-optimized" because if PLAT_TM_ENTRYPOINT is
+ * 0 (mailbox address is 0), gcc will translate this to a brk #0x3e8 instruction.
+ * This is a trap for a potential divide-by-zero, which is definitely a false
+ * positive here.
+ ******************************************************************************/
+int __init __attribute__((optimize("O0"))) plat_setup_psci_ops(uintptr_t sec_entrypoint,
+							       const plat_psci_ops_t **psci_ops)
+{
+	uintptr_t *entrypoint = (void *)PLAT_TM_ENTRYPOINT;
+
+	*entrypoint = sec_entrypoint;
+	*psci_ops = &plat_psci_pm_ops;
+
+	return 0;
+}

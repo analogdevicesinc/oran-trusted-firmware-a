@@ -126,5 +126,6 @@ struct spi_bus_ops {
 int spi_mem_exec_op(const struct spi_mem_op *op);
 int spi_mem_init_slave(void *fdt, int bus_node,
 		       const struct spi_bus_ops *ops);
+int spi_mem_init_slave_nofdt(int mode, unsigned int cs, unsigned int max_hz, const struct spi_bus_ops *ops);
 
 #endif /* DRIVERS_SPI_MEM_H */

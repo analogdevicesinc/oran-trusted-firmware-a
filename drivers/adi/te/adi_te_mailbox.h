@@ -1,0 +1,40 @@
+/*
+ * Copyright (c) 2024, Analog Devices Incorporated, All Rights Reserved
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
+#ifndef __ADI_TE_MAILBOX_INTERNAL_H__
+#define __ADI_TE_MAILBOX_INTERNAL_H__
+
+#define MB_REGS_BOOT_FLOW0      0x340
+#define MB_REGS_BOOT_FLOW0_LOAD_AND_UNWRAP_KEYS_BITM    0x00000040
+#define MB_REGS_BOOT_FLOW0_LOAD_AND_UNWRAP_KEYS_BITP    6
+#define MB_REGS_BOOT_FLOW0_SBS_ADDR1_1ST_ATTEMPT_BITM   0x00002000
+#define MB_REGS_BOOT_FLOW0_SBS_ADDR1_1ST_ATTEMPT_BITP   13
+#define MB_REGS_BOOT_FLOW1      0x344
+#define MB_REGS_BOOT_FLOW1_ERROR_CODE_0_BITM    0x000FFF00
+#define MB_REGS_BOOT_FLOW1_ERROR_CODE_0_BITP    8
+#define MB_REGS_ERC1    0x044
+#define MB_REGS_ERESP_ACK       0x00000002
+#define MB_REGS_ERESP_RDY       0x00000002
+#define MB_REGS_E_STATUS        0x020
+#define MB_REGS_HRC0    0x140
+#define MB_REGS_HREQ_RDY        0x00000001
+#define MB_REGS_H_STATUS        0x120
+#define MB_REGS_LIFECYCLE_ENCODE_BITP   16
+#define MB_REGS_LIFECYCLE_ENCODE_MASK   0x000F0000
+#define MB_REGS_LIFECYCLE_STATUS        0x3A0
+#define MB_REGS_MDR0    0x200
+#define MB_REGS_MDR1    0x204
+#define MB_REGS_MDR2    0x208
+#define MB_REGS_MDR3    0x20C
+#define MB_REGS_MDR4    0x210
+#define MB_REGS_MDR5    0x214
+#define MB_REGS_MDR6    0x218
+#define MB_REGS_MDR7    0x21C
+#define MB_REGS_MDR8    0x220
+#define MB_REGS_MDR9    0x224
+
+
+#endif /* __ADI_TE_MAILBOX_INTERNAL_H__ */

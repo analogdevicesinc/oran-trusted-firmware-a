@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2023, Analog Devices Incorporated, All Rights Reserved
+ */
+
+&emac0 {
+	/* TODO: Consider removing this if/when Protium support is removed */
+	/*fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+	mac-address = [ 00 48 00 48 00 48 ];*/
+};
