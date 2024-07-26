@@ -26,14 +26,18 @@
 #include <adrv906x_dual.h>
 #include <adrv906x_gpint.h>
 #include <adrv906x_mmap.h>
+#include <adrv906x_otp.h>
 #include <adrv906x_peripheral_clk_rst.h>
 #include <adrv906x_tsgen.h>
 #include <platform_def.h>
 #include <plat_boot.h>
 #include <plat_cli.h>
-#include <plat_device_profile.h>
 #include <plat_pinctrl.h>
 #include <plat_setup.h>
+
+/* BRINGUP TODO: Remove Ethernet PLL defines */
+#define CLK_10G_VCO_HZ                                                    (10312500000LL)
+#define CLK_25G_VCO_HZ                                                    (12890625000LL)
 
 /* Sandbox for BL2 hardware initialization.
  * TODO: Clean this up when hardware init is finalized
@@ -47,7 +51,14 @@ static void init(void)
 	extern const plat_pinctrl_settings secondary_to_primary_pin_grp[];
 	extern const size_t secondary_to_primary_pin_grp_members;
 	struct gpint_settings settings;
+
+#if DEBUG == 1
 	adi_lifecycle_t lifecycle;
+#endif
+
+	if (plat_get_dual_tile_no_c2c_enabled())
+		if (plat_get_dual_tile_no_c2c_primary())
+			adrv906x_release_secondary_reset();
 
 	if (plat_get_dual_tile_enabled()) {
 		NOTICE("Enabling secondary tile.\n");
@@ -93,7 +104,7 @@ static void init(void)
 	/*
 	 * Init the ClkPll LDO driver
 	 */
-	err = ldo_powerup(CLKPLL_BASE);
+	err = ldo_powerup(CLKPLL_BASE, PLL_CLKGEN_PLL);
 	if (err) {
 		ERROR("Failed to initialize LDO %d\n", err);
 		plat_error_handler(-ENXIO);
@@ -126,7 +137,7 @@ static void init(void)
 		 * Init the ClkPll LDO driver on the secondary
 		 */
 		if (err == 0) {
-			err = ldo_powerup(SEC_CLKPLL_BASE);
+			err = ldo_powerup(SEC_CLKPLL_BASE, PLL_SEC_CLKGEN_PLL);
 			if (err) {
 				ERROR("Failed to initialize secondary LDO %d\n", err);
 				plat_set_dual_tile_disabled();
@@ -134,11 +145,17 @@ static void init(void)
 		}
 	}
 
-	/* Can only enter the CLI in the right lifecycle state and if test_enable=1 and test_control=8*/
-	lifecycle = adi_enclave_get_lifecycle_state(TE_MAILBOX_BASE);
-	if (lifecycle != ADI_LIFECYCLE_CUST1_PROV_HOST \
-	    && lifecycle != ADI_LIFECYCLE_DEPLOYED \
-	    && lifecycle != ADI_LIFECYCLE_CUST1_RETURN) {
+#if DEBUG == 1
+	/* CLI only enabled for debug builds */
+	/* On debug builds, can only enter the CLI in the right lifecycle state and if test_enable=1 and test_control=8 */
+	if (plat_is_bootrom_bypass_enabled())
+		lifecycle = ADI_LIFECYCLE_UNTESTED;
+	else
+		lifecycle = adi_enclave_get_lifecycle_state(TE_MAILBOX_BASE);
+
+	if (lifecycle == ADI_LIFECYCLE_UNTESTED || lifecycle == ADI_LIFECYCLE_OPEN_SAMPLE \
+	    || lifecycle == ADI_LIFECYCLE_TESTED || lifecycle == ADI_LIFECYCLE_ADI_PROV_ENC \
+	    || lifecycle == ADI_LIFECYCLE_ADI_RETURN || lifecycle == ADI_LIFECYCLE_END_OF_LIFE) {
 		if (plat_get_test_enable()) {
 			if (plat_get_test_control() == ADRV906X_TEST_CONTROL_ENTER_CLI) {
 				plat_enter_cli();
@@ -146,6 +163,7 @@ static void init(void)
 			}
 		}
 	}
+#endif
 
 	/* Multi-Chip Sync */
 	INFO("Performing MCS.\n");
@@ -155,31 +173,56 @@ static void init(void)
 	}
 	INFO("MCS complete.\n");
 
-	/* Init Primary GPINT and enable warm reset */
+	/* Init Primary GPINT */
 	adrv906x_gpint_init(DIG_CORE_BASE);
-	adrv906x_gpint_warm_reset_enable();
 
-	/* Enable GPINT0 for CLK PLL un-lock on Primary*/
+	/* Configure pinmux for GPINT0 on Primary */
+	plat_secure_pinctrl_set_group(gpint0_pin_grp, gpint0_pin_grp_members, true, PINCTRL_BASE);
+
+	/* Enable GPINT0 for CLK PLL un-lock on Primary */
 	settings.upper_word = CLKPLL_PLL_LOCKED_SYNC_MASK;
 	settings.lower_word = 0;
 	adrv906x_gpint_enable(DIG_CORE_BASE, GPINT0, &settings);
-	plat_secure_pinctrl_set_group(gpint0_pin_grp, gpint0_pin_grp_members, true, PINCTRL_BASE);
 
+	/* Enable GPINT1 for CLK PLL un-lock and WDT1 on Primary */
+	settings.upper_word = CLKPLL_PLL_LOCKED_SYNC_MASK;
+	settings.lower_word = WATCHDOG_A55_TIMEOUT_PIPED_1_MASK;
+	adrv906x_gpint_enable(DIG_CORE_BASE, GPINT1, &settings);
+
+	/* Primary GPINT in dual-tile or dual-no-c2c */
+	if (plat_get_dual_tile_enabled() || plat_get_dual_tile_no_c2c_enabled()) {
+		/* Configure pinmux for Secondary to Primary pin on Primary */
+		plat_secure_pinctrl_set_group(secondary_to_primary_pin_grp, secondary_to_primary_pin_grp_members, true, PINCTRL_BASE);
+
+		/* On Primary, enable GPINT0 for GPINT Interrupt Secondary to Primary */
+		settings.upper_word = 0;
+		settings.lower_word = GPINT_INTERRUPT_SECONDARY_TO_PRIMARY_MASK;
+		adrv906x_gpint_enable(DIG_CORE_BASE, GPINT0, &settings);
+
+		/* On Primary, enable GPINT1 for GPINT Interrupt Secondary to Primary */
+		settings.upper_word = 0;
+		settings.lower_word = GPINT_INTERRUPT_SECONDARY_TO_PRIMARY_MASK;
+		adrv906x_gpint_enable(DIG_CORE_BASE, GPINT1, &settings);
+	}
+
+	/* Secondary GPINT in dual-tile */
 	if (plat_get_dual_tile_enabled()) {
 		/* Init GPINT on Secondary */
 		adrv906x_gpint_init(SEC_DIG_CORE_BASE);
 
-		/* Enable GPINT0 for CLK PLL un-lock on Secondary*/
-		settings.upper_word = CLKPLL_PLL_LOCKED_SYNC_MASK;
-		settings.lower_word = 0;
-		adrv906x_gpint_enable(SEC_DIG_CORE_BASE, GPINT0, &settings);
+		/* Configure pinmux on Secondary */
 		plat_secure_pinctrl_set_group(gpint0_pin_grp, gpint0_pin_grp_members, true, SEC_PINCTRL_BASE);
+		plat_secure_pinctrl_set_group(secondary_to_primary_pin_grp, secondary_to_primary_pin_grp_members, true, SEC_PINCTRL_BASE);
 
-		/* Enable GPINT0 on Primary for GPINT Interrupt Secondary to Primary */
-		plat_secure_pinctrl_set_group(secondary_to_primary_pin_grp, secondary_to_primary_pin_grp_members, true, PINCTRL_BASE);
-		settings.upper_word = 0;
+		/* On Secondary, enable GPINT0 for CLK PLL un-lock and GPINT Interrupt Secondary to Primary */
+		settings.upper_word = CLKPLL_PLL_LOCKED_SYNC_MASK;
 		settings.lower_word = GPINT_INTERRUPT_SECONDARY_TO_PRIMARY_MASK;
-		adrv906x_gpint_enable(DIG_CORE_BASE, GPINT0, &settings);
+		adrv906x_gpint_enable(SEC_DIG_CORE_BASE, GPINT0, &settings);
+
+		/* On Secondary, enable GPINT1 for CLK PLL un-lock and GPINT Interrupt Secondary to Primary */
+		settings.upper_word = CLKPLL_PLL_LOCKED_SYNC_MASK;
+		settings.lower_word = GPINT_INTERRUPT_SECONDARY_TO_PRIMARY_MASK;
+		adrv906x_gpint_enable(SEC_DIG_CORE_BASE, GPINT1, &settings);
 	}
 
 	if (plat_get_dual_tile_enabled()) {
@@ -191,6 +234,36 @@ static void init(void)
 				plat_set_dual_tile_disabled();
 		} else {
 			NOTICE("Enabled C2C hi-speed AXI bridge.\n");
+		}
+	}
+
+	if (plat_is_hardware()) {
+		uint64_t pll_freq;
+		NOTICE("Initializing Ethernet PLL.\n");
+		if (plat_get_ethpll_freq_setting())
+			pll_freq = CLK_25G_VCO_HZ;
+		else
+			pll_freq = CLK_10G_VCO_HZ;
+		err = clk_initialize_pll_programming(false, true, plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting());
+		if (err)
+			ERROR("Failed preparing eth pll for programming.\n");
+
+		if (!err) {
+			err = ldo_powerup(ETH_PLL_BASE, PLL_ETHERNET_PLL);
+			if (err)
+				WARN("Failed to initialize Ethernet LDO %d\n", err);
+		}
+
+		if (!err) {
+			err = pll_clk_power_init(ETH_PLL_BASE, DIG_CORE_BASE, pll_freq, ETH_REF_CLK_DFLT, PLL_ETHERNET_PLL);
+			if (err)
+				WARN("Problem powering on Ethernet pll = %d\n", err);
+		}
+
+		if (!err) {
+			err = pll_program(ETH_PLL_BASE, PLL_ETHERNET_PLL);
+			if (err)
+				WARN("Problem programming Ethernet pll = %d\n", err);
 		}
 	}
 
@@ -207,7 +280,7 @@ static void init(void)
 	}
 
 	/* Skip printing clock info on Protium and Palladium since it is time consuming */
-	if (plat_is_sysc() == true) {
+	if (!plat_is_protium() && !plat_is_palladium()) {
 		clk_print_info(CLK_CTL);
 		if (plat_get_dual_tile_enabled())
 			clk_print_info(SEC_CLK_CTL);
@@ -248,6 +321,9 @@ void plat_bl2_early_setup(void)
 
 void plat_bl2_setup(void)
 {
+	/* Init OTP driver */
+	adrv906x_otp_init_driver();
+
 	/* Setup the device profile */
 	plat_dprof_init();
 

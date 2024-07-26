@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#ifndef TEMPERATURE_H
-#define TEMPERATURE_H
+#ifndef ADRV906X_TEMPERATURE_H
+#define ADRV906X_TEMPERATURE_H
 
-extern void tempr_init(void);
+void tempr_init(void);
 
-#endif /* TEMPERATURE_H */
+#endif /* ADRV906X_TEMPERATURE_H */

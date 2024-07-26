@@ -16,7 +16,7 @@
 bool plat_sysref_enable(void);
 
 /* Disable external sysref signal from clock chip */
-void plat_sysref_disable(void);
+bool plat_sysref_disable(bool mcs_completed);
 
 /* Initialize external clock chip and enable 245.76MHz device clock signal.
  * Returns true on success
@@ -30,5 +30,8 @@ void plat_do_spi_nor_reset(void);
 void plat_board_bl1_setup(void);
 void plat_board_bl2_setup(void);
 void plat_board_bl31_setup(void);
+
+/* Optional custom implementation to retrieve the eth MAC address */
+int plat_board_get_mac(uint32_t index, uint8_t **mac);
 
 #endif /* ADRV906X_BOARD_H */

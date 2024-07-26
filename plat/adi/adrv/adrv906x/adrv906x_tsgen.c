@@ -6,6 +6,7 @@
 
 #include <lib/mmio.h>
 
+#include <adrv906x_tsgen.h>
 #include <adrv906x_tsgen_def.h>
 
 void plat_tsgen_enable(const uint64_t base)

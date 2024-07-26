@@ -60,8 +60,8 @@
 
 /* SPI Regs */
 #define QSPI_MAX_CHIP               7U                                                  /* Max Chip Select lines */
-#define BIT_SSEL_VAL(x)             ((1 << x) << (SPI_SLVSEL_SSEL_OFFSET - 1))          /* Slave Select input value bit (x = 1..QSPI_MAX_CHIP) */
-#define BIT_SSEL_EN(x)              ((1 << x) << (SPI_SLVSEL_SSE_OFFSET - 1))           /* Slave Select enable bit (x = 1..QSPI_MAX_CHIP) */
+#define BIT_SSEL_VAL(x)             ((1 << (x + 1)) << (SPI_SLVSEL_SSEL_OFFSET - 1))    /* Slave Select input value bit (x = 0..QSPI_MAX_CHIP-1) */
+#define BIT_SSEL_EN(x)              ((1 << (x + 1)) << (SPI_SLVSEL_SSE_OFFSET - 1))     /* Slave Select enable bit (x = 0..QSPI_MAX_CHIP-1) */
 #define SPI_CTL_MIOM_DUAL           (SPI_CTL_MIOM_MIO_DUAL << SPI_CTL_MIOM_OFFSET)      /* MIOM: Enable DIOM (Dual I/O Mode) */
 #define SPI_CTL_MIOM_QUAD           (SPI_CTL_MIOM_MIO_QUAD << SPI_CTL_MIOM_OFFSET)      /* MIOM: Enable QUAD (Quad SPI Mode) */
 #define SPI_TXCTL_TDR_NOT_FULL      (SPI_TXCTL_TDR_NF << SPI_TXCTL_TDR_OFFSET)          /* TDR: TFIFO not full */
@@ -91,9 +91,7 @@ static void qspi_cs_activate(unsigned int cs)
 {
 	uint32_t ssel = 0;
 
-	(void)cs;
-
-	if ((cs > 0) && (cs <= QSPI_MAX_CHIP)) {
+	if (cs < QSPI_MAX_CHIP) {
 		ssel |= BIT_SSEL_EN(cs);
 		/* Required double write to get result on SLVSEL port */
 		mmio_setbits_32(qspi_base() + SPI_SLVSEL, ssel);
@@ -107,7 +105,7 @@ static void qspi_cs_deactivate(unsigned int cs)
 {
 	uint32_t ssel = 0;
 
-	if ((cs > 0) && (cs <= QSPI_MAX_CHIP)) {
+	if (cs < QSPI_MAX_CHIP) {
 		ssel |= BIT_SSEL_VAL(cs);
 		/* Required double write to get result on SLVSEL port */
 		mmio_setbits_32(qspi_base() + SPI_SLVSEL, ssel);
@@ -183,7 +181,7 @@ static void adi_qspi_get_buses_size(uintptr_t addr, uint32_t len,
 static int adi_qspi_tx_xfer(bool use_dma, uint8_t *buf, uint32_t transfer_len, uint8_t mem_inc)
 {
 	int ret = 0;
-	int i;
+	unsigned int i;
 	uint64_t timeout;
 	uint32_t ctl;
 	uint8_t psize;
@@ -529,6 +527,8 @@ static int adi_qspi_set_mode(unsigned int mode)
 		mmio_setbits_32(qspi_base() + SPI_CTL, SPI_CTL_LSBF);
 	else
 		mmio_clrbits_32(qspi_base() + SPI_CTL, SPI_CTL_LSBF);
+
+	mmio_setbits_32(qspi_base() + SPI_CTL, SPI_CTL_FMODE);
 
 	VERBOSE("%s: mode=0x%x\n", __func__, mode);
 

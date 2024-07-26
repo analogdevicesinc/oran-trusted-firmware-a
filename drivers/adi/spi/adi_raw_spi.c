@@ -31,10 +31,9 @@
 /*--------------------------------------------------------
  * DEFINES
  *------------------------------------------------------*/
-
 #define SPI_MAX_CHIP_SELECTS        7U
-#define BIT_SSEL_CS_VALUE(x)        ((1 << x) << (SPI_SLVSEL_SSEL_OFFSET - 1))  /* Slave Select x input bit (x = 1..QSPI_MAX_CHIP) */
-#define BIT_SSEL_CS_ENABLE(x)       ((1 << x) << (SPI_SLVSEL_SSE_OFFSET - 1))   /* Slave Select x enable bit (x = 1..QSPI_MAX_CHIP) */
+#define BIT_SSEL_CS_VALUE(x)        ((1 << (x + 1)) << (SPI_SLVSEL_SSEL_OFFSET - 1))    /* Slave Select x input bit (x = 0..SPI_MAX_CHIP_SELECTS-1) */
+#define BIT_SSEL_CS_ENABLE(x)       ((1 << (x + 1)) << (SPI_SLVSEL_SSE_OFFSET - 1))     /* Slave Select x enable bit (x = 0..SPI_MAX_CHIP_SELECTS-1) */
 
 #define MAX_TRANSMITTED_WORD_COUNT  SPI_TWC_MASK
 #define MAX_RECEIVED_WORD_COUNT     SPI_RWC_MASK
@@ -46,7 +45,7 @@
 /*--------------------------------------------------------
  * GLOBALS
  *------------------------------------------------------*/
-
+static bool use_lsb_first = false;
 
 /*--------------------------------------------------------
  * INTERNAL FUNCTIONS PROTOTYPES
@@ -64,7 +63,7 @@ static bool receive_bytes(uintptr_t spi_base, uint8_t *buf, size_t len);
  *------------------------------------------------------*/
 static bool cs_is_valid(unsigned int cs)
 {
-	if ((cs > 0) && (cs <= SPI_MAX_CHIP_SELECTS))
+	if (cs < SPI_MAX_CHIP_SELECTS)
 		return true;
 	return false;
 }
@@ -122,10 +121,12 @@ static bool set_mode(uintptr_t spi_base, unsigned int mode)
 	else
 		mmio_clrbits_32(spi_base + SPI_CTL, SPI_CTL_CPOL);
 
-	if ((mode & SPI_LSB_FIRST) != 0U)
+	use_lsb_first = ((mode & SPI_LSB_FIRST) != 0U);
+	if (use_lsb_first)
 		mmio_setbits_32(spi_base + SPI_CTL, SPI_CTL_LSBF);
 	else
 		mmio_clrbits_32(spi_base + SPI_CTL, SPI_CTL_LSBF);
+
 
 	VERBOSE("%s: mode=0x%x\n", __func__, mode);
 
@@ -161,6 +162,7 @@ static bool send_bytes(uintptr_t spi_base, const uint8_t *buf, size_t len)
 	bool ret = true;
 	size_t i;
 	uint64_t timeout;
+	uint32_t value = 0;
 
 	/* Check len */
 	if (len > MAX_TRANSMITTED_WORD_COUNT) {
@@ -191,7 +193,8 @@ static bool send_bytes(uintptr_t spi_base, const uint8_t *buf, size_t len)
 			}
 		}
 		/* - Send data byte */
-		mmio_write_8(spi_base + SPI_TFIFO, buf[i]);
+		value = (uint32_t)buf[i];
+		mmio_write_32(spi_base + SPI_TFIFO, value);
 		VERBOSE("%s: %x\n", __func__, buf[i]);
 	}
 	/* - Wait for transmission to complete */
@@ -216,6 +219,7 @@ static bool receive_bytes(uintptr_t spi_base, uint8_t *buf, size_t len)
 	bool ret = true;
 	size_t i;
 	uint64_t timeout;
+	uint32_t value = 0x0;
 
 	/* Check len */
 	if (len > MAX_RECEIVED_WORD_COUNT) {
@@ -240,7 +244,7 @@ static bool receive_bytes(uintptr_t spi_base, uint8_t *buf, size_t len)
 			goto receive_bytes_end;
 		}
 		/* Drop byte */
-		mmio_read_8(spi_base + SPI_RFIFO);
+		value = mmio_read_32(spi_base + SPI_RFIFO);
 	}
 
 	/* - Enable Rx  (and set rx initiator) */
@@ -258,7 +262,8 @@ static bool receive_bytes(uintptr_t spi_base, uint8_t *buf, size_t len)
 				goto receive_bytes_end;
 			}
 		}
-		buf[i] = mmio_read_8(spi_base + SPI_RFIFO);
+		value = mmio_read_32(spi_base + SPI_RFIFO);
+		buf[i] = (uint8_t)(value & 0xff);
 		VERBOSE("%s: %x\n", __func__, buf[i]);
 	}
 
@@ -301,18 +306,19 @@ bool adi_raw_spi_write(uintptr_t spi_base, uint8_t cs, uint8_t address, const ui
 {
 	uint8_t cmd_address;
 
-	/* Activate chip select */
+	/* Enable SPI */
+	mmio_setbits_32(spi_base + SPI_CTL, SPI_CTL_EN);
+
 	if (!cs_activate(spi_base, cs)) return false;
 
 	/* Build command/address */
-#if (TEST_FRAMEWORK == 0)
-	cmd_address = (address << 1) & ~0x01; /* Indicate Write command */
-#else
-	/* Allow sending custom command for testing with the QSPI memory */
-	cmd_address = address;
-#endif
+	if (use_lsb_first)
+		cmd_address = (address << 1) & ~0x01;   /* Indicate Write command, LSB */
+	else
+		cmd_address = address & ~0x80;          /* Indicate Write command, MSB */
 
 	/* Send command/address */
+
 	if (!send_bytes(spi_base, &cmd_address, 1)) return false;
 
 	/* Send Data */
@@ -321,6 +327,9 @@ bool adi_raw_spi_write(uintptr_t spi_base, uint8_t cs, uint8_t address, const ui
 	/* Dectivate chip select */
 	if (!cs_deactivate(spi_base, cs)) return false;
 
+	/* Disable SPI */
+	mmio_clrbits_32(spi_base + SPI_CTL, SPI_CTL_EN);
+
 	return true;
 }
 
@@ -328,16 +337,16 @@ bool adi_raw_spi_read(uintptr_t spi_base, uint8_t cs, uint8_t address, uint8_t *
 {
 	uint8_t cmd_address;
 
-	/* Activate chip select */
+	/* Enable SPI */
+	mmio_setbits_32(spi_base + SPI_CTL, SPI_CTL_EN);
+
 	if (!cs_activate(spi_base, cs)) return false;
 
 	/* Build command/address */
-#if (TEST_FRAMEWORK == 0)
-	cmd_address = (address << 1) | 0x01; /* Indicate Read command */
-#else
-	/* Allow sending custom command for testing with the QSPI memory */
-	cmd_address = address;
-#endif
+	if (use_lsb_first)
+		cmd_address = (address << 1) | 0x01;    /* Indicate Read command, LSB */
+	else
+		cmd_address = address | 0x80;           /* Indicate Read command, MSB */
 
 	/* Send command/address */
 	if (!send_bytes(spi_base, &cmd_address, 1)) return false;
@@ -347,6 +356,9 @@ bool adi_raw_spi_read(uintptr_t spi_base, uint8_t cs, uint8_t address, uint8_t *
 
 	/* Dectivate chip select */
 	if (!cs_deactivate(spi_base, cs)) return false;
+
+	/* Disable SPI */
+	mmio_clrbits_32(spi_base + SPI_CTL, SPI_CTL_EN);
 
 	return true;
 }

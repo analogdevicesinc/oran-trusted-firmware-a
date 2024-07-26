@@ -7,6 +7,7 @@
 #include <arch.h>
 #include <lib/psci/psci.h>
 
+#include <platform.h>
 #include <platform_def.h>
 #include <plat_helpers.h>
 

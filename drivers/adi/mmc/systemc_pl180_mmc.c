@@ -135,6 +135,10 @@ static int stm32_sdmmc2_prepare(int lba, uintptr_t buf, size_t size);
 static int stm32_sdmmc2_read(int lba, uintptr_t buf, size_t size);
 static int stm32_sdmmc2_write(int lba, uintptr_t buf, size_t size);
 
+unsigned long long stm32_sdmmc2_mmc_get_device_size(void);
+bool plat_sdmmc2_use_dma(unsigned int instance, unsigned int memory);
+uint32_t builtin_ctz(uint32_t value);
+
 static const struct mmc_ops stm32_sdmmc2_ops = {
 	.init		= stm32_sdmmc2_init,
 	.send_cmd	= stm32_sdmmc2_send_cmd,

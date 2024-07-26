@@ -40,7 +40,7 @@
 #define PLAT_BOOT_UART_BASE             PL011_0_BASE    /* UART0 */
 #endif
 #ifndef PLAT_RUN_UART_BASE
-#define PLAT_RUN_UART_BASE              PL011_1_BASE            /* UART1 (secure UART) */
+#define PLAT_RUN_UART_BASE              PL011_0_BASE            /* UART0 */
 #endif
 #define PLAT_CRASH_UART_BASE            PLAT_RUN_UART_BASE      /* Same as PLAT_RUN_UART_BASE */
 
@@ -113,11 +113,12 @@
 #else
 #define DEVCLK_FREQ_DFLT 245760000U
 #endif
+#define ETH_REF_CLK_DFLT 234375000U
 
 /*
  * SPI-Flash setup
  */
-#define QSPI_FLASH_CHIP_SELECT       1
+#define QSPI_FLASH_CHIP_SELECT       0
 #define QSPI_CLK_FREQ_HZ           (50U * 1000U * 1000U)
 
 /*

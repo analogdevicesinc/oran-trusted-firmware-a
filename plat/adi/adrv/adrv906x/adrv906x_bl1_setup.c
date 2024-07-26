@@ -24,6 +24,7 @@
 #include <adrv906x_def.h>
 #include <adrv906x_device_profile.h>
 #include <adrv906x_mmap.h>
+#include <adrv906x_otp.h>
 #include <adrv906x_peripheral_clk_rst.h>
 #include <adrv906x_tsgen.h>
 #include <platform_def.h>
@@ -31,6 +32,7 @@
 #include <plat_console.h>
 #include <plat_err.h>
 #include <plat_setup.h>
+#include <plat_te.h>
 #include <plat_wdt.h>
 
 
@@ -77,7 +79,7 @@ void plat_bl1_early_setup(void)
 			 */
 			plat_console_boot_init();
 			ERROR("No device clock signal present.\n");
-			plat_halt_handler();
+			plat_board_system_reset();
 		}
 	}
 
@@ -98,11 +100,12 @@ void plat_bl1_setup(void)
 	test_main();
 	while (1);
 #endif
+
+	/* Init OTP driver */
+	adrv906x_otp_init_driver();
+
 	/* Initialize GPIO framework */
 	adrv906x_gpio_init(GPIO_MODE_SECURE_BASE);
-
-	/* Initialize TE mailbox */
-	adi_enclave_mailbox_init(TE_MAILBOX_BASE);
 
 	/* Setup memory region for host boot */
 	if (plat_get_boot_device() == PLAT_BOOT_DEVICE_HOST)
@@ -110,4 +113,13 @@ void plat_bl1_setup(void)
 
 	/* Do board-specific setup */
 	plat_board_bl1_setup();
+}
+
+void plat_enclave_mailbox_init(void)
+{
+	plat_dprof_init();
+
+	if (!plat_is_bootrom_bypass_enabled())
+		/* Initialize TE mailbox */
+		adi_enclave_mailbox_init(TE_MAILBOX_BASE);
 }

@@ -8,27 +8,33 @@
 #include <errno.h>
 #include <string.h>
 
+#include <lib/mmio.h>
 #include <platform_def.h>
 
 #include <arch.h>
 #include <arch_helpers.h>
 #include <common/debug.h>
+#include <drivers/adi/adrv906x/pll.h>
 #include <drivers/delay_timer.h>
 #include "pll.h"
 
 extern bool plat_is_sysc(void);
 
 LoopFilterResult_t LoopFilterSettings[NUM_CLK_SPD] = {
-	{ CLK_VCO_7G_MHZ,  10, 3, 0, 0, 5, 18, 18, 31, 0, 0, 525917 }, /* ClkPLL  8G */
-	{ CLK_VCO_11G_MHZ, 25, 9, 0, 0, 8, 25, 25, 31, 0, 0, 505867 }  /* ClkPLL  11G */
+	{ CLK_VCO_7G_MHZ,  10, 3,  0, 0, 5,  18, 18, 31, 0, 0,	 525917 },      /* ClkPLL  7G */
+	{ CLK_VCO_10G_MHZ, 39, 41, 0, 0, 10, 52, 10, 3,	 0, 255, 872904 },      /* ClkPLL  10G */
+	{ CLK_VCO_11G_MHZ, 25, 9,  0, 0, 8,  25, 25, 31, 0, 0,	 505867 },      /* ClkPLL  11G */
+	{ CLK_VCO_25G_MHZ, 47, 49, 0, 0, 10, 50, 10, 4,	 0, 255, 1169068}       /* ClkPLL  25G */
 };
 
 
 /* Default settings for Loopfilters for all the PLL's  */
 const LoopFilterParam_t LoopFilterDefault[PLL_LAST_PLL] = {
 	/* loopBW    phaseMargin  voutLvl */
-	{ 500000.0f, 60.0f, 10u, },     /* PLL_CLKGEN_PLL  */
-	{ 500000.0f, 60.0f, 10u },      /* PLL_SEC_CLKGEN_PLL_PLL  */
+	{ 500000.0f,  60.0f, 10u,},     /* PLL_CLKGEN_PLL  */
+	{ 500000.0f,  60.0f, 10u },     /* PLL_SEC_CLKGEN_PLL_PLL  */
+	{ 1000000.0f, 60.0f, 10u },     /* PLL_ETHERNET_PLL  */
+	{ 1000000.0f, 60.0f, 10u },     /* PLL_SEC_ETHERNET_PLL  */
 };
 
 
@@ -43,7 +49,9 @@ CpCalcs_t cpCalcValue[NUM_REF_CLOCK_SETTINGS] = {
 const PeakTempCoef_t PLL_PeakTempCoef[PLL_LAST_PLL] = {
 	/* LBvcoint      LBvcoSlope     HBvcoint    HBvcoSlope*/
 	{ 1.089f, -0.00054f, 1.065f, -0.00101f },               /* Clock Gen PLL */
-	{ 1.089f, -0.00054f, 1.065f, -0.00101f }                /* Secondary Clock Gen PLL */
+	{ 1.089f, -0.00054f, 1.065f, -0.00101f },               /* Secondary Clock Gen PLL */
+	{ 0.805f, -0.00081f, 0.805f, -0.00081f },               /* Ethernet PLL */
+	{ 0.805f, -0.00081f, 0.805f, -0.00081f }                /* Secondary Ethernet PLL */
 };
 
 
@@ -52,6 +60,8 @@ const TempCoef_t PLL_TempComp[PLL_LAST_PLL] = {
 	/* idacSlpLow     idacIntLow   idacSlpHigh     idacIntHigh   */
 	{ -14.60f, 2470.0f, -14.60f, 2470.0f },         /* Clock Gen PLL */
 	{ -14.60f, 2470.0f, -14.60f, 2470.0f },         /* Secondary CLock Gen PLL */
+	{ -14.60f, 2470.0f, -14.60f, 2470.0f },         /* Ethernet PLL */
+	{ -14.60f, 2470.0f, -14.60f, 2470.0f },         /* Secondary Ethernet PLL */
 };
 
 
@@ -86,19 +96,35 @@ static const VcoCoef_t PLL_TempCompClkPLL_1[VCO_COEFF_CLK_TABLE_SIZE] = {
 	{ 13901u,			 MAX_VCO_FREQ_CLK_MHZ,		       9u,  2u, 3u, 1u }
 };
 
+static const VcoCoef_t PLL_TempCompEthernetPLL_1[VCO_COEFF_ETHERNET_TABLE_SIZE] = {
+/*   f1,                               f2,                                    VCOVARTC  VARACTOR  VCOPKT  LDO_PTATCTRL */
+	{ 1u,				      MIN_VCO_FREQ_ETHERNET_MHZ,		 8u,  3u, 3u, 1u },
+	{ 8126u,			      11300u,					 8u,  3u, 3u, 1u },
+	{ 11301u,			      11400u,					 8u,  3u, 3u, 1u },
+	{ 11401u,			      11430u,					 8u,  3u, 3u, 1u },
+	{ 11431u,			      (VCO_HB_THRESHOLD_FREQ_ETHERNET_MHZ - 1u), 8u,  3u, 3u, 1u },
+	{ VCO_HB_THRESHOLD_FREQ_ETHERNET_MHZ, 16000u,					 11u, 3u, 3u, 1u },
+	{ 16001u,			      16130u,					 11u, 3u, 3u, 1u },
+	{ 16131u,			      16170u,					 11u, 3u, 3u, 1u },
+	{ 16171u,			      MAX_VCO_FREQ_ETHERNET_MHZ,		 9u,  3u, 3u, 1u }
+};
+
 /* These are the threshold freq in kHz where low to highband VCO is selected
  * NOTE: The order MUST match the order def'n in PllSelName_e */
 const uint32_t pllBandSelectFreq_kHz[PLL_LAST_PLL] =
 {
 	VCO_HB_THRESHOLD_FREQ_CLK_KHZ,          /* Clock Gen PLL */
 	VCO_HB_THRESHOLD_FREQ_CLK_KHZ,          /* Secondary Clock Gen PLL */
+	VCO_HB_THRESHOLD_FREQ_ETHERNET_KHZ,     /* Ethernet PLL */
+	VCO_HB_THRESHOLD_FREQ_ETHERNET_KHZ,     /* Secondary Ethernet PLL */
 };
 
 
 
-uint8_t clkRefClkDiv[NUM_CLK_SPD] = { 1, 1 };
+uint8_t clkRefClkDiv[NUM_CLK_SPD] = { 1, 1, 1, 1 };
 
 static const VcoCoef_t *pPLL_TempCompClkPLL = NULL;
+static const VcoCoef_t *pPLL_TempCompEthernetPLL = NULL;
 
 uint8_t clkLoDiv[NUM_CLK_SPD] = { 8, 12 };
 
@@ -186,10 +212,20 @@ static void pll_init_loop_filter(PllSelName_e pll, PllSynthParam_t *pPll)
  */
 static void pll_calc_loop_filter_coef(PllSelName_e pll, PllSynthParam_t *pPll)
 {
-	if (pPll->vcoFreqHz == CLK_VCO_7G_HZ)
+	switch (pPll->vcoFreqHz) {
+	case CLK_VCO_7G_HZ:
 		pPll->LoopFilter = LoopFilterSettings[CLK_7G];
-	else
+		break;
+	case CLK_VCO_10G_HZ:
+		pPll->LoopFilter = LoopFilterSettings[CLK_10G];
+		break;
+	case CLK_VCO_11G_HZ:
 		pPll->LoopFilter = LoopFilterSettings[CLK_11G];
+		break;
+	case CLK_VCO_25G_HZ:
+		pPll->LoopFilter = LoopFilterSettings[CLK_25G];
+		break;
+	}
 
 #ifdef DUMP_PLL_SETTINGS_BL2
 	INFO("LF %d\n", pPll->LoopFilter.C1);
@@ -242,8 +278,11 @@ static void pll_init_pll_tables(PllSelName_e pll)
 	pll_init_loop_filter(pll, gpPllStateSettings[pll]);
 
 	/* Set up pointers to VCO coefficients */
-	pPLL_TempCompClkPLL = PLL_TempCompClkPLL_1;
+	if (pll == PLL_CLKGEN_PLL || pll == PLL_SEC_CLKGEN_PLL)
+		pPLL_TempCompClkPLL = PLL_TempCompClkPLL_1;
 
+	if (pll == PLL_ETHERNET_PLL || pll == PLL_SEC_ETHERNET_PLL)
+		pPLL_TempCompEthernetPLL = PLL_TempCompEthernetPLL_1;
 #ifdef DUMP_PLL_SETTINGS_BL2
 	INFO("Table Init\n");
 #endif
@@ -401,7 +440,7 @@ static void pll_power_ctrl(PllSelName_e pll, uint8_t state, const uint64_t base,
 	WRITE_PLL_MEM_MAP_LO_PHSYNC_QUAD2_KILLCLK(base, POWERUP);
 	WRITE_PLL_MEM_MAP_LO_PHSYNC_LEAF_KILLCLK(base, POWERUP);
 
-	/* Only for serdes but wont hurt other plls This needs to be the LAST reset*/
+	/* Only for Ethernet but wont hurt other plls This needs to be the LAST reset*/
 	WRITE_PLL_MEM_MAP_SERDES_PLL_ODIV_RB(base, 0u);
 	WRITE_PLL_MEM_MAP_SERDES_PLL_ODIV_RB(base, 1u);
 #ifdef DUMP_PLL_SETTINGS_BL2
@@ -523,6 +562,8 @@ static int pll_sdm_ref_clk_init(PllSelName_e pll, const uint64_t base, const uin
 {
 	int rtnVal = NO_ERROR;
 
+	if (pll == PLL_ETHERNET_PLL || pll == PLL_SEC_ETHERNET_PLL)
+		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDE_RATIO(base, clkRefClkDiv[pll]);
 	gpPllStateSettings[pll]->refClkDiv = READ_PLL_MEM_MAP_REF_CLK_DIVIDE_RATIO(base);
 	gpPllStateSettings[pll]->refClock = refclk_freq;
 	gpPllStateSettings[pll]->iBleedEnb = 1;
@@ -635,6 +676,16 @@ static int pll_update_temp_comp(PllSelName_e pll, const uint64_t base)
 	case PLL_SEC_CLKGEN_PLL:
 	{
 		Sensor = ADI_DEVTEMP_SEC_CLKPLL;
+		break;
+	}
+	case PLL_ETHERNET_PLL:
+	{
+		Sensor = ADI_DEVTEMP_ETHERNET_CLKPLL;
+		break;
+	}
+	case PLL_SEC_ETHERNET_PLL:
+	{
+		Sensor = ADI_DEVTEMP_SEC_ETHERNET_CLKPLL;
 		break;
 	}
 
@@ -1320,7 +1371,6 @@ static int pll_run_cp_cal(PllSelName_e pll, const uint64_t base)
 	cpCalClkDiv = pll_calculate_cp_params(pll);
 	WRITE_PLL_MEM_MAP_CP_CAL_CLK_DIVIDE(base, (uint8_t)cpCalClkDiv);
 
-
 	/* Start the charge pump cal. */
 	WRITE_PLL_MEM_MAP_CP_CAL_EN(base, ENABLE);
 	WRITE_PLL_MEM_MAP_CP_CAL_INIT(base, ENABLE);
@@ -1664,8 +1714,15 @@ static int pll_compute_synth_parameters(PllSelName_e pll, const uint64_t base)
 	/* Save the band select freq */
 	gpPllStateSettings[pll]->vcoBandSelFreq_kHz = pllBandSelectFreq_kHz[pll];
 
+#if 0
+	/* NOTE:
+	 *  The following set to zero breaks pll_program_ethernet_pll_clock.
+	 *  It seems that the zeroed out value is not being used to do what the comment indicates.
+	 *  We remove the line to fix pll_program_ethernet_pll_clock
+	 */
 	/* Set freq to 0 indicating that a re-programming is going to occure */
 	gpPllStateSettings[pll]->PllFrequency = 0ul;
+#endif
 	gpPllStateSettings[pll]->rootDivHw = (uint8_t)(gpPllStateSettings[pll]->rootDiv - 1u);
 
 	pll_calc_int_frac_words(pll, base);
@@ -1703,8 +1760,11 @@ static void pll_update_vco_tables(PllSelName_e pll)
 	uint32_t tabSize = 0u;
 	const VcoCoef_t *pVcoTable = NULL;
 
+	if (pll == PLL_CLKGEN_PLL || pll == PLL_SEC_CLKGEN_PLL)
+		pVcoTable = pPLL_TempCompClkPLL;
 
-	pVcoTable = pPLL_TempCompClkPLL;
+	if (pll == PLL_ETHERNET_PLL || pll == PLL_SEC_ETHERNET_PLL)
+		pVcoTable = pPLL_TempCompEthernetPLL;
 	tabSize = VCO_COEFF_CLK_TABLE_SIZE;
 
 	/* Scan the table for a match */
@@ -1755,23 +1815,37 @@ extern int pll_clk_power_init(const uint64_t base, const uint64_t dig_core_base,
 
 	gpPllStateSettings[pll] = &pllStateSettings[pll];
 
-	assert((freq == CLK_VCO_7G_HZ) || (freq == CLK_VCO_11G_HZ));
-	if (freq == CLK_VCO_7G_HZ)
+	assert((freq == CLK_VCO_7G_HZ) || (freq == CLK_VCO_10G_HZ) || (freq == CLK_VCO_11G_HZ) || (freq == CLK_VCO_25G_HZ));
+	switch (freq) {
+	case CLK_VCO_7G_HZ:
 		gpPllStateSettings[pll]->rootDiv = 8U;
-	else
-		gpPllStateSettings[pll]->rootDiv = 12U;
-
-	if (clkLoDiv[CLK_7G] == gpPllStateSettings[pll]->rootDiv) {
 		gpPllStateSettings[pll]->clkFreqIndex = CLK_7G;
 		gpPllStateSettings[pll]->PllFrequency = CLK_VCO_7G_HZ;
 		gpPllStateSettings[pll]->PllFrequency_kHz = CLK_VCO_7G_KHZ;
 		gpPllStateSettings[pll]->vcoFreqHz = CLK_VCO_7G_HZ;
-	} else if (clkLoDiv[CLK_11G] == gpPllStateSettings[pll]->rootDiv) {
+		break;
+	case CLK_VCO_10G_HZ:
+		gpPllStateSettings[pll]->rootDiv = 1U;
+		gpPllStateSettings[pll]->clkFreqIndex = CLK_10G;
+		gpPllStateSettings[pll]->PllFrequency = CLK_VCO_10G_HZ;
+		gpPllStateSettings[pll]->PllFrequency_kHz = CLK_VCO_10G_KHZ;
+		gpPllStateSettings[pll]->vcoFreqHz = CLK_VCO_10G_HZ;
+		break;
+	case CLK_VCO_11G_HZ:
+		gpPllStateSettings[pll]->rootDiv = 12U;
 		gpPllStateSettings[pll]->clkFreqIndex = CLK_11G;
 		gpPllStateSettings[pll]->PllFrequency = CLK_VCO_11G_HZ;
 		gpPllStateSettings[pll]->PllFrequency_kHz = CLK_VCO_11G_KHZ;
 		gpPllStateSettings[pll]->vcoFreqHz = CLK_VCO_11G_HZ;
-	} else {
+		break;
+	case CLK_VCO_25G_HZ:
+		gpPllStateSettings[pll]->rootDiv = 1U;
+		gpPllStateSettings[pll]->clkFreqIndex = CLK_25G;
+		gpPllStateSettings[pll]->PllFrequency = CLK_VCO_25G_HZ;
+		gpPllStateSettings[pll]->PllFrequency_kHz = CLK_VCO_25G_KHZ;
+		gpPllStateSettings[pll]->vcoFreqHz = CLK_VCO_25G_HZ;
+		break;
+	default:
 		rtnVal = ERROR_PLL_INVALID_FREQ_ERROR;
 	}
 
@@ -1784,7 +1858,6 @@ extern int pll_clk_power_init(const uint64_t base, const uint64_t dig_core_base,
 	if (rtnVal == NO_ERROR) {
 		/* Not sure what buffers need to be enabled, check with Jason Fan */
 
-
 		/* Powerup the PLL */
 		pll_power_ctrl(pll, POWERUP, base, dig_core_base);
 	}
@@ -1795,9 +1868,85 @@ extern int pll_clk_power_init(const uint64_t base, const uint64_t dig_core_base,
 
 	return rtnVal;
 }
+
+/* Static helper function for programming the CLKPLL on the primary and secondary */
+static int pll_program_clk_pll_clock(const uint64_t base, PllSelName_e pll)
+{
+	int rtnVal = NO_ERROR;
+
+	rtnVal = pll_compute_synth_parameters(pll, base);
+
+	/* Write the PLL settings to H/W */
+	if (rtnVal == NO_ERROR) {
+		pll_init_loop_filter(pll, gpPllStateSettings[pll]);
+		pll_calc_loop_filter_coef(pll, gpPllStateSettings[pll]);
+
+		rtnVal = pll_write_synth_parameters(pll, base);
+	}
+
+	/* Calibrate and wait for lock */
+	if (rtnVal == NO_ERROR)
+		rtnVal = pll_rf_synth_cal_and_locked(pll, base);
+
+	return rtnVal;
+}
+
+/* Static helper function for programming the Ethernet PLL */
+static int pll_program_ethernet_pll_clock(const uint64_t base, PllSelName_e pll)
+{
+	int rtnVal = NO_ERROR;
+
+	if (rtnVal == NO_ERROR) {
+		/* Release kill clock */
+		/* TODO: Remove this*/
+		/* WRITE_PLL_MEM_MAP_SERDES_PLL_ODIV_KILLCLK(base, POWERUP)*/
+
+		/* Kill SerDes /33 divider output */
+		WRITE_PLL_MEM_MAP_SERDES_PLL_ODIV_KILLCLK(base, POWERDOWN);
+
+		/* Kill buffer from ethernet PLL to SerDes TLINE */
+		WRITE_PLL_MEM_MAP_CLKGEN_SERDES_OUTBUF_PD(base, POWERDOWN);
+	}
+
+	if (rtnVal == NO_ERROR) {
+		rtnVal = pll_compute_synth_parameters(pll, base);
+
+		/* Write the PLL settings to H/W */
+		if (rtnVal == NO_ERROR) {
+			/* Program the Serdes dividers A and B */
+			if (gpPllStateSettings[pll]->PllFrequency == CLK_VCO_10G_HZ)
+				WRITE_PLL_MEM_MAP_ROOT_CLKDIV_DIV2(base, 0x1);
+			else
+				WRITE_PLL_MEM_MAP_ROOT_CLKDIV_DIV2(base, 0x0);
+
+			WRITE_PLL_MEM_MAP_ROOT_CLKDIV_FUND(base, 0x0);
+			WRITE_PLL_MEM_MAP_SERDES_PLL_ODIV_KILLCLK(base, 0x0);
+			WRITE_PLL_MEM_MAP_SERDES_PLL_ODIV(base, 0x1);
+
+			WRITE_PLL_MEM_MAP_LOGEN_SPARES(base, 0x20);
+			WRITE_PLL_MEM_MAP_CLKGEN_SPARES(base, 0x2);
+
+			pll_init_loop_filter(pll, gpPllStateSettings[pll]);
+			pll_calc_loop_filter_coef(pll, gpPllStateSettings[pll]);
+
+			rtnVal = pll_write_synth_parameters(pll, base);
+		}
+
+		/* Calibrate and wait for lock */
+		if (rtnVal == NO_ERROR)
+			rtnVal = pll_rf_synth_cal_and_locked(pll, base);
+		if (rtnVal == NO_ERROR) {
+			WRITE_PLL_MEM_MAP_SERDES_PLL_ODIV_KILLCLK(base, POWERUP);
+			WRITE_PLL_MEM_MAP_CLKGEN_SERDES_OUTBUF_PD(base, POWERUP);
+		}
+	}
+
+	return rtnVal;
+}
+
 /**
  *******************************************************************************
- * Function: pll_program_clock_pll_clock
+ * Function: pll_program
  * @brief
  *
  * @details: Main API for controlling the System clock.
@@ -1815,23 +1964,15 @@ extern int pll_clk_power_init(const uint64_t base, const uint64_t dig_core_base,
  *
  *******************************************************************************
  */
-extern int pll_program_clock_pll_clock(const uint64_t base, PllSelName_e pll)
+extern int pll_program(const uint64_t base, PllSelName_e pll)
 {
 	int rtnVal = NO_ERROR;
 
-	rtnVal = pll_compute_synth_parameters(pll, base);
+	if (pll == PLL_CLKGEN_PLL || pll == PLL_SEC_CLKGEN_PLL)
+		rtnVal = pll_program_clk_pll_clock(base, pll);
 
-	/* Write the PLL settings to H/W */
-	if (rtnVal == NO_ERROR) {
-		pll_init_loop_filter(pll, gpPllStateSettings[pll]);
-		pll_calc_loop_filter_coef(pll, gpPllStateSettings[pll]);
-
-		rtnVal = pll_write_synth_parameters(pll, base);
-	}
-
-	/* Calibrate and wait for lock */
-	if (rtnVal == NO_ERROR)
-		rtnVal = pll_rf_synth_cal_and_locked(pll, base);
+	if (pll == PLL_ETHERNET_PLL || pll == PLL_SEC_ETHERNET_PLL)
+		rtnVal = pll_program_ethernet_pll_clock(base, pll);
 
 	return rtnVal;
 }

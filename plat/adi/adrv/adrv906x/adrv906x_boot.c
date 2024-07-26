@@ -134,7 +134,10 @@ plat_boot_device_t plat_get_boot_device(void)
 {
 	uint32_t boot_mode;
 
-	boot_mode = (mmio_read_32(A55_SYS_CFG + BOOT_INFO) & BOOT_MODE_MASK);
+	/* Only the bottom two bits of the Boot Mode section of the BOOT_INFO register are used for the boot device.
+	 *  Shifting the mask so that the TE bootrom bypass pin (or the other pin) doesn't cause the boot_mode to always be invalid if it is active.
+	 */
+	boot_mode = (mmio_read_32(A55_SYS_CFG + BOOT_INFO) & (BOOT_MODE_MASK >> 2));
 
 	if (BOOT_MODE_QSPI == boot_mode)
 		return PLAT_BOOT_DEVICE_QSPI_0;

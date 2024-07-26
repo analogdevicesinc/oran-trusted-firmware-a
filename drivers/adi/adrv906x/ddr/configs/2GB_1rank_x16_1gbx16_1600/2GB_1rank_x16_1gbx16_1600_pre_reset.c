@@ -42,7 +42,7 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_1600_pre_reset_init(uintptr_t base_addr_ctr
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_HWLPCTL, 0x00330002);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_RFSHCTL0, 0x00210000);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_RFSHCTL1, 0x002b0050);
-	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_RFSHCTL3, 0x00000001);
+	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_RFSHCTL3, 0x00000000);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_RFSHTMG, 0x006100dc);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCFG0, 0x013f7f10);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCFG1, 0x00001fa2);
@@ -148,7 +148,7 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_1600_pre_reset_init(uintptr_t base_addr_ctr
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_FREQ1_FREQ1_DFITMG3, 0x00000008);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_FREQ1_FREQ1_ODTCFG, 0x0600060c);
 	for (i = 0; i < ADI_DDR_CTRL_TIMEOUT; i++) {
-		if (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_RFSHCTL3) == 0x00000001)
+		if (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_RFSHCTL3) == 0x00000000)
 			break;
 		else
 			mdelay(1);

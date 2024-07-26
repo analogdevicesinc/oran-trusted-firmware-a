@@ -60,3 +60,10 @@ void sp805_ping(uintptr_t base)
 	sp805_write_wdog_intclr(base, 1U);
 	sp805_write_wdog_lock(base, 0U);
 }
+
+void sp805_start_interrupt_only(uintptr_t base, unsigned int ticks)
+{
+	sp805_write_wdog_load(base, ticks);
+	sp805_write_wdog_ctrl(base, SP805_CTR_INTEN);
+	sp805_write_wdog_lock(base, 0U);
+}

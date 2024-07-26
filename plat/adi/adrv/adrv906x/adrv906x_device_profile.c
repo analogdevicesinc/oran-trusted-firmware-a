@@ -6,6 +6,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <stdio.h>
 
 #include <arch.h>
 #include <arch_helpers.h>
@@ -16,11 +17,16 @@
 #include <lib/mmio.h>
 
 #include <adrv906x_def.h>
+#include <adrv906x_board.h>
 #include <adrv906x_device_profile.h>
 #include "adrv906x_dev_prof_addrs.h"
+#include <adrv906x_otp.h>
 #include <platform_def.h>
 #include <plat/common/platform.h>
 #include <plat_device_profile.h>
+#include <plat_trusted_boot.h>
+
+#define FW_CONFIG_SECURE_LIST_MAX_SIZE          FW_CONFIG_PIN_NUM_MAX   /* pin list is larger than periph list */
 
 static int fw_config_valid = 0;
 static void *fw_config_dtb = 0;
@@ -35,10 +41,19 @@ static uint32_t sec_dram_logical_size = 0U;
 static uint32_t sec_dram_remap_size = 0U;
 static uint32_t clk_pll_freq_setting = 0U;
 static uint32_t orx_adc_freq_setting = 0U;
+static uint32_t eth_pll_freq_setting = 0U;
 static bool dual_tile_enabled = false;
 static bool secondary_linux_enabled = false;
 static bool ddr_primary_ecc_enabled = true;
 static bool ddr_secondary_ecc_enabled = true;
+static bool dual_tile_no_c2c_primary = false;
+static bool dual_tile_no_c2c_secondary = false;
+static uint8_t eth_mac[ETH_LEN] = { 0 };
+static const char zero_mac[ETH_LEN] = { 0 };
+static uint8_t mac_otp[ETH_LEN] = { 0 };
+static bool bootrom_bypass_enabled = false;
+static bool secure_peripherals[FW_CONFIG_PERIPH_NUM_MAX];
+static bool secure_pins[FW_CONFIG_PIN_NUM_MAX];
 
 static int get_fw_config_node(const char *node_name)
 {
@@ -62,9 +77,9 @@ static int get_bootcfg_node(const char *node_name)
 	if (bootcfg_valid == 1) {
 		node = fdt_path_offset(bootcfg_dtb, node_name);
 		if (node < 0)
-			WARN("Unable to access node '%s' in bootcfg\n", node_name);
+			INFO("Unable to access node '%s' in bootcfg\n", node_name);
 	} else {
-		WARN("Trying to access uninitialized or corrupt bootcfg\n");
+		INFO("Trying to access uninitialized or corrupt bootcfg\n");
 	}
 
 	return node;
@@ -101,6 +116,41 @@ static int get_fw_config_uint32(const char *node_name, const char *param_name, u
 	return err;
 }
 
+static int set_fw_config_uint32(const char *node_name, const char *param_name, uint32_t value)
+{
+	int err = -1;
+	int node = -1;
+
+	fw_config_dtb = (void *)(uintptr_t)FW_CONFIG_BASE;
+
+	err = fdt_open_into(fw_config_dtb, fw_config_dtb, FW_CONFIG_MAX_SIZE);
+	if (err < 0) {
+		WARN("Failed to open FW_CONFIG\n");
+		return err;
+	}
+	fw_config_valid = 1;
+
+	node = get_fw_config_node(node_name);
+	if (node < 0)
+		return node;
+
+	err = fdt_setprop_u32(fw_config_dtb, node, param_name, value);
+	if (err < 0) {
+		WARN("Failed to set param '%s' in node '%s' in FW_CONFIG\n", param_name, node_name);
+		return err;
+	}
+
+	err = fdt_pack(fw_config_dtb);
+	if (err < 0) {
+		WARN("Failed to pack FW_CONFIG");
+		return err;
+	}
+
+	clean_dcache_range((uintptr_t)fw_config_dtb, fdt_blob_size(fw_config_dtb));
+
+	return err;
+}
+
 static int get_bootcfg_uint32(const char *node_name, const char *param_name, uint32_t *value)
 {
 	int err = -1;
@@ -111,6 +161,22 @@ static int get_bootcfg_uint32(const char *node_name, const char *param_name, uin
 		return node;
 
 	err = fdt_read_uint32(bootcfg_dtb, node, param_name, value);
+	if (err < 0)
+		WARN("Unable to read param '%s' from node '%s' in bootcfg\n", param_name, node_name);
+
+	return err;
+}
+
+static int get_bootcfg_mac(const char *node_name, const char *param_name, uint8_t *value)
+{
+	int err = -1;
+	int node = -1;
+
+	node = get_bootcfg_node(node_name);
+	if (node < 0)
+		return node;
+
+	err = fdtw_read_bytes(bootcfg_dtb, node, param_name, ETH_LEN, value);
 	if (err < 0)
 		WARN("Unable to read param '%s' from node '%s' in bootcfg\n", param_name, node_name);
 
@@ -189,13 +255,90 @@ static size_t plat_get_ddr_ecc_region_size(size_t size)
 }
 
 /* Returns the maximum combined DDR size for Adrv906x */
-static size_t plat_get_max_combined_ddr_size()
+static size_t plat_get_max_combined_ddr_size(void)
 {
 	return MAX_DDR_SIZE; /* 3 GB */
 }
 
+static int plat_get_secure_partitioning(void)
+{
+	int node;
+	int ret;
+	int len;
+	int i;
+	uint32_t sec_list[FW_CONFIG_SECURE_LIST_MAX_SIZE];
+	char *periph_name[FW_CONFIG_PERIPH_NUM_MAX] = {
+		"UART1", "UART3", "UART4",
+		"SPI0",	 "SPI1",  "SPI2", "SPI3",  "SPI4", "SPI5",
+		"I2C0",	 "I2C1",  "I2C2", "I2C3",  "I2C4", "I2C5","I2C6", "I2C7"
+	};
+
+	/* Default value: non-secure peripherals and pins */
+	memset(secure_peripherals, 0, sizeof(secure_peripherals));
+	memset(secure_pins, 0, sizeof(secure_pins));
+
+	node = get_fw_config_node("/secure-partitioning");
+	if (node < 0)
+		/* No secure partitioning present in FW_COFNIG */
+		return 0;
+
+	/* Get secure peripheral list */
+	if (NULL != fdt_getprop(fw_config_dtb, node, "peripherals", &len)) {
+		/* Length in 32-bit unit */
+		len = NCELLS(len);
+
+		if ((unsigned int)len > FW_CONFIG_PERIPH_NUM_MAX) {
+			ERROR("Secure peripherals list in FW_CONFIG is too large (%d > %d)\n", len, FW_CONFIG_PERIPH_NUM_MAX);
+			return -1;
+		}
+
+		ret = fdt_read_uint32_array(fw_config_dtb, node, "peripherals", len, sec_list);
+		if (ret == 0) {
+			for (i = 0; i < len; i++) {
+				uint32_t index = sec_list[i];
+
+				if (index >= FW_CONFIG_PERIPH_NUM_MAX) {
+					ERROR("FW_CONFIG: invalid peripheral id (%d)\n", index);
+					return -1;
+				} else {
+					INFO("FW_CONFIG: peripheral %s is secure\n", periph_name[index]);
+					secure_peripherals[index] = true;
+				}
+			}
+		}
+	}
+
+	/* Get secure pins list */
+	if (NULL != fdt_getprop(fw_config_dtb, node, "pins", &len)) {
+		/* Length in 32-bit unit */
+		len = NCELLS(len);
+
+		if ((unsigned int)len > FW_CONFIG_PIN_NUM_MAX) {
+			ERROR("Secure pins list in FW_CONFIG is too large (%d > %d)\n", len, FW_CONFIG_PIN_NUM_MAX);
+			return -1;
+		}
+
+		ret = fdt_read_uint32_array(fw_config_dtb, node, "pins", len, sec_list);
+		if (ret == 0) {
+			for (i = 0; i < len; i++) {
+				uint32_t index = sec_list[i];
+
+				if (index >= FW_CONFIG_PIN_NUM_MAX) {
+					ERROR("FW_CONFIG: invalid pin id (%d)\n", index);
+					return -1;
+				} else {
+					INFO("FW_CONFIG: pin %d is secure\n", index);
+					secure_pins[index] = true;
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
 /* Check for common mistakes in the FW device tree before trying to calculate DDR sizes */
-static void plat_check_ddr_fw_configs_values()
+static void plat_check_ddr_fw_configs_values(void)
 {
 	/* Primary DDR size bigger than the max size even if secondary tile isn't present */
 	if (dram_logical_size > MAX_DDR_SIZE) {
@@ -215,6 +358,55 @@ static void plat_check_ddr_fw_configs_values()
 	}
 }
 
+static int get_mac_from_otp(uint32_t index, uint8_t **mac)
+{
+	int err = -1;
+
+	if (index >= MAX_NUM_MACS)
+		return -1;
+	if (plat_is_bootrom_bypass_enabled()) {
+		/* Calling function expects return to be 0 unless OTP read fails, so we need to return a 0, but set the mac address to 0 to get the intended result of no MAC address from OTP */
+		*mac = (uint8_t *)zero_mac;
+		return 0;
+	} else {
+		err = adrv906x_otp_get_mac_addr(OTP_BASE, index + 1, mac_otp);
+
+		if (err == 0)
+			*mac = mac_otp;
+
+		return err;
+	}
+}
+
+static int get_mac_from_bootcfg(int index, uint8_t **mac)
+{
+	int err = -1;
+	char mac_name[MAX_NODE_NAME_LENGTH];
+
+	if (index >= MAX_NUM_MACS)
+		return -1;
+
+	if (bootcfg_valid == 1) {
+		snprintf(mac_name, sizeof(mac_name), "/emac%d", index + 1);
+		err = get_bootcfg_mac(mac_name, "mac-address", eth_mac);
+	}
+
+	/* MAC in bootcfg is optional. Return zero mac if it is not found */
+	if (err == 0)
+		*mac = eth_mac;
+	else
+		*mac = (uint8_t *)zero_mac;
+
+	return 0;
+}
+
+static int is_zero_mac(uint8_t *mac)
+{
+	return (mac[0] == 0) && (mac[1] == 0) && (mac[2] == 0) && \
+	       (mac[3] == 0) && (mac[4] == 0) && (mac[5] == 0);
+}
+
+
 void plat_dprof_init(void)
 {
 	int err = -1;
@@ -232,7 +424,6 @@ void plat_dprof_init(void)
 		ERROR("Invalid FW_CONFIG detected %d\n", err);
 		plat_error_handler(err);
 	}
-
 	fw_config_valid = 1;
 
 	err = fdt_check_header(bootcfg_dtb);
@@ -304,6 +495,12 @@ void plat_dprof_init(void)
 			NOTICE("Using orx-adc frequency value %d from FW_CONFIG\n", orx_adc_freq_setting);
 	}
 
+	err = get_fw_config_uint32("/eth-pll", "freq", &eth_pll_freq_setting);
+	if (err != 0)
+		handle_fw_config_read_error("Ethernet PLL freq setting", err);
+	else
+		NOTICE("Using eth-pll frequency value %d from FW_CONFIG\n", eth_pll_freq_setting);
+
 	err = fw_config_prop_exists("/", "dual_tile", &dual_tile_enabled);
 	if (err != 0)
 		handle_fw_config_read_error("Dual tile configuration", err);
@@ -311,6 +508,10 @@ void plat_dprof_init(void)
 	err = fw_config_prop_exists("/", "secondary_linux_enabled", &secondary_linux_enabled);
 	if (err != 0)
 		handle_fw_config_read_error("Secondary linux configuration", err);
+
+	err = fw_config_prop_exists("/", "bootrom_bypass", &bootrom_bypass_enabled);
+	if (err != 0)
+		handle_fw_config_read_error("Bootrom bypass configuration", err);
 
 	if (dual_tile_enabled) {
 		/* Get Secondary DRAM size */
@@ -331,7 +532,33 @@ void plat_dprof_init(void)
 			handle_fw_config_read_error("Secondary DDR ECC enabled", err);
 	}
 
+	err = fw_config_prop_exists("/", "dual-tile-no-c2c-primary", &dual_tile_no_c2c_primary);
+	if (err != 0)
+		handle_fw_config_read_error("Dual no C2C Primary configuration", err);
+	err = fw_config_prop_exists("/", "dual-tile-no-c2c-secondary", &dual_tile_no_c2c_secondary);
+	if (err != 0)
+		handle_fw_config_read_error("Dual no C2C Secondary configuration", err);
+
+	if (dual_tile_enabled && (dual_tile_no_c2c_primary || dual_tile_no_c2c_secondary)) {
+		ERROR("Invalid configuration: dual-tile and dual-no-c2c cannot be enabled simultaneously");
+		plat_error_handler(-EINVAL);
+	}
+
 	plat_check_ddr_fw_configs_values();
+
+	err = plat_get_secure_partitioning();
+	if (err != 0)
+		handle_fw_config_read_error("Secure partitioning configuration", err);
+}
+
+bool plat_get_dual_tile_no_c2c_enabled(void)
+{
+	return dual_tile_no_c2c_primary || dual_tile_no_c2c_secondary;
+}
+
+bool plat_get_dual_tile_no_c2c_primary(void)
+{
+	return dual_tile_no_c2c_primary;
 }
 
 bool plat_get_dual_tile_enabled(void)
@@ -381,7 +608,7 @@ bool plat_get_secondary_linux_enabled(void)
  * is no physical secondary DDR present, any memory carved out of the primary's physical DDR for the secondary is also subtracted.
  * The remaining size is whatever is left for the primary to utilize and is returned for memory allocation in the later bootloaders.
  */
-size_t plat_get_dram_size()
+size_t plat_get_dram_size(void)
 {
 	static bool warned = false;
 	size_t sec_region_size;
@@ -392,7 +619,12 @@ size_t plat_get_dram_size()
 		sec_region_size = plat_get_secondary_dram_size();
 	else
 		sec_region_size = 0;
-	ecc_size = plat_get_ddr_ecc_region_size(plat_get_dram_physical_size());
+
+	if (plat_is_primary_ecc_enabled())
+		ecc_size = plat_get_ddr_ecc_region_size(plat_get_dram_physical_size());
+	else
+		ecc_size = 0;
+
 	size = MIN((plat_get_dram_physical_size() - ecc_size), plat_get_primary_ddr_remap_window_size());
 	size = MIN((size_t)dram_logical_size, size);
 	if (size < sec_region_size) {
@@ -412,8 +644,11 @@ size_t plat_get_dram_size()
 }
 
 /* Returns the actual physical size of the DDR on the primary tile */
-size_t plat_get_dram_physical_size()
+size_t plat_get_dram_physical_size(void)
 {
+	if (plat_is_sysc())
+		if (dram_size > 0x20000000)
+			return 0x20000000;
 	return (size_t)dram_size;
 }
 
@@ -422,7 +657,7 @@ size_t plat_get_dram_physical_size()
  * the specified logical size from the device tree, and the DDR remapping size from the device tree. In the event that there is no
  * physical DRAM present on the secondary tile, this function returns the specified logical size from the device tree.
  */
-size_t plat_get_secondary_dram_size()
+size_t plat_get_secondary_dram_size(void)
 {
 	static bool warned = false;
 	size_t phys_size;
@@ -431,7 +666,10 @@ size_t plat_get_secondary_dram_size()
 
 	if (plat_is_secondary_phys_dram_present()) {
 		phys_size = plat_get_secondary_dram_physical_size();
-		ecc_size = plat_get_ddr_ecc_region_size(phys_size);
+		if (plat_is_secondary_ecc_enabled())
+			ecc_size = plat_get_ddr_ecc_region_size(plat_get_secondary_dram_physical_size());
+		else
+			ecc_size = 0;
 		size = MIN(phys_size - ecc_size, plat_get_secondary_ddr_remap_window_size());
 		size = MIN((size_t)sec_dram_logical_size, size);
 		if (size < sec_dram_logical_size) {
@@ -447,8 +685,11 @@ size_t plat_get_secondary_dram_size()
 }
 
 /* Returns the physical size of the secondary's DDR as specified by the device tree.*/
-size_t plat_get_secondary_dram_physical_size()
+size_t plat_get_secondary_dram_physical_size(void)
 {
+	if (plat_is_sysc())
+		if (sec_dram_size > 0x20000000)
+			return 0x20000000;
 	return (size_t)sec_dram_size;
 }
 
@@ -457,7 +698,7 @@ size_t plat_get_secondary_dram_physical_size()
  * amount of the DDR address space mapped to the primary, giving the rest of it to the secondary. This is to handle cases where the DDR
  * size falls between two of the allowed remapping sizes, in which case it would be rounded up to the next closest size, and therefore
  * the secondary base should be based on this rounded size instead of the actual size. */
-size_t plat_get_secondary_dram_base()
+size_t plat_get_secondary_dram_base(void)
 {
 	if (!plat_is_secondary_phys_dram_present())
 		return (size_t)(DRAM_BASE + plat_get_dram_size());
@@ -468,13 +709,13 @@ size_t plat_get_secondary_dram_base()
 /* Returns the size of the primary's DDR remap window, which is portioned in 0.5 GB increments. All of the remap space is
  * given to either the primary or the secondary. If the secondary size is 1GB, then the NIC will give the remaining 2GB address space to the
  * primary, even Linux is unaware of the extra space or does not need it. */
-size_t plat_get_primary_ddr_remap_window_size()
+size_t plat_get_primary_ddr_remap_window_size(void)
 {
 	return (size_t)plat_get_max_combined_ddr_size() - plat_get_secondary_ddr_remap_window_size();
 }
 
 /* Returns the size of the secondary's DDR remap window, which is portioned in 0.5 GB increments.*/
-size_t plat_get_secondary_ddr_remap_window_size()
+size_t plat_get_secondary_ddr_remap_window_size(void)
 {
 	if (plat_is_secondary_phys_dram_present())
 		return (size_t)sec_dram_remap_size;
@@ -484,7 +725,7 @@ size_t plat_get_secondary_ddr_remap_window_size()
 
 /* Returns true if there is a physical DRAM chip assigned to the secondary tile. A physical size of 0 specified
  * for the secondary tile is assumed to mean that a physical DDR will not be present for the secondary tile.*/
-bool plat_is_secondary_phys_dram_present()
+bool plat_is_secondary_phys_dram_present(void)
 {
 	return plat_get_secondary_dram_physical_size() != 0;
 }
@@ -495,16 +736,36 @@ bool plat_check_ddr_size(void)
 	return (plat_get_dram_size() + plat_get_secondary_dram_size()) > MAX_DDR_SIZE;
 }
 
-/* Returns true if ECC on primary DDR is enabled */
-bool plat_is_primary_ecc_enabled()
+bool *plat_get_secure_peripherals(uint32_t *len)
 {
-	return ddr_primary_ecc_enabled;
+	*len = FW_CONFIG_PERIPH_NUM_MAX;
+	return secure_peripherals;
+}
+
+bool *plat_get_secure_pins(uint32_t *len)
+{
+	*len = FW_CONFIG_PIN_NUM_MAX;
+	return secure_pins;
+}
+
+/* Returns true if ECC on primary DDR is enabled */
+bool plat_is_primary_ecc_enabled(void)
+{
+	/* ECC must be disabled on Protium and Palladium */
+	if (plat_is_protium() || plat_is_palladium())
+		return false;
+	else
+		return ddr_primary_ecc_enabled;
 }
 
 /* Returns true if ECC on secondary DDR is enabled*/
-bool plat_is_secondary_ecc_enabled()
+bool plat_is_secondary_ecc_enabled(void)
 {
-	return ddr_secondary_ecc_enabled;
+	/* ECC must be disabled on Protium and Palladium */
+	if (plat_is_protium() || plat_is_palladium())
+		return false;
+	else
+		return ddr_secondary_ecc_enabled;
 }
 
 /*
@@ -520,6 +781,18 @@ uint32_t plat_get_clkpll_freq_setting(void)
 }
 
 /*
+ * Returns the Ethernet PLL frequency setting
+ * 0 for 10GHz, 1 for 25GHz
+ */
+uint32_t plat_get_ethpll_freq_setting(void)
+{
+	assert(eth_pll_freq_setting <= 1U);
+	if (eth_pll_freq_setting > 1U)
+		eth_pll_freq_setting = 0U;
+	return (uint32_t)eth_pll_freq_setting;
+}
+
+/*
  * Returns the ORX ADC frequency setting
  * 0 - 3932 MHz ( 7GHz / 2)
  * 1 - 7864 MHz ( 7GHz / 1)
@@ -532,6 +805,71 @@ uint32_t plat_get_orx_adc_freq_setting(void)
 	if (orx_adc_freq_setting > 3U)
 		orx_adc_freq_setting = 0U;
 	return (uint32_t)orx_adc_freq_setting;
+}
+
+#pragma weak plat_board_get_mac
+int plat_board_get_mac(uint32_t index, uint8_t **mac)
+{
+	*mac = (uint8_t *)zero_mac;
+
+	return 0;
+}
+
+int plat_get_num_macs(void)
+{
+	return dual_tile_enabled ? MAX_NUM_MACS : (MAX_NUM_MACS / 2);
+}
+
+/*
+ * Returns the mac address assigned to the indexed interface:
+ * 0 - Primary 1G interface
+ * 1 - Primary first 10/25G interface
+ * 2 - Primary second 10/25G interface
+ * 3 - Secondary 1G interface
+ * 4 - Secondary first 10/25G interface
+ * 5 - Secondary second 10/25G interface
+ *
+ * If the mac address is not configured anywhere, it returns 00:00:00:00:00:00
+ */
+int plat_get_mac_setting(uint32_t index, uint8_t **mac)
+{
+	int err;
+	uint8_t *aux;
+
+	err = plat_board_get_mac(index, mac);
+	if ((err == 0) && (!is_zero_mac(*mac))) {
+		aux = *mac;
+		INFO("Mac %d read from custom hook: %02x:%02x:%02x:%02x:%02x:%02x\n",
+		     index + 1, aux[0], aux[1], aux[2], aux[3], aux[4], aux[5]);
+		return 0;
+	}
+
+	if (err == 0) {
+		err = get_mac_from_bootcfg(index, mac);
+		if ((err == 0) && (!is_zero_mac(*mac))) {
+			aux = *mac;
+			INFO("Mac %d read from bootcfg: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			     index + 1, aux[0], aux[1], aux[2], aux[3], aux[4], aux[5]);
+			return 0;
+		}
+	}
+
+	if (err == 0) {
+		err = get_mac_from_otp(index, mac);
+		if ((err == 0) && (!is_zero_mac(*mac))) {
+			aux = *mac;
+			INFO("Mac %d read from otp: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			     index + 1, aux[0], aux[1], aux[2], aux[3], aux[4], aux[5]);
+			return 0;
+		}
+	}
+
+	if (err == 0)
+		if (is_zero_mac(*mac))
+			/* MAC not found */
+			err = ENOATTR;
+
+	return err;
 }
 
 /*
@@ -559,6 +897,46 @@ void plat_set_boot_slot(const char *slot)
 	err = set_fw_config_string("/boot-slot", "slot", slot);
 	if (err != 0)
 		handle_fw_config_write_error("boot slot", err);
+}
+
+/*
+ * Returns the nv counter for anti-rollback
+ */
+uint32_t plat_get_fw_config_rollback_ctr(void)
+{
+	uint32_t data;
+	int err = -1;
+
+	err = get_fw_config_uint32("/anti-rollback", "nv-ctr", &data);
+	if (err != 0)
+		handle_fw_config_read_error("nv counter", err);
+
+	return data;
+}
+
+/*
+ * Sets the nv counter from the FIP certificate for anti-rollback
+ */
+void plat_set_fw_config_rollback_ctr(void)
+{
+	int err = -1;
+
+	err = set_fw_config_uint32("/anti-rollback", "nv-ctr", plat_get_cert_nv_ctr());
+	if (err != 0)
+		handle_fw_config_write_error("nv counter", err);
+}
+
+/*
+ * Get the anti-rollback enforcement counter from OTP
+ */
+int plat_get_enforcement_counter(unsigned int *nv_ctr)
+{
+	return adrv906x_otp_get_rollback_counter(OTP_BASE, nv_ctr);
+}
+
+bool plat_is_bootrom_bypass_enabled(void)
+{
+	return bootrom_bypass_enabled;
 }
 
 unsigned int plat_get_syscnt_freq2(void)
@@ -591,6 +969,16 @@ bool plat_is_palladium(void)
 	uint8_t reg = mmio_read_8(PLATFORM_ID_REG);
 
 	if (((reg & PLATFORM_ID_MASK) >> PLATFORM_ID_SHIFT) == 0x2U)
+		return true;
+	else
+		return false;
+}
+
+bool plat_is_hardware(void)
+{
+	uint8_t reg = mmio_read_8(PLATFORM_ID_REG);
+
+	if (((reg & PLATFORM_ID_MASK) >> PLATFORM_ID_SHIFT) == 0x0U)
 		return true;
 	else
 		return false;

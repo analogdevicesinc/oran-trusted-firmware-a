@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2022, Analog Devices Incorporated - All Rights Reserved
+ * Copyright(c) 2024, Analog Devices Incorporated - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -37,6 +37,7 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_3200_phy_init(uintptr_t base_addr_ctrl, uin
 	ddr_error_t result = ERROR_DDR_NO_ERROR;
 	ddr_pstate_data_t pstate = { DDR_PSTATE0, 1600 };
 	int train_2d = 0;
+
 
 /*##############################################################
 *
@@ -164,12 +165,12 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_3200_phy_init(uintptr_t base_addr_ctrl, uin
 	mmio_write_32((DDRPHYA_MASTER0_P0_MASTER0_P0_DLLGAINCTL_P0 + base_addr_phy), 0x61);
 /* Pstate=0, Memclk=1600MHz, Programming ProcOdtTimeCtl to 0x7*/
 	mmio_write_32((DDRPHYA_MASTER0_P0_MASTER0_P0_PROCODTTIMECTL_P0 + base_addr_phy), 0x7);
-/* Pstate=0, Memclk=1600MHz, Programming TxOdtDrvStren::ODTStrenP to 0x0*/
+/* Pstate=0, Memclk=1600MHz, Programming TxOdtDrvStren::ODTStrenP to 0x18*/
 /* Pstate=0, Memclk=1600MHz, Programming TxOdtDrvStren::ODTStrenN to 0x0*/
-	mmio_write_32((DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXODTDRVSTREN_B0_P0 + base_addr_phy), 0x0);
-	mmio_write_32((DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXODTDRVSTREN_B1_P0 + base_addr_phy), 0x0);
-	mmio_write_32((DDRPHYA_DBYTE1_P0_DBYTE1_P0_TXODTDRVSTREN_B0_P0 + base_addr_phy), 0x0);
-	mmio_write_32((DDRPHYA_DBYTE1_P0_DBYTE1_P0_TXODTDRVSTREN_B1_P0 + base_addr_phy), 0x0);
+	mmio_write_32((DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXODTDRVSTREN_B0_P0 + base_addr_phy), 0x18);
+	mmio_write_32((DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXODTDRVSTREN_B1_P0 + base_addr_phy), 0x18);
+	mmio_write_32((DDRPHYA_DBYTE1_P0_DBYTE1_P0_TXODTDRVSTREN_B0_P0 + base_addr_phy), 0x18);
+	mmio_write_32((DDRPHYA_DBYTE1_P0_DBYTE1_P0_TXODTDRVSTREN_B1_P0 + base_addr_phy), 0x18);
 /* Pstate=0, Memclk=1600MHz, Programming TxImpedanceCtrl1::DrvStrenFSDqP to 0x18*/
 /* Pstate=0, Memclk=1600MHz, Programming TxImpedanceCtrl1::DrvStrenFSDqN to 0x18*/
 	mmio_write_32((DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXIMPEDANCECTRL1_B0_P0 + base_addr_phy), 0x618);
@@ -217,8 +218,8 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_3200_phy_init(uintptr_t base_addr_ctrl, uin
 /* Pstate=0, Memclk=1600MHz, Programming TristateModeCA::DisDynAdrTri_p0 to 0x1*/
 /* Pstate=0, Memclk=1600MHz, Programming TristateModeCA::DDR2TMode_p0 to 0x0*/
 	mmio_write_32((DDRPHYA_MASTER0_P0_MASTER0_P0_TRISTATEMODECA_P0 + base_addr_phy), 0x5);
-/* Programming DfiFreqXlat*/
-/* Protium and Palladium models use pll workaround clock source, configure to use pll workaround clock frequency */
+/* Programming DfiFreqXlat* */
+	/* Protium and Palladium models use pll workaround clock source, configure to use pll workaround clock frequency */
 	if (plat_is_protium() || plat_is_palladium())
 		mmio_write_32((DDRPHYA_MASTER0_P0_MASTER0_P0_DFIFREQXLAT0 + base_addr_phy), 0x6666);
 	else
@@ -242,8 +243,11 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_3200_phy_init(uintptr_t base_addr_ctrl, uin
 
 /* Run pre-training command; */
 	if (result == ERROR_DDR_NO_ERROR)
-		result = phy_run_pre_training(base_addr_ctrl);
+		result = phy_run_pre_training(base_addr_ctrl, base_addr_phy, pstate.freq);
 
+// 1.	Enable access to the internal CSRs by setting the MicroContMuxSel CSR to 0.
+//       This allows the memory controller unrestricted access to the configuration CSRs.
+	mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICROCONTMUXSEL + base_addr_phy), 0x0);
 
 /* Load the Imem */
 	if (result == ERROR_DDR_NO_ERROR)
@@ -254,6 +258,9 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_3200_phy_init(uintptr_t base_addr_ctrl, uin
 	if (result == ERROR_DDR_NO_ERROR)
 		result = phy_set_dfi_clock(base_addr_ctrl, base_addr_phy, base_addr_clk, pstate);
 
+// 1.	Enable access to the internal CSRs by setting the MicroContMuxSel CSR to 0.
+//       This allows the memory controller unrestricted access to the configuration CSRs.
+	mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICROCONTMUXSEL + base_addr_phy), 0x0);
 
 /* Load the Dmem */
 	if (result == ERROR_DDR_NO_ERROR)
@@ -281,11 +288,17 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_3200_phy_init(uintptr_t base_addr_ctrl, uin
 	if (result == ERROR_DDR_NO_ERROR)
 		result = phy_set_dfi_clock(base_addr_ctrl, base_addr_phy, base_addr_clk, pstate);
 
+// 1.	Enable access to the internal CSRs by setting the MicroContMuxSel CSR to 0.
+//       This allows the memory controller unrestricted access to the configuration CSRs.
+	mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICROCONTMUXSEL + base_addr_phy), 0x0);
 
 /* Load the Imem */
 	if (result == ERROR_DDR_NO_ERROR)
 		result = phy_load_imem(train_2d, DDR_PSTATE0, base_addr_phy);
 
+// 1.	Enable access to the internal CSRs by setting the MicroContMuxSel CSR to 0.
+//       This allows the memory controller unrestricted access to the configuration CSRs.
+	mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICROCONTMUXSEL + base_addr_phy), 0x0);
 
 /* Load the Dmem */
 	if (result == ERROR_DDR_NO_ERROR)

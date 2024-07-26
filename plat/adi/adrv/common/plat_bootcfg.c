@@ -6,11 +6,13 @@
 
 #include <arm_acle.h>
 #include <common/debug.h>
+#include <common/fdt_wrappers.h>
 #include <common/tf_crc32.h>
 #include <libfdt.h>
 
 #include <plat_io_storage.h>
 #include <platform_def.h>
+#include <plat_bootcfg.h>
 
 #define PLAT_BOOTCFG_VERSION 0x00000001
 #define DT_BLOCK_SIZE   4
@@ -41,6 +43,10 @@ int plat_bootcfg_init(void)
 	size_t length_read;
 	void *bootcfg_dtb;
 	io_block_spec_t *spec;
+	uint32_t factory_reset = 0;
+	int node = -1;
+	size_t length = 0;
+	size_t zero[sizeof(bootcfg)] = { 0 };
 
 	/* Check that boot_dev_handle was set up to point to the handle */
 	if (boot_dev_handle == (uintptr_t)NULL)
@@ -129,6 +135,42 @@ int plat_bootcfg_init(void)
 		ERROR("Bootcfg device tree format is invalid\n");
 		return -1;
 	}
+
+	/* Check for factory-reset node and get status */
+	node = fdt_path_offset(bootcfg_dtb, "/factory-reset");
+	if (node >= 0) {
+		err = fdt_read_uint32(bootcfg_dtb, node, "status", &factory_reset);
+		if (err < 0)
+			WARN("Unable to read param '%s' from node '%s' in bootcfg\n", "status", "/factory-reset");
+	}
+
+	/* If factory reset is enabled, 1, clear the bootcfg partition */
+	if (factory_reset == 1) {
+		NOTICE("Factory reset requested. Clearing bootcfg partition.\n");
+
+		result = io_open(boot_dev_handle, (uintptr_t)spec, &handle);
+		if (result == 0) {
+			result = io_write(handle, (uintptr_t)&zero, sizeof(bootcfg), &length);
+			if (result != 0) {
+				ERROR("Failure to clear bootcfg partition\n");
+				io_close(handle);
+				return -1;
+			}
+			io_close(handle);
+
+			NOTICE("Bootcfg partition cleared\n");
+		} else {
+			ERROR("Failure to clear bootcfg partition\n");
+			return -1;
+		}
+		return -1;
+	}
+
+	if (err == 0)
+		/* Flush the image to main memory so that it can be executed
+		 * later by any CPU, regardless of cache and MMU state.
+		 */
+		flush_dcache_range(BOOTCFG_BASE, BOOTCFG_MAX_SIZE);
 
 	return 0;
 }

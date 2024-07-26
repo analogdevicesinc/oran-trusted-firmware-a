@@ -207,6 +207,22 @@ uint32_t plat_pintmux_lane_to_irq(unsigned int lane, uintptr_t base_addr)
 }
 
 /**
+ * This function returns true if pad_pin_num is secure_world access only
+ */
+static bool plat_pin_is_secure(uint32_t pad_pin_num)
+{
+	uint32_t len;
+	bool *pin_list = plat_get_secure_pins(&len);
+
+	if (pad_pin_num < len)
+		return pin_list[pad_pin_num];
+
+	WARN("PINTMUX service: Pin number %d does not exist", pad_pin_num);
+
+	return false;
+}
+
+/**
  * Map the requested pin to any of the available GPIO-to-GIC-sync lanes
  * (thereby hooking that pin up to the interrupt controller).
  * There are 32 total available lanes -- some of them are routed to the
@@ -218,8 +234,9 @@ uint32_t plat_pintmux_lane_to_irq(unsigned int lane, uintptr_t base_addr)
  * GPIO has been connected).
  * On failure, this returns an error from plat_pintmux.h
  * The function fails if the pin does not exist, if the pin is already routed
- * to the GIC, the transmuter is unable to diable the interrupt before the mapping,
- * or if the pool of lanes is already full.
+ * to the GIC, the transmuter is unable to disable the interrupt before the
+ * mapping, the pool of lanes is already full, or a request from the non-secure
+ * world is done for a secure pin.
  */
 int plat_secure_pintmux_map(unsigned int gpio, bool is_secure, bool pos_mask, uintptr_t base_addr)
 {
@@ -237,6 +254,11 @@ int plat_secure_pintmux_map(unsigned int gpio, bool is_secure, bool pos_mask, ui
 	pin = plat_pinctrl_gpio_to_pin(gpio, is_secure, pinctrl_addr);
 	if (pin < 0) {
 		WARN("PINTMUX service: Pin %u does not exist or is not configured as GPIO_%s_%u.\n", gpio, is_secure ? "S" : "NS", gpio);
+		return ERR_LOOKUP_FAIL;
+	}
+
+	if (!is_secure && plat_pin_is_secure(pin)) {
+		WARN("PINTMUX service: Request rejected (request coming from non-secure world for a secure pin (%d)\n", gpio);
 		return ERR_LOOKUP_FAIL;
 	}
 

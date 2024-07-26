@@ -16,6 +16,7 @@
 
 #include <adrv906x_clkrst_def.h>
 #include <adrv906x_device_profile.h>
+#include <adrv906x_dual.h>
 #include <adrv906x_mmap.h>
 #include <adrv906x_secondary_image.h>
 #include <platform_def.h>
@@ -110,17 +111,24 @@ bool adrv906x_c2c_enable_high_speed(void)
 	return adi_c2cc_enable_high_speed(&adrv906x_c2c_training_params);
 }
 
-void adrv906x_release_secondary_reset()
+void adrv906x_release_secondary_reset(void)
 {
+	/* Hardware must be held in reset for at least 50ns for it to take effect.
+	 * Explicitly do this here in software and do not rely on on-chip or on-board pull downs.
+	 */
+	mmio_write_32(CLK_CTL + SECONDARY_CTRL_OFFSET, 0x0);
+	mdelay(1);
+
+	/* Release reset */
 	mmio_write_32(CLK_CTL + SECONDARY_CTRL_OFFSET, 0x1);
 }
 
-void adrv906x_activate_secondary_reset()
+void adrv906x_activate_secondary_reset(void)
 {
 	mmio_write_32(CLK_CTL + SECONDARY_CTRL_OFFSET, 0x0);
 }
 
-int adrv906x_enable_secondary_tile()
+int adrv906x_enable_secondary_tile(void)
 {
 	uint64_t timeout;
 

@@ -14,7 +14,7 @@
 
 	/* Used by OP-TEE */
 	secure-chosen {
-		stdout-path = &uart1;
+		stdout-path = &uart0;
 	};
 };
 
@@ -37,6 +37,8 @@
 
 &mmc1 {
 	status = "okay";
+	/* BRINGUP TODO: Set this back to 50MHz */
+	max-frequency = <12500000>;
 };
 
 &qspi0 {
@@ -45,8 +47,8 @@
 	flash: mt25q@0 {
 		compatible = "jedec,spi-nor";
 		spi-max-frequency = <50000000>;
-		reg = <1>;
-		spi-tx-bus-width = <1>;
+		reg = <0>;
+		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
 
 		#include "denali-nor-flash-part.dtsi"
@@ -56,6 +58,10 @@
 &emac0 {
 	status = "disabled";
 	phy-mode = "rgmii";
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
 	/* Disabled for now to allow for Protium testing */
 	/*phy-handle = <&phy0>;*/
 

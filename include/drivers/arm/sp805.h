@@ -33,6 +33,7 @@ void sp805_start(uintptr_t base, unsigned int ticks);
 void sp805_stop(uintptr_t base);
 void sp805_refresh(uintptr_t base, unsigned int ticks);
 void sp805_ping(uintptr_t base);
+void sp805_start_interrupt_only(uintptr_t base, unsigned int ticks);
 
 #endif /* __ASSEMBLER__ */
 

@@ -33,10 +33,14 @@
  */
 static bool plat_pin_is_secure(uint32_t pad_pin_num)
 {
-	/*
-	 * TODO: All pins are currently treated as non-secure, this needs to be updated
-	 *       to perform a lookup to determine if incoming pin # is secure/non-secure
-	 */
+	uint32_t len;
+	bool *pin_list = plat_get_secure_pins(&len);
+
+	if (pad_pin_num < len)
+		return pin_list[pad_pin_num];
+
+	WARN("PINCTRL: Pin number %d does not exist", pad_pin_num);
+
 	return false;
 }
 
@@ -110,7 +114,7 @@ bool plat_secure_pinctrl_set(const plat_pinctrl_settings settings, const bool se
 	 * Prohibit normal world from configuring secure IO
 	 */
 	if (!secure_access && plat_pin_is_secure(settings.pin_pad)) {
-		WARN("PINCTRL: Normal World request to configure secure Pin # = %x \n", settings.pin_pad);
+		WARN("PINCTRL: Normal World request to configure secure Pin # = %d \n", settings.pin_pad);
 		return false;
 	}
 	/*

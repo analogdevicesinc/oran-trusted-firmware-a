@@ -38,18 +38,6 @@ const plat_pinctrl_settings qspi_pin_grp[] = {
 const size_t qspi_pin_grp_members = sizeof(qspi_pin_grp) / sizeof(plat_pinctrl_settings);
 
 /*
- * SPI MASTER0 PINCTRL GROUP, used with external sysref ZL30732 on CS0
- */
-const plat_pinctrl_settings spimaster0_pin_grp[] = {
-	/*pin#                        SRCMUX              DS                ST     P_EN   PU     extendedOptions*/
-	{ SPI_MASTER0_MISO_DIO_PIN,   0 /*Dedicated IO*/, CMOS_PAD_DS_0100, true,  false, false, ADI_ADRV906X_UNUSED_CONFIG },
-	{ SPI_MASTER0_MOSI_DIO_PIN,   0 /*Dedicated IO*/, CMOS_PAD_DS_0100, false, false, false, ADI_ADRV906X_UNUSED_CONFIG },
-	{ SPI_MASTER0_CLK_DIO_PIN,    0 /*Dedicated IO*/, CMOS_PAD_DS_0100, false, false, false, ADI_ADRV906X_UNUSED_CONFIG },
-	{ SPI_MASTER0_SELB_0_DIO_PIN, 0 /*Dedicated IO*/, CMOS_PAD_DS_0100, false, false, false, ADI_ADRV906X_UNUSED_CONFIG }
-};
-const size_t spimaster0_pin_grp_members = sizeof(spimaster0_pin_grp) / sizeof(plat_pinctrl_settings);
-
-/*
  * UART0 PINCTRL GROUP
  */
 const plat_pinctrl_settings uart0_pin_grp[] = {
@@ -101,19 +89,3 @@ const plat_pinctrl_settings secondary_to_primary_pin_grp[] = {
 	{ GPINT_INTERRUPT_INPUT_SECONDARY_TO_PRIMARY_PIN, GPINT_INTERRUPT_INPUT_SECONDARY_TO_PRIMARY_MUX_SEL, CMOS_PAD_DS_0100, true, true, false, ADI_ADRV906X_UNUSED_CONFIG }
 };
 const size_t secondary_to_primary_pin_grp_members = sizeof(secondary_to_primary_pin_grp) / sizeof(plat_pinctrl_settings);
-
-/*
- * DEBUG_GPIOS PINCTRL GROUP
- */
-const plat_pinctrl_settings debug_gpios_pin_grp[] = {
-	/*	pin#			SRCMUX				DS					ST		P_EN	PU		extendedOptions*/
-	{ GPIO_DEBUG_0_PIN, GPIO_DEBUG_0_MUX_SEL, CMOS_PAD_DS_0100, false, false, false, ADI_ADRV906X_UNUSED_CONFIG },
-	{ GPIO_DEBUG_1_PIN, GPIO_DEBUG_1_MUX_SEL, CMOS_PAD_DS_0100, false, false, false, ADI_ADRV906X_UNUSED_CONFIG },
-	{ GPIO_DEBUG_2_PIN, GPIO_DEBUG_2_MUX_SEL, CMOS_PAD_DS_0100, false, false, false, ADI_ADRV906X_UNUSED_CONFIG },
-	{ GPIO_DEBUG_3_PIN, GPIO_DEBUG_3_MUX_SEL, CMOS_PAD_DS_0100, false, false, false, ADI_ADRV906X_UNUSED_CONFIG },
-	{ GPIO_DEBUG_4_PIN, GPIO_DEBUG_4_MUX_SEL, CMOS_PAD_DS_0100, false, false, false, ADI_ADRV906X_UNUSED_CONFIG },
-	{ GPIO_DEBUG_5_PIN, GPIO_DEBUG_5_MUX_SEL, CMOS_PAD_DS_0100, false, false, false, ADI_ADRV906X_UNUSED_CONFIG },
-	{ GPIO_DEBUG_6_PIN, GPIO_DEBUG_6_MUX_SEL, CMOS_PAD_DS_0100, false, false, false, ADI_ADRV906X_UNUSED_CONFIG },
-	{ GPIO_DEBUG_7_PIN, GPIO_DEBUG_7_MUX_SEL, CMOS_PAD_DS_0100, false, false, false, ADI_ADRV906X_UNUSED_CONFIG }
-};
-const size_t debug_gpios_pin_grp_members = sizeof(debug_gpios_pin_grp) / sizeof(plat_pinctrl_settings);

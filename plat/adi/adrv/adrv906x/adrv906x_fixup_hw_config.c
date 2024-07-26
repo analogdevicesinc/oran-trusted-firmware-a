@@ -13,9 +13,7 @@
 #include <adrv906x_device_profile.h>
 #include <platform_def.h>
 #include <plat_boot.h>
-#include <plat_device_profile.h>
-
-#define MAX_NODE_NAME_LENGTH     30
+#include <plat_fixup_hw_config.h>
 
 static int plat_set_prop_okay(void *hw_config_dtb, char *node_name)
 {
@@ -66,6 +64,10 @@ static void plat_enable_sysc_devices(void *hw_config_dtb)
 	plat_set_prop_okay(hw_config_dtb, node_name);
 	snprintf(node_name, MAX_NODE_NAME_LENGTH, "/mmc@%x", 0);
 	plat_set_prop_okay(hw_config_dtb, node_name);
+
+	/* Disable non-SystemC 1G ethernet */
+	snprintf(node_name, MAX_NODE_NAME_LENGTH, "/ethernet@%x", EMAC_1G_BASE);
+	plat_set_prop_disabled(hw_config_dtb, node_name);
 }
 
 int plat_fixup_hw_config(void *hw_config_dtb)

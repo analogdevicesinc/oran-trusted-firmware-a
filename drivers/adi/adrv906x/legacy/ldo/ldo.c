@@ -13,9 +13,12 @@
 
 #include <common/debug.h>
 #include <drivers/delay_timer.h>
+#include <drivers/adi/adrv906x/pll.h>
 #include "ldo.h"
 
 
+extern void ldo_powerdown(const uint64_t base);
+extern int ldo_powerup(const uint64_t base, PllSelName_e pll);
 static int ldo_shunt_powerup(const uint64_t base, Ldo_ShuntLdoMask_e shuntLdos);
 
 
@@ -80,7 +83,7 @@ extern void ldo_powerdown(const uint64_t base)
  *
  *******************************************************************************
  */
-extern int ldo_powerup(const uint64_t base)
+extern int ldo_powerup(const uint64_t base, PllSelName_e pll)
 {
 	int rtnVal = NO_ERROR;
 
@@ -96,7 +99,7 @@ extern int ldo_powerup(const uint64_t base)
 	}
 
 	WRITE_PLL_MEM_MAP_VCO_LDO_PD(base, POWERUP);
-	udelay(LDO_DEFAULT_PWR_UP_DEL);
+	udelay(LDO_DEFAULT_PWR_UP_SETTLE);
 
 	WRITE_PLL_MEM_MAP_VCO_LDO_OUTPUT_PD(base, POWERUP);
 	udelay(LDO_DEFAULT_ENB_OUT_DEL);
@@ -151,8 +154,9 @@ extern int ldo_powerup(const uint64_t base)
 		/* Need some time to let the LDO to settle */
 		udelay(LDO_DEFAULT_PWR_UP_SETTLE);
 
-		/* Powerup the shunt LDOs */
-		rtnVal = ldo_shunt_powerup(base, LDO_ALL_SHUNT);
+		/* Powerup the shunt LDOs (except for Ethernet PLL)*/
+		if (pll != PLL_ETHERNET_PLL && pll != PLL_SEC_ETHERNET_PLL)
+			rtnVal = ldo_shunt_powerup(base, LDO_ALL_SHUNT);
 	}
 	return rtnVal;
 }

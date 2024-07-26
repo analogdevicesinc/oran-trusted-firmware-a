@@ -10,16 +10,18 @@
 
 #include <common/debug.h>
 #include <drivers/adi/adrv906x/clk.h>
+#include <drivers/adi/adrv906x/adrv906x_gpio.h>
 #include <drivers/adi/adi_spu.h>
 
 #include <platform_def.h>
-#include <plat_interrupts.h>
+#include <plat_setup.h>
 
 #include <adrv906x_board.h>
 #include <adrv906x_device_profile.h>
 #include <adrv906x_el3_int_handlers.h>
 #include <adrv906x_gpint.h>
 #include <adrv906x_mmap.h>
+#include <adrv906x_otp.h>
 #include <adrv906x_tsgen.h>
 #include <adrv906x_spu_def.h>
 
@@ -66,6 +68,12 @@ void plat_bl31_setup(void)
 	int err = 0;
 	struct gpint_settings settings;
 
+	/* Init OTP driver */
+	adrv906x_otp_init_driver();
+
+	/* Initialize GPIO framework */
+	adrv906x_gpio_init(GPIO_MODE_SECURE_BASE);
+
 	/* the eMMC and/or SD were granted special MSEC permissions during BL2,
 	 * but we should remove those permissions before BL31.
 	 */
@@ -79,21 +87,15 @@ void plat_bl31_setup(void)
 	settings.lower_word_route_nonsecure = 0;
 	adrv906x_gpint_set_routing(&settings);
 
-	/* Set up handlers for each of the GPINTs */
-	plat_request_intr_type_el3(IRQ_GP_INTERRUPT_SYNC_0, primary_gpint_handler);
-	plat_request_intr_type_el3(IRQ_GP_INTERRUPT_SYNC_1, primary_gpint_handler);
-
 	if (plat_get_dual_tile_enabled()) {
 		err = plat_setup_secondary_mmap(true);
-		if (err == 0) {
-			/* Set up handlers for each of the GPINTs received on the Primary from the Secondary */
-			plat_request_intr_type_el3(IRQ_C2C_OUT_HW_INTERRUPT_197, secondary_gpint_handler);
-			plat_request_intr_type_el3(IRQ_GPINT_INTERRUPT_SECONDARY_TO_PRIMARY, secondary_gpint_handler);
-		} else {
+		if (err != 0) {
 			ERROR("Failed to setup mmap for secondary tile %d\n", err);
 			plat_set_dual_tile_disabled();
 		}
 	}
+
+	plat_assign_interrupt_handlers();
 
 	/* Do board-specific setup */
 	plat_board_bl31_setup();

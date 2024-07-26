@@ -32,6 +32,7 @@
 #include <plat_bootctrl.h>
 #include <plat_device_profile.h>
 #include <plat_err.h>
+#include <plat_io_storage.h>
 
 #define PLAT_MMC_BUFFER_SIZE    (MMC_BLOCK_SIZE)
 
@@ -289,7 +290,16 @@ void plat_io_setup(bool use_bootctrl, uint32_t reset_cause, uint32_t reset_cause
 
 	default:
 		ERROR("Unsupported boot device\n");
-		plat_halt_handler();
+		/* Manage error depending on the boot stage:
+		 *  This plat_io_setup function is called from both BL1 and BL2.
+		 *  BL1 calls plat_io_setup with "use_bootctrl" enabled, and BL2 with "use_bootctrl" disabled:
+		 */
+		if (use_bootctrl)
+			/* BL1: we do not have a proper reset/recovery mechanism, so we just call system_reset */
+			plat_board_system_reset();
+		else
+			/* BL2: we already have the reset/recovery mechanishm, so we can run the error_handler */
+			plat_error_handler(-EINVAL);
 		break;
 	}
 

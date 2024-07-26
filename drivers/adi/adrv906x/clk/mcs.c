@@ -189,6 +189,55 @@ static void setup_clkpll_core_digital_clock_root_divider(enum adrv906x_tile_type
 	WRITE_PLL_MEM_MAP_CLKGEN_SPARES(baseaddr, value);
 }
 
+/* Performs pre initialization before programming a CLK PLL */
+static int clk_initialize_clk_pll_programming(bool secondary, uint8_t clkpll_freq_setting, uint8_t orx_adc_freq_setting)
+{
+	enum adrv906x_tile_type tile;
+
+	/* Get configuration */
+	mcs_clk_dividers_config_t *config = getconfig(clkpll_freq_setting, orx_adc_freq_setting);
+
+	if (!config) {
+		ERROR("MCS: no available configuration for clkpll freq %d and orx_adc freq %d.\n", clkpll_freq_setting, orx_adc_freq_setting);
+		return -1;
+	}
+
+	if (secondary)
+		tile = ADRV906X_SECONDARY_TILE;
+	else
+		tile = ADRV906X_PRIMARY_TILE;
+
+	/* 1 */
+	enable_scaled_devclk_to_all_plls(tile);
+
+	/* 2 */
+	setup_reference_clock_divider_for_clkpll(tile, config);
+
+	/* 3 */
+	setup_clkpll_core_digital_clock_root_divider(tile, config);
+	return 0;
+}
+
+/* Preforms pre initialization before programming an Ethernet PLL*/
+static int clk_initialize_eth_pll_programming(bool secondary)
+{
+	uintptr_t a55_sys_cfg_base_addr;
+
+	if (secondary)
+		a55_sys_cfg_base_addr = SEC_A55_SYS_CFG;
+	else
+		a55_sys_cfg_base_addr = A55_SYS_CFG;
+
+	WRITE_A55_SYS_CFG_CLOCK_CONTROLS_ETH_DEVCLK_CONTROLS_ETH_DEVCLK_DIV_KILLCLK(a55_sys_cfg_base_addr, 0x0);
+	WRITE_A55_SYS_CFG_CLOCK_CONTROLS_ETH_DEVCLK_CONTROLS_ETH_DEVCLK_DIV_MCS_RST(a55_sys_cfg_base_addr, 0x0);
+	WRITE_A55_SYS_CFG_CLOCK_CONTROLS_ETH_DEVCLK_CONTROLS_ETH_DEVCLK_DIV_RB(a55_sys_cfg_base_addr, 0x1);
+	WRITE_A55_SYS_CFG_CLOCK_CONTROLS_ETH_DEVCLK_CONTROLS_ETH_DEVCLK_DIV_FUND(a55_sys_cfg_base_addr, 0x1);
+	WRITE_A55_SYS_CFG_CLOCK_CONTROLS_ETH_DEVCLK_CONTROLS_ETH_DEVCLK_DIV_RATIO(a55_sys_cfg_base_addr, 0x0);
+	WRITE_A55_SYS_CFG_CLOCK_CONTROLS_ETH_DEVCLK_CONTROLS_ETH_DEVICE_CLK_BUFFER_ENABLE(a55_sys_cfg_base_addr, 0x1);
+	WRITE_A55_SYS_CFG_CLOCK_CONTROLS_ETH_REFCLK_CONTROLS_ETH_PLL_REFPATH_PD(a55_sys_cfg_base_addr, 0x0);
+	return 0;
+}
+
 static int clock_pll_initialization(enum adrv906x_tile_type tile, mcs_clk_dividers_config_t *config)
 {
 	uintptr_t clkpll_baseaddr;
@@ -228,7 +277,7 @@ static int clock_pll_initialization(enum adrv906x_tile_type tile, mcs_clk_divide
 	 * Program the ClkPll.
 	 */
 
-	err = pll_program_clock_pll_clock(clkpll_baseaddr, pll_sel_name);
+	err = pll_program(clkpll_baseaddr, pll_sel_name);
 	if (err) {
 		ERROR("Pll program = %d\n", err);
 		return -ENXIO;
@@ -585,7 +634,9 @@ bool clk_do_mcs(bool dual_tile, uint8_t clkpll_freq_setting, uint8_t orx_adc_fre
 		set_mcs_enable(ADRV906X_SECONDARY_TILE);
 
 	/* 14.a.ii */
-	plat_sysref_enable();
+	bool sysref_enable_completed = false;
+	if (plat_sysref_enable())
+		sysref_enable_completed = true;
 
 	/* Wait for MCS completion */
 	bool mcs1_completed = false;
@@ -613,7 +664,9 @@ bool clk_do_mcs(bool dual_tile, uint8_t clkpll_freq_setting, uint8_t orx_adc_fre
 		clear_mcs_enable(ADRV906X_SECONDARY_TILE);
 
 	/* 14.a.vi */
-	plat_sysref_disable();
+	bool sysref_disable_completed = false;
+	if (plat_sysref_disable(mcs1_completed))
+		sysref_disable_completed = true;
 
 	/* 15 */
 	post_switch_devclk_clock(ADRV906X_PRIMARY_TILE);
@@ -621,6 +674,16 @@ bool clk_do_mcs(bool dual_tile, uint8_t clkpll_freq_setting, uint8_t orx_adc_fre
 		post_switch_devclk_clock(ADRV906X_SECONDARY_TILE);
 
 	/* Note: Show result here just after recovering the UART with the post switch function */
+
+	if (!sysref_enable_completed) {
+		ERROR("MCS: Sysref enable failed\n");
+		return false;
+	}
+	if (!sysref_disable_completed) {
+		ERROR("MCS: Sysref disable failed\n");
+		return false;
+	}
+
 	if ((mcs1_completed && !dual_tile) ||
 	    (mcs1_completed && dual_tile && mcs2_completed)) {
 		INFO("Multi-Chip Sync completed \n");
@@ -646,4 +709,16 @@ bool clk_verify_config(uint8_t clkpll_freq_setting, uint8_t orx_adc_freq_setting
 		if ((clk_divs_cfg[i].clkpll_freq_setting == clkpll_freq_setting) && (clk_divs_cfg[i].orx_adc_freq_setting == orx_adc_freq_setting))
 			return true;
 	return false;
+}
+
+int clk_initialize_pll_programming(bool secondary, bool eth_pll, uint8_t clkpll_freq_setting, uint8_t orx_adc_freq_setting)
+{
+	int err;
+
+	if (eth_pll)
+		err = clk_initialize_eth_pll_programming(secondary);
+	else
+		err = clk_initialize_clk_pll_programming(secondary, clkpll_freq_setting, orx_adc_freq_setting);
+
+	return err;
 }

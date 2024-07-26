@@ -31,19 +31,19 @@
 
 /************************** Test PARAMETERS ****************************/
 /* MMC Interface used for testing, can take MMC_IS_EMMC or MMC_IS_SD as value */
-#define INTERFACE                    MMC_IS_EMMC
+#define INTERFACE                    MMC_IS_SD
 /* Maximum size of data transfer in bytes - 17KB */
-#define MAX_DAT_XFER_LEN_BYTES       (17U * 1024U)
+#define MAX_DAT_XFER_LEN_BYTES       (1U * 1024U)
 /* Logical Block Address of the card from/to which data xfers are performed */
 #define CARD_LBA                     (0x0U)
 /* MMC Clock frequency used for testing, can take values from
  * eMMC interface: 1-26MHz
  * SD   interface: 1-25MHz */
-#define CLK_RATE_HZ                  (26U * 1000U * 1000U)
+#define CLK_RATE_HZ                  (25U * 1000U * 1000U)
 /* MMC bus width used for testing, can take one of the following values
  * eMMC interface: MMC_BUS_WIDTH_1, MMC_BUS_WIDTH_4 or MMC_BUS_WIDTH_8
  * SD   interface: MMC_BUS_WIDTH_1 or MMC_BUS_WIDTH_4 */
-#define BUS_WIDTH                    MMC_BUS_WIDTH_8
+#define BUS_WIDTH                    MMC_BUS_WIDTH_4
 /* MMC DMA mode selection for data xfers */
 #define USE_DMA_MODE                 true
 
@@ -86,7 +86,7 @@ static int adi_sdhci_test_init(enum mmc_device_type device)
 		/* Enable SPU MSEC */
 		adi_spu_enable_msec(SPU_A55MMR_BASE, SPU_A55MMR_PERIPH_EMMC1SLV);
 		/* Configure pinmux to enable SD pins */
-		(void)plat_secure_pinctrl_set_group(sd_pin_grp, sd_pin_grp_members, true);
+		(void)plat_secure_pinctrl_set_group(sd_pin_grp, sd_pin_grp_members, true, PINCTRL_BASE);
 	}
 
 	return adi_mmc_init(&mmc_params);

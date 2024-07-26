@@ -29,7 +29,7 @@ typedef enum {
  *  As U-Boot doesn´t enable interrupts, we can use the bool
  *  "is_secure" to identify the requester, OPTEE o Linux.
  */
-uint32_t adapt_irq_base_to_requester(bool is_secure, uint32_t irq)
+static uint32_t adapt_irq_base_to_requester(bool is_secure, uint32_t irq)
 {
 	bool is_linux = !is_secure;
 
@@ -40,7 +40,7 @@ uint32_t adapt_irq_base_to_requester(bool is_secure, uint32_t irq)
 	return irq;
 }
 
-int plat_pintmux_smc_map(unsigned int gpio, bool is_secure, bool pos_mask, uintptr_t base_addr)
+static int plat_pintmux_smc_map(unsigned int gpio, bool is_secure, bool pos_mask, uintptr_t base_addr)
 {
 	int lane;
 	uint32_t irq;
@@ -61,7 +61,7 @@ int plat_pintmux_smc_map(unsigned int gpio, bool is_secure, bool pos_mask, uintp
 	return irq;
 }
 
-int plat_pintmux_smc_unmap(unsigned int gpio, bool is_secure, uintptr_t base_addr)
+static int plat_pintmux_smc_unmap(unsigned int gpio, bool is_secure, uintptr_t base_addr)
 {
 	uint32_t irq;
 	int lane;

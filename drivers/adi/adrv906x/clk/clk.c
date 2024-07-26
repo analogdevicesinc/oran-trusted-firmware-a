@@ -279,7 +279,7 @@ uint64_t clk_get_freq_by_src(const uintptr_t baseaddr, const clk_id_t clk_id, co
 	uint64_t sysclk_freq = 0U;
 	uint8_t div1, div2, combined_div;
 	uintptr_t pll_addr;
-	int i;
+	unsigned int i;
 
 	/* Get a handle to the current clock_data struct */
 	inst_idx = get_clk_data(baseaddr);
@@ -409,7 +409,7 @@ void clk_set_freq_by_src(const uintptr_t baseaddr, const clk_id_t clk_id, const 
 
 void clk_set_freq(const uintptr_t baseaddr, const clk_id_t clk_id, const uint64_t freq)
 {
-	int i;
+	unsigned int i;
 	int inst_idx;
 	uintptr_t pll_addr;
 	uint8_t reg;
@@ -494,7 +494,7 @@ clk_src_t clk_get_src(const uintptr_t baseaddr)
 	inst_idx = get_clk_data(baseaddr);
 	if (inst_idx == -1) {
 		WARN("Cannot get clock source. %p is not registered.\n", (void *)baseaddr);
-		return CLK_ID_NUM;
+		return CLK_SRC_NUM;
 	}
 	return get_clk_src(inst_idx);
 }

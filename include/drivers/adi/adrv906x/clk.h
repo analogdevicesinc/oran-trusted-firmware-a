@@ -50,5 +50,5 @@ void clk_disable_clock(const uintptr_t baseaddr, const clk_id_t clk_id);
 bool clk_do_mcs(bool dual_tile, uint8_t clkpll_freq_setting, uint8_t orx_adc_freq_setting, bool mcs_bypass);
 bool clk_verify_config(uint8_t clkpll_freq_setting, uint8_t orx_adc_freq_setting);
 void clk_init_devclk(const uintptr_t baseaddr, const uintptr_t dig_core_addr);
-
+int clk_initialize_pll_programming(bool secondary, bool eth_pll, uint8_t clkpll_freq_setting, uint8_t orx_adc_freq_setting);
 #endif /* CLK_H */

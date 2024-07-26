@@ -14,8 +14,8 @@ typedef struct {
 	char *message;
 } ddr_message_t;
 
-#define ONED_TRAINING_MESSAGE_STRING_COUNT 23
-#define TWOD_TRAINING_MESSAGE_STRING_COUNT 16
+#define ONED_TRAINING_MESSAGE_STRING_COUNT 412
+#define TWOD_TRAINING_MESSAGE_STRING_COUNT 569
 extern const ddr_message_t ddr_1d_log_messages[ONED_TRAINING_MESSAGE_STRING_COUNT];
 extern const ddr_message_t ddr_2d_log_messages[TWOD_TRAINING_MESSAGE_STRING_COUNT];
 #endif /* DDR_MESSAGES_H */

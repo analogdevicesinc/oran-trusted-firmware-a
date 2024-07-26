@@ -99,13 +99,14 @@
 
 	dwmac_clk: dwmac_clk {
 		compatible = "adi,adrv906x-1g-clock";
-		reg = <EMAC_1G_YODA 0x04>;
+		reg = <EMAC_1G_DIV_CTRL 0x04>;
 		reg-names = "emac1gyoda";
 		#clock-cells = <1>;
 		clocks = <&dwmac_clkin>;
 		clock-names = "dwmac_clkin";
 		status = "okay";
 		u-boot,dm-pre-reloc;
+		adi,ctrl-reg = <EMAC_1G_CLK_CTRL 0x08>;
 	};
 
 	pinctrl_primary: pinctrl {

@@ -22,7 +22,7 @@ typedef struct plat_spu_peripherals_info {
 #define ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC 0x01
 #define ADI_SPU_PERIPHERAL_FLAGS_MSEC 0x02
 
-void plat_security_setup();
+void plat_security_setup(void);
 void plat_tzc400_setup(uintptr_t tzc_base, const plat_tzc_regions_info_t *tzc_regions);
 void plat_spu_setup(uintptr_t spu_base, const plat_spu_peripherals_info_t *spu_peripherals, size_t spu_peripherals_count);
 

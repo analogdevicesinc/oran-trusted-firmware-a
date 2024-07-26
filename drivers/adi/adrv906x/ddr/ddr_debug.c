@@ -81,7 +81,7 @@ static void ddr_load_ate_image(uintptr_t base_addr_phy, uintptr_t ate_fw_addr, u
 {
 	uintptr_t dest_ptr = (base_addr_phy + DDR_PHY_IP_ICCM_INDEX);
 	uint16_t *mem_ptr = (uint16_t *)ate_fw_addr;
-	int i;
+	unsigned int i;
 
 	/* Load the ATE firmware to the PHY */
 	for (i = 0; i < (ate_fw_size >> 1); i++) {
@@ -122,41 +122,22 @@ ddr_error_t ddr_ate_test(uintptr_t base_addr_phy, uintptr_t base_addr_adi_interf
 	ddr_error_t rtn_val = ERROR_DDR_NO_ERROR;
 	uintptr_t result = base_addr_phy + DDR_PHY_IP_DCCM_INDEX;
 
-	clk_set_freq(base_addr_clk, CLK_ID_DDR, (ADI_DDR_FREQ_DEFAULT_MHZ * DDR_MHZ_TO_HZ));
-	clk_enable_clock(base_addr_clk, CLK_ID_DDR);
 
-	/* Clear first CTL APB reset bit */
-	mmio_write_32(DDR_FUNCTIONAL_CONTROLLER_DDR_RESET + base_addr_adi_interface, 0x2f);
-	/* Need to wait at minimum 128 cycles of core DDR clock after clearing APB reset to allow clocks to sync, Synopsys recommends 1us for standard */
-	udelay(1);
-	mmio_write_32(DDR_FUNCTIONAL_CONTROLLER_DDR_RESET + base_addr_adi_interface, 0x28);
-	/* Need to wait at minimum 128 cycles of core DDR clock after clearing PHY reset to allow clocks to sync */
-	udelay(1);
-	mmio_write_32(DDR_FUNCTIONAL_CONTROLLER_DDR_RESET + base_addr_adi_interface, 0x00);
-	udelay(1);
+	/* Load the firmware and msg block into the PHY */
+	ddr_load_ate_image(base_addr_phy, ate_fw_addr, ate_msg_blk_addr, ate_fw_size, ate_msg_blk_size);
 
-	/* Always run the ATE firmware at the highest frequency possible */
-	NOTICE("Enabling DDR clocks...\n");
-	rtn_val = phy_enable_power_and_clocks(base_addr_adi_interface, base_addr_clk, ATE_FW_FREQ);
+	/* Enable the PHY for testing and wait for done */
+	NOTICE("Running ATE firmware...\n");
+	phy_enable_micro_ctrl(base_addr_phy);
+	rtn_val = ddr_ate_wait_for_done(base_addr_phy);
 
-	if (rtn_val == ERROR_DDR_NO_ERROR) {
-		/* Load the firmware and msg block into the PHY */
-		ddr_load_ate_image(base_addr_phy, ate_fw_addr, ate_msg_blk_addr, ate_fw_size, ate_msg_blk_size);
-
-		/* Enable the PHY for testing and wait for done */
-		NOTICE("Running ATE firmware...\n");
-		phy_enable_micro_ctrl(base_addr_phy);
-		rtn_val = ddr_ate_wait_for_done(base_addr_phy);
-	}
-
-	if (rtn_val == ERROR_DDR_NO_ERROR) {
-		/* Enable access to the internal CSRs by setting the MicroContMuxSel CSR to 0. */
-		mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICROCONTMUXSEL + base_addr_phy), 0x0);
-		/* Print out test results. */
-		NOTICE("Test selection register(1=Test Run, 0=Test skipped): 0x%x\n", mmio_read_16(result));
-		result += 4;
-		NOTICE("Test results register(1=Pass, 0=Fail): 0x%x\n", mmio_read_16(result));
-	}
+	/* Enable access to the internal CSRs by setting the MicroContMuxSel CSR to 0. */
+	mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICRORESET + base_addr_phy), DDR_STALLTOMICRO_MASK);
+	mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICROCONTMUXSEL + base_addr_phy), 0x0);
+	/* Print out test results. */
+	NOTICE("Test selection register(1=Test Run, 0=Test skipped): 0x%x\n", mmio_read_16(result));
+	result += 4;
+	NOTICE("Test results register(1=Pass, 0=Fail): 0x%x\n", mmio_read_16(result));
 
 	return rtn_val;
 }

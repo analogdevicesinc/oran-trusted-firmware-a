@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <lib/mmio.h>
 
+#include <drivers/adi/adi_spu.h>
 #include "adi_spu.h"
 
 void adi_spu_disable_ssec(uintptr_t base, unsigned int peripheral_id)

@@ -10,11 +10,42 @@
 
 #include <plat_cli.h>
 #include <plat_err.h>
+#include <plat_mmap.h>
+#include <plat_security.h>
+#include <plat_wdt.h>
 
 #define MAX_INPUT_COMMAND_LENGTH    100
 
 /* Max command length is 100. Adding an extra index so we can ensure input strings are properly terminated before parsing */
 static uint8_t input_buffer[MAX_INPUT_COMMAND_LENGTH + 1];
+
+static int add_mmap_region(uintptr_t base, size_t size, unsigned int attr)
+{
+	uintptr_t base_aligned;
+	int rc;
+	size_t size_aligned;
+
+	/* Align base addr and size on page boundaries */
+	base_aligned = page_align(base, DOWN);
+	size_aligned = page_align(size, UP);
+	rc = mmap_add_dynamic_region((unsigned long long)base_aligned, base_aligned, size_aligned, attr);
+
+	return rc;
+}
+
+static int remove_mmap_region(uintptr_t base, size_t size)
+{
+	uintptr_t base_aligned;
+	int rc;
+	size_t size_aligned;
+
+	/* Align base addr and size on page boundaries */
+	base_aligned = page_align(base, DOWN);
+	size_aligned = page_align(size, UP);
+	rc = mmap_remove_dynamic_region((unsigned long long)base_aligned, size_aligned);
+
+	return rc;
+}
 
 /* Debug write function. Writes a value of specifed width to the address specified*/
 static void common_debug_write_function(uint8_t *command_buffer, bool help)
@@ -22,6 +53,7 @@ static void common_debug_write_function(uint8_t *command_buffer, bool help)
 	uint64_t width;
 	uint64_t address;
 	uint64_t data;
+	int rc = 0;
 
 	if (help) {
 		printf("write <width> <address> <data>     ");
@@ -37,25 +69,34 @@ static void common_debug_write_function(uint8_t *command_buffer, bool help)
 		if (command_buffer == NULL)
 			return;
 
-		switch (width) {
-		case 8:
-			mmio_write_8(address, data);
-			printf("0x%lx written successfully, command OK\n", data);
-			break;
-		case 16:
-			mmio_write_16(address, data);
-			printf("0x%lx written successfully, command OK\n", data);
-			break;
-		case 32:
-			mmio_write_32(address, data);
-			printf("0x%lx written successfully, command OK\n", data);
-			break;
-		case 64:
-			mmio_write_64(address, data);
-			printf("0x%lx written successfully, command OK\n", data);
-			break;
-		default:
+		if (width != 8 && width != 16 && width != 32 && width != 64) {
 			printf("Invalid write width specified. Supported widths: 8, 16, 32, 64\n");
+		} else if ((address % (width / 8)) != 0) {
+			printf("Address must be aligned to width\n");
+		} else {
+			rc = add_mmap_region(address, width, MT_DEVICE | MT_RW | MT_SECURE);
+			switch (width) {
+			case 8:
+				mmio_write_8(address, data);
+				printf("0x%lx written successfully, command OK\n", data);
+				break;
+			case 16:
+				mmio_write_16(address, data);
+				printf("0x%lx written successfully, command OK\n", data);
+				break;
+			case 32:
+				mmio_write_32(address, data);
+				printf("0x%lx written successfully, command OK\n", data);
+				break;
+			case 64:
+				mmio_write_64(address, data);
+				printf("0x%lx written successfully, command OK\n", data);
+				break;
+			default:
+				printf("Invalid write width specified. Supported widths: 8, 16, 32, 64\n");
+			}
+			if (rc == 0)
+				remove_mmap_region(address, width);
 		}
 	}
 	return;
@@ -67,6 +108,7 @@ static void common_debug_read_function(uint8_t *command_buffer, bool help)
 	uint64_t width;
 	uint64_t address;
 	uint64_t data = 0U;
+	int rc = 0;
 
 	if (help) {
 		printf("read <width> <address>             ");
@@ -79,25 +121,34 @@ static void common_debug_read_function(uint8_t *command_buffer, bool help)
 		if (command_buffer == NULL)
 			return;
 
-		switch (width) {
-		case 8:
-			data = mmio_read_8(address);
-			printf("Value at %x:0x%lx\n", (uint32_t)address, data);
-			break;
-		case 16:
-			data = mmio_read_16(address);
-			printf("Value at %x:0x%lx\n", (uint32_t)address, data);
-			break;
-		case 32:
-			data = mmio_read_32(address);
-			printf("Value at %x:0x%lx\n", (uint32_t)address, data);
-			break;
-		case 64:
-			data = mmio_read_64(address);
-			printf("Value at %x:0x%lx\n", (uint32_t)address, data);
-			break;
-		default:
-			printf("Invalid read width specified. Supported widths: 8, 16, 32, 64\n");
+		if (width != 8 && width != 16 && width != 32 && width != 64) {
+			printf("Invalid write width specified. Supported widths: 8, 16, 32, 64\n");
+		} else if ((address % (width / 8)) != 0) {
+			printf("Address must be aligned to width\n");
+		} else {
+			rc = add_mmap_region(address, width, MT_DEVICE | MT_RW | MT_SECURE);
+			switch (width) {
+			case 8:
+				data = mmio_read_8(address);
+				printf("Value at %x:0x%lx\n", (uint32_t)address, data);
+				break;
+			case 16:
+				data = mmio_read_16(address);
+				printf("Value at %x:0x%lx\n", (uint32_t)address, data);
+				break;
+			case 32:
+				data = mmio_read_32(address);
+				printf("Value at %x:0x%lx\n", (uint32_t)address, data);
+				break;
+			case 64:
+				data = mmio_read_64(address);
+				printf("Value at %x:0x%lx\n", (uint32_t)address, data);
+				break;
+			default:
+				printf("Invalid read width specified. Supported widths: 8, 16, 32, 64\n");
+			}
+			if (rc == 0)
+				remove_mmap_region(address, width);
 		}
 	}
 	return;
@@ -109,6 +160,7 @@ static void common_debug_hexdump_function(uint8_t *command_buffer, bool help)
 	uint64_t size;
 	uint64_t width;
 	uint64_t address;
+	int rc = 0;
 
 	if (help) {
 		printf("hexdump <width> <address> <size>   ");
@@ -124,47 +176,57 @@ static void common_debug_hexdump_function(uint8_t *command_buffer, bool help)
 		if (command_buffer == NULL)
 			return;
 
+		rc = add_mmap_region(address, size, MT_DEVICE | MT_RW | MT_SECURE);
+
 		/* Example:    mmio_read_32    addr    # bytes
 		 * >> hexdump      32        20732000    19
 		 * 20732000: 00000000500000000000000000000000
 		 * 20732010: 00
 		 */
-		switch (width) {
-		case 8:
-			while (size > 0) {
-				printf("\n%08x: ", (uint32_t)address);
-				for (int i = 0; (i < 16) && (i < size); i++) {
-					uint8_t data;
-
-					data = mmio_read_8((uint32_t)address);
-					printf("%x%x", (data >> 4) & 0x0f, data & 0x0f);
-					address += 1;
-				}
-				size = (size >= 16) ? size - 16 : 0;
-			}
-			break;
-		case 32:
-			while (size > 0) {
-				printf("\n%08x: ", (uint32_t)address);
-				for (int i = 0; (i < 4) && (i < ((size + 3) / 4)); i++) {
-					uint32_t data;
-
-					data = mmio_read_32((uint32_t)address);
-					for (int j = 0; (j < 4) && (((4 * i) + j) < size); j++) {
-						printf("%x%x", (data >> 4) & 0x0f, data & 0x0f);
-						data /= 256;
-					}
-					address += 4;
-				}
-				size = (size >= 16) ? size - 16 : 0;
-			}
-			break;
-		default:
+		if (width != 8 && width != 32) {
 			printf("Invalid regmap width. Supported widths: 8, 32\n");
-			return;
+		} else if ((address % (width / 8)) != 0) {
+			printf("Address must be aligned to width\n");
+		} else {
+			switch (width) {
+			case 8:
+				while (size > 0) {
+					printf("\n%08x: ", (uint32_t)address);
+					for (unsigned int i = 0; (i < 16) && (i < size); i++) {
+						uint8_t data;
+
+						data = mmio_read_8((uint32_t)address);
+						printf("%x%x", (data >> 4) & 0x0f, data & 0x0f);
+						address += 1;
+					}
+					size = (size >= 16) ? size - 16 : 0;
+				}
+				break;
+			case 32:
+				while (size > 0) {
+					printf("\n%08x: ", (uint32_t)address);
+					for (unsigned int i = 0; (i < 4) && (i < ((size + 3) / 4)); i++) {
+						uint32_t data;
+
+						data = mmio_read_32((uint32_t)address);
+						for (unsigned int j = 0; (j < 4) && (((4 * i) + j) < size); j++) {
+							printf("%x%x", (data >> 4) & 0x0f, data & 0x0f);
+							data /= 256;
+						}
+						address += 4;
+					}
+					size = (size >= 16) ? size - 16 : 0;
+				}
+				break;
+			default:
+				printf("Invalid regmap width. Supported widths: 8, 32\n");
+				return;
+			}
 		}
 
 		printf("\n");
+		if (rc == 0)
+			remove_mmap_region(address, width);
 	}
 	return;
 }
@@ -289,7 +351,7 @@ uint8_t *parse_next_param(uint32_t base, uint8_t *buffer, uint64_t *data)
 				return NULL;
 			}
 		} else {
-			ERROR("Input parameter was empty, try again\n");
+			WARN("Input parameter was empty\n");
 		}
 	}
 	return str;
@@ -298,7 +360,7 @@ uint8_t *parse_next_param(uint32_t base, uint8_t *buffer, uint64_t *data)
 /* Prints out the help output for each command by calling every command in both lists
  * with the help input set to true. It is up to each command to print out what it thinks
  * the help string should be.*/
-static void print_help()
+static void print_help(void)
 {
 	int i = 0;
 
@@ -365,11 +427,17 @@ static void parse_command(uint8_t *command)
 }
 
 /* Main cli function. Sits here infinitely accepting command until the exit command is given or the board is reset*/
-void plat_enter_cli()
+void plat_enter_cli(void)
 {
 	uint8_t keypress = 0x00;
 	uint8_t lastKeypress = 0x00;
 	uint16_t pos = 0U;
+
+	/* Disable WDT */
+	plat_secure_wdt_stop();
+
+	/* Do security setup so writes/reads don't get blocked by various things */
+	plat_security_setup();
 
 	/*Clear out input buffer */
 	memset(input_buffer, 0x00, MAX_INPUT_COMMAND_LENGTH);
@@ -383,7 +451,12 @@ void plat_enter_cli()
 		/* BACKSPACE/DEL key, in case the user wants to change the command */
 		else if ((keypress == '\b') || (keypress == 0x7F)) {
 			if (pos != 0) {
-				console_putc(keypress);
+				/* For backspace, delete the last char by sending a backspace,
+				 * sending a space, then sending a backspace.
+				 */
+				console_putc('\b');
+				console_putc(' ');
+				console_putc('\b');
 				input_buffer[pos] = 0x00;
 				pos--;
 			}
@@ -419,7 +492,8 @@ void plat_enter_cli()
 						/* Parse the command */
 						print_help();
 					} else if (strncmp((char *)input_buffer, "exit", 4u) == 0u) {
-						/* Parse the command */
+						/* Re-enable WDT and exit CLI */
+						plat_secure_wdt_start();
 						printf("Continuing boot\n");
 						break;
 					} else {

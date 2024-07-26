@@ -62,8 +62,8 @@ typedef struct {
 	int freq;
 } ddr_pstate_data_t;
 
-ddr_error_t ddr_basic_mem_test(uintptr_t base_addr_ddr, int size, bool restore);
-ddr_error_t ddr_extensive_mem_test(uintptr_t base_addr_ddr, int size);
+ddr_error_t ddr_basic_mem_test(uintptr_t base_addr_ddr, uint32_t size, bool restore);
+ddr_error_t ddr_extensive_mem_test(uintptr_t base_addr_ddr, uint32_t size);
 ddr_error_t ddr_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, uintptr_t base_addr_ddr, uint32_t ddr_size, uint32_t ddr_remap_size, uint8_t ddr_dfi_pad_sequence[], uint8_t ddr_phy_pad_sequence[], ddr_init_stages_t stage, ddr_config_t configuration, bool ecc);
 ddr_error_t ddr_pre_reset_init(uintptr_t base_addr_ctrl, bool ecc);
 ddr_error_t ddr_post_reset_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, ddr_config_t configuration);

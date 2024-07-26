@@ -27,8 +27,10 @@
 #include <plat_device_profile.h>
 #include <plat_io_storage.h>
 #include <plat_mmap.h>
+#include <plat_ras.h>
 #include <plat_setup.h>
 #include <plat_status_reg.h>
+#include <plat_te.h>
 #include <plat_wdt.h>
 #include <plat_err.h>
 
@@ -143,6 +145,9 @@ void bl1_early_platform_setup(void)
 	/* Enable boot console */
 	plat_console_boot_init();
 
+	/* Enable cache ECC */
+	plat_enable_cache_ecc();
+
 	/* Setup BL1 RAM region */
 	bl1_tzram_layout.total_base = BL_RAM_BASE;
 	bl1_tzram_layout.total_size = BL_RAM_SIZE;
@@ -191,4 +196,12 @@ void bl1_platform_setup(void)
 	 */
 	active_boot_slot[0] = plat_bootctrl_get_active_slot();
 	plat_set_boot_slot(active_boot_slot);
+
+	/* Set nv counter in FW_CONFIG for BL31 stage to propagate to
+	 * OP-TEE via HW_CONFIG
+	 */
+	plat_set_fw_config_rollback_ctr();
+
+	/* Initialize the tiny enclave mailbox */
+	plat_enclave_mailbox_init();
 }

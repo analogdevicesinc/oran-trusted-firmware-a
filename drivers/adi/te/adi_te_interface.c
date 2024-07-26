@@ -49,7 +49,8 @@ typedef enum {
 	ADI_ENCLAVE_GET_DEVICE_IDENTITY		= 0x09,
 	ADI_ENCLAVE_GET_SERIAL_NUMBER		= 0x0b,
 	ADI_ENCLAVE_INCR_ANTIROLLBACK_VERSION	= 0x1c,
-	ADI_ENCLAVE_GET_HUK			= 0x1d,
+	ADI_ENCLAVE_GET_ANTIROLLBACK_VERSION	= 0x1d,
+	ADI_ENCLAVE_GET_HUK			= 0x1e,
 	ADI_ENCLAVE_REQUEST_CHALLENGE		= 0x80,
 	ADI_ENCLAVE_PRIV_SECURE_DEBUG_ACCESS	= 0x8a,
 	ADI_ENCLAVE_PRIV_SET_RMA		= 0x8b,
@@ -491,7 +492,8 @@ int adi_enclave_get_device_identity(uintptr_t base_addr, uint8_t *output_buffer,
 /* Only responds while in ADI_PROV_ENC lifecycle and must be called prior to adi_enclave_provisionPrepareFinalize() */
 int adi_enclave_provision_host_keys(uintptr_t base_addr, const uintptr_t hst_keys, uint32_t hst_keys_len, uint32_t hst_keys_size)
 {
-	int key_num, ret;
+	int ret;
+	unsigned int key_num;
 	uint32_t args[2];
 	host_keys_t *tmp_hst_keys;
 
@@ -579,6 +581,27 @@ int adi_enclave_update_otp_app_anti_rollback(uintptr_t base_addr, uint32_t *appS
 	args[0] = (uint32_t)reserve_buf((uintptr_t)appSecVer, sizeof(*appSecVer));
 
 	status = perform_enclave_transaction(base_addr, ADI_ENCLAVE_INCR_ANTIROLLBACK_VERSION, args, 1);
+	if (status == 0)
+		memcpy(appSecVer, (void *)(uintptr_t)args[0], sizeof(*appSecVer));
+
+	return status;
+}
+
+/* Get the Security version of APP in OTP */
+int adi_enclave_get_otp_app_anti_rollback(uintptr_t base_addr, uint32_t *appSecVer)
+{
+	int ret, status;
+	uint32_t args[1];
+
+	buf_init();
+
+	ret = verify_buf_len(appSecVer, sizeof(*appSecVer), 1, (uint32_t)SIZE_MAX);
+	if (ret != ADI_TE_RET_OK)
+		return ret;
+
+	args[0] = (uint32_t)reserve_buf((uintptr_t)appSecVer, sizeof(*appSecVer));
+
+	status = perform_enclave_transaction(base_addr, ADI_ENCLAVE_GET_ANTIROLLBACK_VERSION, args, 1);
 	if (status == 0)
 		memcpy(appSecVer, (void *)(uintptr_t)args[0], sizeof(*appSecVer));
 

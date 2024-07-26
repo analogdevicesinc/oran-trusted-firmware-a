@@ -7,6 +7,6 @@
 #ifndef PLAT_FIXUP_HW_CONFIG_H
 #define PLAT_FIXUP_HW_CONFIG_H
 
-int plat_fixup_hw_config(const void *hw_config_dtb);
+int plat_fixup_hw_config(void *hw_config_dtb);
 
 #endif

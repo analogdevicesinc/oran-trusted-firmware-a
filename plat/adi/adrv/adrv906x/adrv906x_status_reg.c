@@ -24,7 +24,6 @@
 #define BOOT_CNT_OFFSET                 4
 #define STARTING_SLOT_OFFSET            8
 #define LAST_SLOT_OFFSET                12
-#define RECOVERY_BOOT_ACTIVE_OFFSET     16
 
 /* Read from specified boot status register */
 uint32_t plat_rd_status_reg(plat_status_reg_id_t reg)
@@ -44,9 +43,6 @@ uint32_t plat_rd_status_reg(plat_status_reg_id_t reg)
 
 	case LAST_SLOT:
 		return mmio_read_32(A55_SYS_CFG + SCRATCH + LAST_SLOT_OFFSET);
-
-	case RECOVERY_BOOT_ACTIVE:
-		return mmio_read_32(A55_SYS_CFG + SCRATCH + RECOVERY_BOOT_ACTIVE_OFFSET);
 
 	default:
 		WARN("Not a valid status register\n");
@@ -76,10 +72,6 @@ bool plat_wr_status_reg(plat_status_reg_id_t reg, uint32_t value)
 
 	case LAST_SLOT:
 		mmio_write_32(A55_SYS_CFG + SCRATCH + LAST_SLOT_OFFSET, value);
-		break;
-
-	case RECOVERY_BOOT_ACTIVE:
-		mmio_write_32(A55_SYS_CFG + SCRATCH + RECOVERY_BOOT_ACTIVE_OFFSET, value);
 		break;
 
 	default:

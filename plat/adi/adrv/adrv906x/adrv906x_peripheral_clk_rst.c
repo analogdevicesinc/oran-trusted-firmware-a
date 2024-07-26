@@ -14,6 +14,7 @@
 #include <adrv906x_boot.h>
 #include <adrv906x_def.h>
 #include <adrv906x_device_profile.h>
+#include <adrv906x_peripheral_clk_rst.h>
 #include <plat_console.h>
 #include <plat_boot.h>
 #include <plat_wdt.h>

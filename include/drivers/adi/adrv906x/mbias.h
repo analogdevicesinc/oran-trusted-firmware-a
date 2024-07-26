@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#ifndef MBIAS_H
-#define MBIAS_H
+#ifndef ADRV906X_MBIAS_H
+#define ADRV906X_MBIAS_H
 
-extern int mbias_init(const uint64_t base);
+int mbias_init(const uint64_t base);
 
-#endif /* MBIAS_H */
+#endif /* ADRV906X_MBIAS_H */

@@ -37,17 +37,23 @@
 static ddr_error_t ddr_scrub_ecc(uintptr_t base_addr_ctrl, uint32_t ddr_size, bool is_x16)
 {
 	uint32_t scrubber_data;
+	uint32_t scrub_size;
 	int i;
+
+	/* We have to divide the final size by 2 if the DDR is an x16,
+	 * after subtracting (size of inline ecc range + 1) from the range
+	 * to avoid scrubbing the protected region of the inline ECC since we are scrubbing the full physical DDR always */
+	if (is_x16)
+		scrub_size = ((ddr_size - (ddr_size >> 3)) / 2) - 1;
+	else
+		/* x8 can just use size in bytes -1 to avoid protected region */
+		scrub_size = (ddr_size - (ddr_size >> 3)) - 1;
 
 	DDR_DEBUG("Beginning DDR scrub.\n");
 	if (!plat_is_sysc()) {
 		mmio_write_32(base_addr_ctrl + DDR_UMCTL2_MP_SBRWDATA0, 0x0000DEAF);
 		mmio_write_32(base_addr_ctrl + DDR_UMCTL2_MP_SBRSTART0, 0x0);
-		if (is_x16)
-			/* Scrubber uses 1 address = 16 bits, so divide by 2 or we will scrub double what we want to */
-			mmio_write_32(base_addr_ctrl + DDR_UMCTL2_MP_SBRRANGE0, (ddr_size / 2));
-		else
-			mmio_write_32(base_addr_ctrl + DDR_UMCTL2_MP_SBRRANGE0, ddr_size);
+		mmio_write_32(base_addr_ctrl + DDR_UMCTL2_MP_SBRRANGE0, scrub_size);
 		mmio_write_32(base_addr_ctrl + DDR_UMCTL2_MP_PCTRL_0, 0x0);
 		mmio_write_32(base_addr_ctrl + DDR_UMCTL2_MP_PCTRL_1, 0x0);
 		scrubber_data = mmio_read_32(base_addr_ctrl + DDR_UMCTL2_MP_SBRCTL);
@@ -86,14 +92,14 @@ static ddr_error_t ddr_scrub_ecc(uintptr_t base_addr_ctrl, uint32_t ddr_size, bo
 }
 
 /* Basic memory test for the DDR. Note: This test can only be run in BL2 */
-ddr_error_t ddr_basic_mem_test(uintptr_t base_addr_ddr, int size, bool restore)
+ddr_error_t ddr_basic_mem_test(uintptr_t base_addr_ddr, uint32_t size, bool restore)
 {
 	uintptr_t addr = base_addr_ddr;
 	uint32_t readback;
 	uint32_t existing;
 	uint32_t data = 1;
 
-	flush_dcache_range(base_addr_ddr, size);
+	flush_dcache_range(base_addr_ddr, (size - 1));
 	disable_mmu_el1();
 	while (addr < (base_addr_ddr + size)) {
 		if (restore)
@@ -101,6 +107,8 @@ ddr_error_t ddr_basic_mem_test(uintptr_t base_addr_ddr, int size, bool restore)
 			existing = mmio_read_64(addr);
 
 		/* Write data, then read back written data */
+		if ((addr % 0x10000) == 0x0)
+			printf("Writing to address: %lx with data=%d\n", addr, data);
 		mmio_write_64(addr, data);
 		readback = mmio_read_64(addr);
 		if (readback != data) {
@@ -118,7 +126,7 @@ ddr_error_t ddr_basic_mem_test(uintptr_t base_addr_ddr, int size, bool restore)
 	}
 	INFO("Mem test: %d\n", ERROR_DDR_NO_ERROR);
 	enable_mmu_el1(0);
-	inv_dcache_range(base_addr_ddr, size);
+	inv_dcache_range(base_addr_ddr, (size - 1));
 	/* If we make it here we have successfully written and read back the same value for every memory location */
 	return ERROR_DDR_NO_ERROR;
 }
@@ -126,91 +134,99 @@ ddr_error_t ddr_basic_mem_test(uintptr_t base_addr_ddr, int size, bool restore)
 /* This test implements the MARCH-X algorithm for testing DDR memory, first writing 0 to all locations,
  * then traveling up and back down the memory, reading either 0 or 1 and writing the opposite right after the read
  * to the same location. This algorithm will detect any stuck at fault, address faults, and coupling faults between two different bytes. */
-static ddr_error_t ddr_march_test(uintptr_t base_addr_ddr, int size)
+static ddr_error_t ddr_march_test(uintptr_t base_addr_ddr, uint32_t size)
 {
 	uintptr_t addr = base_addr_ddr;
-	uintptr_t max_addr = (base_addr_ddr + size - 1);
+	uintptr_t max_addr = (base_addr_ddr + size - 8);
 
 	/* Clear cache and disable MMU so accesses actually go out to the physical DDR */
-	flush_dcache_range(base_addr_ddr, size);
+	flush_dcache_range(base_addr_ddr, (size - 1));
 	disable_mmu_el1();
 
 	/* Write 0 to all locations */
 	while (addr < (base_addr_ddr + size)) {
-		mmio_write_8(addr, 0x0);
-		addr++;
+		if ((addr % 0x1000000) == 0x0)
+			printf("Writing to address: %lx with 0\n", addr);
+		mmio_write_64(addr, 0x0);
+		addr += 8;
 	}
 
 	addr = base_addr_ddr;
 	/* Read 0, Write 1 ascending up the memory */
 	while (addr < (base_addr_ddr + size)) {
-		if (mmio_read_8(addr) != 0x0) {
-			ERROR("Extensive mem march test failed writing 0, addr = %lx", addr);
+		if (mmio_read_64(addr) != 0x0) {
+			ERROR("Extensive mem march test failed writing 0, addr = %lx\n", addr);
 			enable_mmu_el1(0);
 			inv_dcache_range(base_addr_ddr, size);
 			return ERROR_DDR_EXTENSIVE_MEM_TEST_FAILED;
 		}
-		mmio_write_8(addr, 0xFF);
-		addr++;
+		mmio_write_64(addr, 0xFF);
+		if ((addr % 0x1000000) == 0x0)
+			printf("Writing to address: %lx with 0xFF\n", addr);
+		addr += 8;
 	}
 
 	addr = max_addr;
 	/* Read 1, Write 0 descending down the memory */
 	while (addr >= base_addr_ddr) {
-		if (mmio_read_8(addr) != 0xFF) {
-			ERROR("Extensive mem march test failed writing 1, addr = %lx", addr);
+		if (mmio_read_64(addr) != 0xFF) {
+			ERROR("Extensive mem march test failed writing 1, addr = %lx\n", addr);
 			enable_mmu_el1(0);
 			inv_dcache_range(base_addr_ddr, size);
 			return ERROR_DDR_EXTENSIVE_MEM_TEST_FAILED;
 		}
-		mmio_write_8(addr, 0x0);
-		addr--;
+		mmio_write_64(addr, 0x0);
+		if ((addr % 0x1000000) == 0x0)
+			printf("Writing to address: %lx with 0x0\n", addr);
+		addr -= 8;
 	}
 
 	addr = base_addr_ddr;
 	/* Read 0 in every memory location */
 	while (addr < (base_addr_ddr + size)) {
-		if (mmio_read_8(addr) != 0x0) {
-			ERROR("Extensive mem march test failed reading 0, addr = %lx", addr);
+		if (mmio_read_64(addr) != 0x0) {
+			ERROR("Extensive mem march test failed reading 0, addr = %lx\n", addr);
 			enable_mmu_el1(0);
 			inv_dcache_range(base_addr_ddr, size);
 			return ERROR_DDR_EXTENSIVE_MEM_TEST_FAILED;
 		}
-		addr++;
+		addr += 8;
 	}
 
 	enable_mmu_el1(0);
-	inv_dcache_range(base_addr_ddr, size);
+	inv_dcache_range(base_addr_ddr, (size - 1));
 	return ERROR_DDR_NO_ERROR;
 }
 
 /* This memory tests "walks" a 1 through every bit in the memory, and checks if any other bits change. If
  * another bit changes, that means there is a coupling fault in the hardware within the word at the specified address.
  * This test does not check for coupling faults between words, just within a word */
-static ddr_error_t ddr_walking_test(uintptr_t base_addr_ddr, int size)
+static ddr_error_t ddr_walking_test(uintptr_t base_addr_ddr, uint32_t size)
 {
 	uintptr_t addr = base_addr_ddr;
 
-	flush_dcache_range(base_addr_ddr, size);
+	flush_dcache_range(base_addr_ddr, (size - 1));
 	disable_mmu_el1();
 	while (addr < (base_addr_ddr + size)) {
-		uint8_t data = 0x1;
-		for (int i = 0; i < 8; i++) {
-			mmio_write_8(addr, data);
-			if (mmio_read_8(addr) != data) {
-				ERROR("Extensive mem walking test failed, addr = %lx, bit offset = %d", addr, i);
+		if ((addr % 0x1000000) == 0x0)
+			printf("Writing to address: %lx\n", addr);
+		uint32_t data = 0x1;
+		for (int i = 0; i < 32; i++) {
+			mmio_write_64(addr, data);
+			if (mmio_read_64(addr) != data) {
+				ERROR("Extensive mem walking test failed, addr = %lx, bit offset = %d\n", addr, i);
 				enable_mmu_el1(0);
 				inv_dcache_range(base_addr_ddr, size);
 				return ERROR_DDR_EXTENSIVE_MEM_TEST_FAILED;
 			}
 			data = data << 1;
 		}
-		mmio_write_8(addr, 0x0);
-		addr++;
+		mmio_write_64(addr, 0x0);
+		addr += 8;
 	}
 
 	enable_mmu_el1(0);
-	inv_dcache_range(base_addr_ddr, size);
+	inv_dcache_range(base_addr_ddr, (size - 1));
 	return ERROR_DDR_NO_ERROR;
 }
 
@@ -219,18 +235,23 @@ static ddr_error_t ddr_walking_test(uintptr_t base_addr_ddr, int size)
  * a walking 1s test to find coupling faults within a specific byte. This test will take a long time, so it is not recommended to run on Protium, SystemC
  * and actual Silicon are more manageable.
  */
-ddr_error_t ddr_extensive_mem_test(uintptr_t base_addr_ddr, int size)
+ddr_error_t ddr_extensive_mem_test(uintptr_t base_addr_ddr, uint32_t size)
 {
 	ddr_error_t return_val;
 
+	INFO("Starting DDR March test...\n");
 	return_val = ddr_march_test(base_addr_ddr, size);
 	INFO("DDR March Test: %d\n", return_val);
 	if (return_val != ERROR_DDR_NO_ERROR)
 		return return_val;
 
+	INFO("Starting DDR Walking test...\n");
 	return_val = ddr_walking_test(base_addr_ddr, size);
 
 	INFO("DDR Walking Test: %d\n", return_val);
+	if (return_val != ERROR_DDR_NO_ERROR)
+		return return_val;
+
 	return return_val;
 }
 
@@ -329,25 +350,8 @@ static void ddr_phy_pad_pillar_remapping(uintptr_t base_addr_phy, uint8_t ddr_ph
 	mmio_write_32(base_addr_phy + DDRPHYA_MASTER0_P0_MASTER0_P0_HWTSWIZZLEHWTBG1, ddr_phy_pad_sequence[26]);
 	mmio_write_32(base_addr_phy + DDRPHYA_MASTER0_P0_MASTER0_P0_HWTSWIZZLEHWTPARITYIN, ddr_phy_pad_sequence[27]);
 
-
-	/* PHY Engine DQ remapping changes */
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE0_P0_DBYTE0_P0_DQ0LNSEL, ddr_phy_pad_sequence[28]);
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE0_P0_DBYTE0_P0_DQ1LNSEL, ddr_phy_pad_sequence[29]);
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE0_P0_DBYTE0_P0_DQ2LNSEL, ddr_phy_pad_sequence[30]);
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE0_P0_DBYTE0_P0_DQ3LNSEL, ddr_phy_pad_sequence[31]);
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE0_P0_DBYTE0_P0_DQ4LNSEL, ddr_phy_pad_sequence[32]);
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE0_P0_DBYTE0_P0_DQ5LNSEL, ddr_phy_pad_sequence[33]);
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE0_P0_DBYTE0_P0_DQ6LNSEL, ddr_phy_pad_sequence[34]);
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE0_P0_DBYTE0_P0_DQ7LNSEL, ddr_phy_pad_sequence[35]);
-
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE1_P0_DBYTE1_P0_DQ0LNSEL, ddr_phy_pad_sequence[36]);
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE1_P0_DBYTE1_P0_DQ1LNSEL, ddr_phy_pad_sequence[37]);
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE1_P0_DBYTE1_P0_DQ2LNSEL, ddr_phy_pad_sequence[38]);
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE1_P0_DBYTE1_P0_DQ3LNSEL, ddr_phy_pad_sequence[39]);
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE1_P0_DBYTE1_P0_DQ4LNSEL, ddr_phy_pad_sequence[40]);
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE1_P0_DBYTE1_P0_DQ5LNSEL, ddr_phy_pad_sequence[41]);
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE1_P0_DBYTE1_P0_DQ6LNSEL, ddr_phy_pad_sequence[42]);
-	mmio_write_32(base_addr_phy + DDRPHYA_DBYTE1_P0_DBYTE1_P0_DQ7LNSEL, ddr_phy_pad_sequence[43]);
+	/* The PHY Engine DQ Swizzle changes cannot be turned on for PHY training, according to Synopsys. After testing it was determined
+	 *  that the changes also were not needed for normal operating mode, so the changes were removed completely. */
 }
 
 /**
@@ -372,6 +376,7 @@ ddr_error_t ddr_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_
 {
 	ddr_error_t rtn_val = ERROR_DDR_NO_ERROR;
 	bool is_x16;
+	int i;
 
 	if (configuration == DDR_PRIMARY_CONFIGURATION)
 		is_x16 = DDR_PRIMARY_ECC_ISX16;
@@ -394,6 +399,21 @@ ddr_error_t ddr_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_
 			ddr_dfi_pad_pillar_remapping(base_addr_adi_interface, ddr_dfi_pad_sequence);
 
 		rtn_val = ddr_function_configurations[configuration].pre_reset_function(base_addr_ctrl, ecc);
+
+		/* Registers that must be set if doing training to enable self-refresh */
+		mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_SWCTL, 0x00000000);
+		mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_PWRCTL, 0x20);
+		mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_INIT0, 0x30020002);
+		mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_SWCTL, 0x00000001);
+		for (i = 0; i < ADI_DDR_CTRL_TIMEOUT; i++) {
+			if (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_SWSTAT) == 0x00000001)
+				break;
+			else
+				mdelay(1);
+		}
+
+		if (i == ADI_DDR_CTRL_TIMEOUT)
+			return ERROR_DDR_CTRL_INIT_FAILED;
 	}
 
 	if ((stage == DDR_INIT_FULL) || (stage == DDR_REMAP_INIT)) {
@@ -420,8 +440,10 @@ ddr_error_t ddr_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_
 	}
 
 	if ((stage == DDR_INIT_FULL) || (stage == DDR_POST_RESET_INIT)) {
-		if (rtn_val == ERROR_DDR_NO_ERROR)
+		if (rtn_val == ERROR_DDR_NO_ERROR) {
 			rtn_val = ddr_post_reset_init(base_addr_ctrl, base_addr_phy, base_addr_adi_interface, base_addr_clk, configuration);
+			update_umctl2_timing_values(base_addr_ctrl, DDR_PSTATE0);
+		}
 
 		if (rtn_val == ERROR_DDR_NO_ERROR && ecc)
 			rtn_val = ddr_scrub_ecc(base_addr_ctrl, ddr_size, is_x16);

@@ -13,6 +13,7 @@
 #include <plat_helpers.h>
 
 #include <adrv906x_sdei_events.h>
+#include <platform.h>
 #include <platform_def.h>
 
 #if SDEI_SUPPORT

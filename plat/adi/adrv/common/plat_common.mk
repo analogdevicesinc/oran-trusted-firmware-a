@@ -41,13 +41,13 @@ PLAT_BL_COMMON_SOURCES	:=	common/tf_crc32.c \
 				drivers/partition/gpt.c \
 				lib/cpus/aarch64/cortex_a55.S \
 				lib/fconf/fconf.c \
-				plat/common/tbbr/plat_tbbr.c \
 				plat/adi/adrv/common/aarch64/plat_helpers.S \
 				plat/adi/adrv/common/plat_boot.c \
 				plat/adi/adrv/common/plat_bootcfg.c \
 				plat/adi/adrv/common/plat_bootctrl.c \
 				plat/adi/adrv/common/plat_err.c \
 				plat/adi/adrv/common/plat_io_storage.c \
+				plat/adi/adrv/common/plat_stack_protector.c \
 				plat/adi/adrv/common/plat_trusted_boot.c \
 				plat/common/aarch64/crash_console_helpers.S
 
@@ -87,9 +87,11 @@ BL2_SOURCES		+=	common/desc_image_load.c \
 				drivers/arm/tzc/tzc400.c \
 				plat/adi/adrv/common/aarch64/plat_bl2_mem_params_desc.c \
 				plat/adi/adrv/common/plat_bl2_setup.c \
-				plat/adi/adrv/common/plat_cli.c \
 				plat/adi/adrv/common/plat_image_load.c \
 				plat/adi/adrv/common/plat_security.c
+ifeq (${DEBUG},1)
+BL2_SOURCES		+=	plat/adi/adrv/common/plat_cli.c
+endif
 
 ifneq (${TRUSTED_BOARD_BOOT},0)
 BL2_SOURCES		+=	drivers/auth/tbbr/tbbr_cot_bl2.c

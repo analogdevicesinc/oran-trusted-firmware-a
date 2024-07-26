@@ -13,7 +13,7 @@ void adrv906x_otp_init_driver(void);
 int adrv906x_otp_get_product_id(const uintptr_t mem_ctrl_base, uint8_t *id);
 int adrv906x_otp_get_rollback_counter(const uintptr_t mem_ctrl_base, unsigned int *nv_ctr);
 int adrv906x_otp_set_rollback_counter(const uintptr_t mem_ctrl_base, unsigned int nv_ctr);
-int adrv906x_otp_set_mac_addr(const uintptr_t mem_ctrl_base, uint8_t mac_number, uint64_t mac64);
-int adrv906x_otp_get_mac_addr(const uintptr_t mem_ctrl_base, uint8_t mac_number, uint64_t *mac64);
+int adrv906x_otp_set_mac_addr(const uintptr_t mem_ctrl_base, uint8_t mac_number, uint8_t *mac);
+int adrv906x_otp_get_mac_addr(const uintptr_t mem_ctrl_base, uint8_t mac_number, uint8_t *mac);
 
 #endif /* ADRV906X_OTP_H */

@@ -33,7 +33,7 @@ typedef enum {
 	ADI_LIFECYCLE_DEPLOYED,
 	ADI_LIFECYCLE_CUST1_RETURN,
 	ADI_LIFECYCLE_ADI_RETURN,
-	ADI_LIFECYCLE_END_OF_LIFE,
+	ADI_LIFECYCLE_END_OF_LIFE
 } adi_lifecycle_t;
 
 typedef enum {
@@ -61,6 +61,7 @@ int adi_enclave_request_challenge(uintptr_t base_addr, chal_type_e chal_type, ui
 int adi_enclave_priv_set_rma(uintptr_t base_addr, const uint8_t *cr_input_buffer, uint32_t input_buff_len);
 int adi_enclave_unwrap_cust_key(uintptr_t base_addr, const void *wrapped_key, uint32_t wk_len, void *unwrapped_key, uint32_t *uwk_len);
 int adi_enclave_update_otp_app_anti_rollback(uintptr_t base_addr, uint32_t *appSecVer);
+int adi_enclave_get_otp_app_anti_rollback(uintptr_t base_addr, uint32_t *appSecVer);
 int adi_enclave_get_huk(uintptr_t base_addr, uint8_t *output_buffer, uint32_t *o_buff_len);
 int adi_enclave_random_bytes(uintptr_t base_addr, void *output_buffer, uint32_t o_buff_len);
 int adi_enclave_priv_secure_debug_access(uintptr_t base_addr, const uint8_t *cr_input_buffer, uint32_t input_buff_len);

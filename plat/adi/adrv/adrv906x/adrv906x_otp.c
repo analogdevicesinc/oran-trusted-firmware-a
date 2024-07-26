@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Analog Devices Incorporated - All Rights Reserved
+ * Copyright (c) 2024, Analog Devices Incorporated - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -40,9 +40,10 @@
 /*
  * MAC addresses
  */
+#define MAC_ADDRESS_NUM_BYTES           6
 #define MAC_ADDRESS_NUM_REGS            2
 #define MAC_ADDRESS_NUM_COPIES          3       /* MAC address is stored in triplicate */
-#define NUM_MAC_ADDRESSES               3       /* Number of different MAC addresses to store */
+#define NUM_MAC_ADDRESSES               6       /* Number of different MAC addresses to store */
 
 /*
  *  NOTE:
@@ -63,7 +64,7 @@
  * MAC 1 copy 2
  * MAC 1 copy 3
  * [...]
- * MAC 3 copy 3
+ * MAC 6 copy 3
  * ------------------------------- OTP_MAC_ADDRESSES_END (OTP_MAC_ADDRESSES_BASE + NUM_MAC_ADDRESSES * MAC_ADDRESS_NUM_REGS * MAC_ADDRESS_NUM_COPIES)
  * Available
  * ------------------------------- OTP_OPEN_ZONE_END
@@ -95,6 +96,9 @@ static uint64_t get_most_common_value(uint64_t data[], size_t size, uint8_t *is_
 static int get_rollback_counter_n(const uintptr_t mem_ctrl_base, unsigned int n, unsigned int *nv_ctr);
 static int set_rollback_counter_n(const uintptr_t mem_ctrl_base, unsigned int n, unsigned int nv_ctr);
 
+static bool get_most_common_mac(uint8_t *macs_list, uint8_t num_macs, uint8_t *mac);
+static int get_mac_addr_n(const uintptr_t mem_ctrl_base, uint8_t mac_number, uint8_t n, uint8_t *mac);
+static int set_mac_addr_n(const uintptr_t mem_ctrl_base, uint8_t mac_number, uint8_t n, uint8_t *mac);
 
 /*--------------------------------------------------------
  * INTERNAL FUNCTIONS
@@ -120,7 +124,7 @@ static uint64_t get_most_common_value(uint64_t data[], size_t size, uint8_t *is_
 			*is_unique = 1;
 		}
 
-		if (max_count > size / 2) break;
+		if (max_count > (size / 2)) break;
 	}
 	return most_common_value;
 }
@@ -128,16 +132,15 @@ static uint64_t get_most_common_value(uint64_t data[], size_t size, uint8_t *is_
 static int get_rollback_counter_n(const uintptr_t mem_ctrl_base, unsigned int n, unsigned int *nv_ctr)
 {
 	uint32_t rollback_counter[ROLLBACK_COUNTER_NUM_REGS] = { 0 };
-
 	const uintptr_t counter_addr = OTP_ROLLBACK_COUNTER_BASE + n * ROLLBACK_COUNTER_NUM_REGS;
+	uint32_t count = 0;
+	uint32_t index = 0;
 
 	if (otp_read_burst(mem_ctrl_base, counter_addr, rollback_counter, ROLLBACK_COUNTER_NUM_REGS, OTP_ECC_OFF) != ADI_OTP_SUCCESS) {
 		ERROR("%s: Cannot read Rollback Counter copy %d\n", __func__, n);
 		return -EIO;
 	}
 
-	uint32_t count = 0;
-	uint32_t index = 0;
 	while (rollback_counter[index]) {
 		count++;
 		rollback_counter[index] >>= 1;
@@ -153,6 +156,7 @@ static int set_rollback_counter_n(const uintptr_t mem_ctrl_base, unsigned int n,
 {
 	uint32_t rollback_counter[ROLLBACK_COUNTER_NUM_REGS] = { 0 };
 	uint32_t index = 0;
+	uintptr_t counter_addr;
 
 	for (uint32_t i = 0; i < nv_ctr; i++) {
 		rollback_counter[index] <<= 1;
@@ -160,7 +164,7 @@ static int set_rollback_counter_n(const uintptr_t mem_ctrl_base, unsigned int n,
 		if ((i + 1) % BITS_PER_OTP_REGISTER == 0) index++;
 	}
 
-	const uintptr_t counter_addr = OTP_ROLLBACK_COUNTER_BASE + n * ROLLBACK_COUNTER_NUM_REGS;
+	counter_addr = OTP_ROLLBACK_COUNTER_BASE + n * ROLLBACK_COUNTER_NUM_REGS;
 	if (otp_write_burst(mem_ctrl_base, counter_addr, rollback_counter, ROLLBACK_COUNTER_NUM_REGS, OTP_ECC_OFF) != ADI_OTP_SUCCESS) {
 		ERROR("%s: Cannot write Rollback Counter copy %d\n", __func__, n);
 		return -EIO;
@@ -169,13 +173,43 @@ static int set_rollback_counter_n(const uintptr_t mem_ctrl_base, unsigned int n,
 	return ADI_OTP_SUCCESS;
 }
 
-static int get_mac_addr_n(const uintptr_t mem_ctrl_base, uint8_t mac_number, uint8_t n, uint64_t *mac64)
+static bool get_most_common_mac(uint8_t *macs_list, uint8_t num_macs, uint8_t *selected_mac)
 {
-	if (mac_number <= 0 || mac_number > NUM_MAC_ADDRESSES) {
-		ERROR("%s: MAC number %d out of bounds (1 .. %d)\n", __func__, mac_number, NUM_MAC_ADDRESSES);
-		return -EINVAL;
-	}
+	uint8_t max_appearances = 0;
+	uint8_t *mac_with_max_appearances = 0;
+	bool single_mac_with_max_appearances = false;
 
+	for (size_t i = 0; i < num_macs; i++) {
+		/* Get a MAC */
+		uint8_t *mac = (uint8_t *)&macs_list[MAC_ADDRESS_NUM_BYTES * i];
+		uint8_t appearances = 1;
+
+		/* Look for other appearances of the same MAC on the list */
+		for (size_t j = i + 1; j < num_macs; j++) {
+			uint8_t *aux_mac = (uint8_t *)&macs_list[MAC_ADDRESS_NUM_BYTES * j];
+			if (memcmp(mac, aux_mac, MAC_ADDRESS_NUM_BYTES) == 0) appearances++;
+		}
+
+		/* More that one MAC have the max appearances */
+		if (appearances == max_appearances)
+			single_mac_with_max_appearances = false;
+
+		/* Just a single MAC has the max appearances */
+		if (appearances > max_appearances) {
+			max_appearances = appearances;
+			mac_with_max_appearances = mac;
+			single_mac_with_max_appearances = true;
+		}
+
+		/* Early end */
+		if (max_appearances > (num_macs / 2)) break;
+	}
+	memcpy(selected_mac, mac_with_max_appearances, MAC_ADDRESS_NUM_BYTES);
+	return single_mac_with_max_appearances;
+}
+
+static int get_mac_addr_n(const uintptr_t mem_ctrl_base, uint8_t mac_number, uint8_t n, uint8_t *mac)
+{
 	uint32_t mac32[MAC_ADDRESS_NUM_REGS] = { 0 };
 	const uintptr_t addr = OTP_MAC_ADDRESSES_BASE + (mac_number - 1) * MAC_ADDRESS_NUM_REGS * MAC_ADDRESS_NUM_COPIES + n * MAC_ADDRESS_NUM_REGS;
 
@@ -184,23 +218,23 @@ static int get_mac_addr_n(const uintptr_t mem_ctrl_base, uint8_t mac_number, uin
 		return -EIO;
 	}
 
-	*mac64 = ((uint64_t)mac32[0] << 32) + mac32[1];
+	mac[0] = (mac32[0] >> 0) & 0xFF;
+	mac[1] = (mac32[0] >> 8) & 0xFF;
+	mac[2] = (mac32[0] >> 16) & 0xFF;
+	mac[3] = (mac32[0] >> 24) & 0xFF;
+	mac[4] = (mac32[1] >> 0) & 0xFF;
+	mac[5] = (mac32[1] >> 8) & 0xFF;
 
 	return ADI_OTP_SUCCESS;
 }
 
-static int set_mac_addr_n(const uintptr_t mem_ctrl_base, uint8_t mac_number, uint8_t n, uint64_t mac64)
+static int set_mac_addr_n(const uintptr_t mem_ctrl_base, uint8_t mac_number, uint8_t n, uint8_t *mac)
 {
-	if (mac_number <= 0 || mac_number > NUM_MAC_ADDRESSES) {
-		ERROR("%s: MAC number %d out of bounds (1 .. %d)\n", __func__, mac_number, NUM_MAC_ADDRESSES);
-		return -EINVAL;
-	}
-
 	uint32_t mac32[MAC_ADDRESS_NUM_REGS];
-	mac32[0] = mac64 >> 32;
-	mac32[1] = mac64 & 0xFFFFFFFF;
-
 	const uintptr_t addr = OTP_MAC_ADDRESSES_BASE + (mac_number - 1) * MAC_ADDRESS_NUM_REGS * MAC_ADDRESS_NUM_COPIES + n * MAC_ADDRESS_NUM_REGS;
+
+	mac32[1] = (mac[5] << 8) | mac[4];
+	mac32[0] = (mac[3] << 24) | (mac[2] << 16) | (mac[1] << 8) | mac[0];
 
 	if (otp_write_burst(mem_ctrl_base, addr, mac32, MAC_ADDRESS_NUM_REGS, OTP_ECC_OFF) != ADI_OTP_SUCCESS) {
 		ERROR("%s: Cannot write MAC address %d\n", __func__, mac_number);
@@ -249,6 +283,7 @@ int adrv906x_otp_get_rollback_counter(const uintptr_t mem_ctrl_base, unsigned in
 	uint64_t counters[ROLLBACK_COUNTER_NUM_COPIES];
 	unsigned int num_valid_counters = 0;
 	unsigned int aux;
+	uint8_t is_unique;
 
 	/* Gather valid counters */
 	for (unsigned int i = 0; i < ROLLBACK_COUNTER_NUM_COPIES; i++)
@@ -259,7 +294,7 @@ int adrv906x_otp_get_rollback_counter(const uintptr_t mem_ctrl_base, unsigned in
 		return -EIO;
 	}
 
-	uint8_t is_unique = 0;
+	is_unique = 0;
 	*nv_ctr = get_most_common_value(counters, num_valid_counters, &is_unique);
 	if (!is_unique) {
 		ERROR("%s: Rollback Counter read error. Counter is corrupted\n", __func__);
@@ -284,7 +319,7 @@ int adrv906x_otp_set_rollback_counter(const uintptr_t mem_ctrl_base, unsigned in
 	return ADI_OTP_SUCCESS;
 }
 
-int adrv906x_otp_set_mac_addr(const uintptr_t mem_ctrl_base, uint8_t mac_number, uint64_t mac64)
+int adrv906x_otp_set_mac_addr(const uintptr_t mem_ctrl_base, uint8_t mac_number, uint8_t *mac)
 {
 	if (mac_number <= 0 || mac_number > NUM_MAC_ADDRESSES) {
 		ERROR("%s: MAC number %d out of bounds (1 .. %d)\n", __func__, mac_number, NUM_MAC_ADDRESSES);
@@ -292,31 +327,33 @@ int adrv906x_otp_set_mac_addr(const uintptr_t mem_ctrl_base, uint8_t mac_number,
 	}
 
 	for (unsigned int i = 0; i < MAC_ADDRESS_NUM_COPIES; i++) {
-		int ret = set_mac_addr_n(mem_ctrl_base, mac_number, i, mac64);
+		int ret = set_mac_addr_n(mem_ctrl_base, mac_number, i, mac);
 		if (ret != ADI_OTP_SUCCESS) return ret;
 	}
 
 	return ADI_OTP_SUCCESS;
 }
 
-int adrv906x_otp_get_mac_addr(const uintptr_t mem_ctrl_base, uint8_t mac_number, uint64_t *mac64)
+int adrv906x_otp_get_mac_addr(const uintptr_t mem_ctrl_base, uint8_t mac_number, uint8_t *mac)
 {
-	uint64_t macs[MAC_ADDRESS_NUM_COPIES];
-	unsigned int num_valid_macs = 0;
-	uint64_t aux;
+	uint8_t macs[MAC_ADDRESS_NUM_COPIES][MAC_ADDRESS_NUM_BYTES];
+	unsigned int num_macs = 0;
+
+	if (mac_number <= 0 || mac_number > NUM_MAC_ADDRESSES) {
+		ERROR("%s: MAC number %d out of bounds (1 .. %d)\n", __func__, mac_number, NUM_MAC_ADDRESSES);
+		return -EINVAL;
+	}
 
 	/* Gather valid counters */
 	for (unsigned int i = 0; i < MAC_ADDRESS_NUM_COPIES; i++)
-		if (get_mac_addr_n(mem_ctrl_base, mac_number, i, &aux) == ADI_OTP_SUCCESS) macs[num_valid_macs++] = aux;
+		if (get_mac_addr_n(mem_ctrl_base, mac_number, i, (uint8_t *)&macs[num_macs]) == ADI_OTP_SUCCESS) num_macs++;
 
-	if (num_valid_macs == 0) {
+	if (num_macs == 0) {
 		ERROR("%s: MAC %d read error. No valid MAC read\n", __func__, mac_number);
 		return -EIO;
 	}
 
-	uint8_t is_unique = 0;
-	*mac64 = get_most_common_value(macs, num_valid_macs, &is_unique);
-	if (!is_unique) {
+	if (!get_most_common_mac((uint8_t *)&macs[0], num_macs, mac)) {
 		ERROR("%s: MAC %d read error. MAC is corrupted\n", __func__, mac_number);
 		return -EIO;
 	}

@@ -14,9 +14,13 @@
 #include <lib/psci/psci.h>
 #include <platform.h>
 
+#include <plat_board.h>
 #include <plat_err.h>
+#include <plat_helpers.h>
 #include <plat_int_gicv3.h>
 #include <plat_mailbox.h>
+#include <plat_pm.h>
+#include <plat_ras.h>
 #include <plat_status_reg.h>
 
 /*******************************************************************************
@@ -62,6 +66,9 @@ static void plat_pwr_domain_on_finish(const psci_power_state_t *target_state)
 
 	/* Enable GIC CPU interface */
 	plat_gic_cpuif_enable();
+
+	/* Enable ECC on CPU caches */
+	plat_enable_cache_ecc();
 }
 
 /*******************************************************************************
@@ -102,22 +109,35 @@ static int plat_system_reset2(int is_vendor, int reset_type, u_register_t cookie
 /*******************************************************************************
  * Platform handlers and setup function.
  ******************************************************************************/
-static const plat_psci_ops_t plat_psci_pm_ops = {
-	.pwr_domain_on			= plat_pwr_domain_on,
-	.pwr_domain_on_finish		= plat_pwr_domain_on_finish,
-	.validate_ns_entrypoint		= plat_validate_ns_entrypoint,
-	.system_reset2			= plat_system_reset2,
-/* TODO: Determine which, if any, of these additional ops need to be supported */
-#if 0
-	.cpu_standby			=,
-	.pwr_domain_off			=,
-	.pwr_domain_pwr_down_wfi	=,
-	.pwr_domain_pwr_down_wfi	=,
-	.system_off			=,
-	.system_reset			=,
-	.validate_power_state		=,
-#endif
+static plat_psci_ops_t plat_psci_pm_ops = {
+	.pwr_domain_on		= plat_pwr_domain_on,
+	.pwr_domain_on_finish	= plat_pwr_domain_on_finish,
+	.validate_ns_entrypoint = plat_validate_ns_entrypoint,
+	.system_reset2		= plat_system_reset2,
 };
+
+/* Allow boards to override psci operations */
+#pragma weak plat_board_psci_override_pm_ops
+plat_psci_ops_t *plat_board_psci_override_pm_ops(plat_psci_ops_t *ops)
+{
+	return ops;
+}
+
+/* Allow adrv device to override psci operations */
+#pragma weak plat_adrv_psci_override_pm_ops
+plat_psci_ops_t *plat_adrv_psci_override_pm_ops(plat_psci_ops_t *ops)
+{
+	return ops;
+}
+
+/* Board level reset  */
+#pragma weak plat_board_system_reset
+void __dead2 plat_board_system_reset(void)
+{
+	ERROR("TODO implement System Reset\n");
+	console_flush();
+	panic();
+}
 
 /*******************************************************************************
  * Setup PSCI ops.
@@ -130,9 +150,11 @@ int __init __attribute__((optimize("O0"))) plat_setup_psci_ops(uintptr_t sec_ent
 							       const plat_psci_ops_t **psci_ops)
 {
 	uintptr_t *entrypoint = (void *)PLAT_TM_ENTRYPOINT;
+	plat_psci_ops_t *aux_ops;
 
 	*entrypoint = sec_entrypoint;
-	*psci_ops = &plat_psci_pm_ops;
+	aux_ops = plat_adrv_psci_override_pm_ops(&plat_psci_pm_ops);
+	*psci_ops = plat_board_psci_override_pm_ops(aux_ops);
 
 	return 0;
 }

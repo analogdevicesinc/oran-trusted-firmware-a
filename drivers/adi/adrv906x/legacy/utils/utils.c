@@ -14,6 +14,7 @@
 #include <arch_helpers.h>
 #include <common/debug.h>
 #include <drivers/delay_timer.h>
+#include "utils.h"
 
 
 /**

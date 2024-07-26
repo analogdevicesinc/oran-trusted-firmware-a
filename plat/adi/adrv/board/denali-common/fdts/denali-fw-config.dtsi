@@ -3,14 +3,21 @@
  * Copyright (c) 2023, Analog Devices Incorporated, All Rights Reserved
  */
 
+#include "adrv906x_device_profile.h"
+#include "adrv906x_pinmux_source_def.h"
+
 / {
 	boot-slot {
 		slot = "";
 	};
 
+	anti-rollback {
+		nv-ctr = <0>;
+	};
+
 	ddr {
-		physical-size = <0x20000000>; /* 512MB. Actual physical size of the primary's DDR */
-		logical-size = <0x10000000>; /* 256 MB. Size of the DDR we want U-Boot and Linux to utilize, the "logical" size*/
+		physical-size = <0x80000000>; /* 2GB. Actual physical size of the primary's DDR */
+		logical-size = <0x80000000>; /* 2GB. Size of the DDR we want U-Boot and Linux to utilize, the "logical" size*/
 		ecc; /* Enables the ECC functionality of DDR if present. To disable ECC, remove this property */
 	};
 
@@ -18,10 +25,51 @@
 		freq = <1>; /* 0 for 7GHz, 1 for 11GHz */
 	};
 
+	eth-pll {
+		freq = <0>; /* 0 for 10GHz, 1 for 25GHz */
+	};
+
 	orx-adc {
 		freq = <3>; /* 0 - 3932 MHz ( 7GHz / 2)
-		              1 - 7864 MHz ( 7GHz / 1)
-		              2 - 5898 MHz (11GHz / 2)
-		              3 - 2949 MHz (11GHz / 4) */
+		               1 - 7864 MHz ( 7GHz / 1)
+		               2 - 5898 MHz (11GHz / 2)
+		               3 - 2949 MHz (11GHz / 4) */
+	};
+
+	secure-partitioning {
+		/* Fill in the list with peripherals that should only be accessed from secure world.
+		   Note: that applies only to peripherals exposed in adrv906x_device_profile header file
+
+		   Denali board config:
+		   - I2C0: conected to the power sequencer (ADM12366). Production image only.
+		*/
+#if DEBUG == 1
+		peripherals = < >;
+#else
+		peripherals = < FW_CONFIG_PERIPH_I2C0 >;
+#endif
+
+		/* Fill in the list with pin numbers that should only be accessed from secure world.
+		   Note: Regardless of the functionality of the pin (ie: pin acting as a regular GPIO,
+		         pin acting as a peripheral line of a secure peripheral or pin acting as a GPIO interrupt),
+		         this list shall explicitly include every physical pin intended to be used from the secure world.
+
+		   Denali config:
+		   - I2C0 peripheral line pins. Production image only.
+		   - A55_GPIO_S_102_PIN (reboot/shutdown signal to ADM12366)
+		   - GPINT_OUTPUT_0_PIN
+		   - GPINT_INTERRUPT_INPUT_SECONDARY_TO_PRIMARY_PIN
+		*/
+		pins = <
+#if DEBUG == 1
+
+#else
+			I2C0_SCL_DIO_PIN
+			I2C0_SDA_DIO_PIN
+#endif
+			A55_GPIO_S_102_PIN
+			GPINT_OUTPUT_0_PIN
+			GPINT_INTERRUPT_INPUT_SECONDARY_TO_PRIMARY_PIN
+		>;
 	};
 };

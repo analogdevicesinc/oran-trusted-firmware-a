@@ -12,6 +12,7 @@
 #include <lib/mmio.h>
 #include <platform.h>
 
+#include <plat_errno.h>
 #include <plat_err.h>
 #include <plat_status_reg.h>
 #include <plat_wdt.h>
@@ -25,6 +26,9 @@ void plat_error_handler(int err)
 	 */
 
 	switch (-err) {
+	case EECC:
+		plat_wr_status_reg(RESET_CAUSE, ECC_ERROR);
+		break;
 	case EAUTH:
 		plat_wr_status_reg(RESET_CAUSE, IMG_VERIFY_FAIL);
 		break;
@@ -43,14 +47,4 @@ void plat_panic_reset_cause(void)
 {
 	/* Set the RESET_CAUSE boot register with the appropriate value for panic case */
 	plat_wr_status_reg(RESET_CAUSE, OTHER_RESET_CAUSE);
-}
-
-void plat_halt_handler(void)
-{
-	ERROR("Unable to recover, boot halted\n");
-
-	plat_secure_wdt_stop();
-
-	while (1)
-		;
 }

@@ -12,7 +12,6 @@
 #include <adrv906x_device_profile.h>
 #include <adrv906x_spu_def.h>
 #include <plat_common_def.h>
-#include <plat_device_profile.h>
 #include <plat_boot.h>
 #include <plat_security.h>
 
@@ -65,6 +64,8 @@
 	(TZC_REGION_ACCESS_RDWR(TZC_NSAID_MDMA2_3)) |       \
 	(TZC_REGION_ACCESS_RDWR(TZC_NSAID_DEFAULT))
 
+typedef enum spu_a55mmr_peripheral_ids spu_a55mmr_peripheral_ids_t;
+
 /* To keep the SRAM TZC code below simple, we make some assumptions about the
  * partitioning on secure/non-secure spaces in SRAM. Test those assumptions here:
  */
@@ -107,7 +108,7 @@ static plat_spu_peripherals_info_t plat_spu_m4_peripherals[SPU_M4_PERIPHERALS_CO
  * Secondary L4 (SRAM): Identical layout to primary
  * Secondary DDR (DRAM): All non-secure
  */
-void adrv906x_tzc_setup(void)
+static void adrv906x_tzc_setup(void)
 {
 	size_t ns_dram_size = 0;
 	size_t dram_size = 0;
@@ -212,6 +213,119 @@ void adrv906x_tzc_setup(void)
 	}
 }
 
+
+static void adrv906x_override_secure_spi_spu(uint32_t index)
+{
+	/*  SPI secure configuration is a bit more complex than for the other
+	 *  peripherals, so let's isolate this configuration
+	 */
+	const spu_a55mmr_peripheral_ids_t spu_slave_periph_map[][3] = {
+		{ SPU_A55MMR_PERIPH_SPICONFIG0, SPU_A55MMR_PERIPH_SPI0DDE0, SPU_A55MMR_PERIPH_SPI0DDE1 },
+		{ SPU_A55MMR_PERIPH_SPICONFIG1, SPU_A55MMR_PERIPH_SPI1DDE0, SPU_A55MMR_PERIPH_SPI1DDE1 },
+		{ SPU_A55MMR_PERIPH_SPICONFIG2, SPU_A55MMR_PERIPH_SPI2DDE0, SPU_A55MMR_PERIPH_SPI2DDE1 },
+		{ SPU_A55MMR_PERIPH_SPICONFIG3, SPU_A55MMR_PERIPH_SPI3DDE0, SPU_A55MMR_PERIPH_SPI3DDE1 },
+		{ SPU_A55MMR_PERIPH_SPICONFIG4, SPU_A55MMR_PERIPH_SPI4DDE0, SPU_A55MMR_PERIPH_SPI4DDE1 },
+		{ SPU_A55MMR_PERIPH_SPICONFIG5, SPU_A55MMR_PERIPH_SPI5DDE0, SPU_A55MMR_PERIPH_SPI5DDE1 },
+	};
+	const spu_a55mmr_peripheral_ids_t spu_master_periph_map[][2] = {
+		{ SPU_A55MMR_PERIPH_SPI0DDE0, SPU_A55MMR_PERIPH_SPI0DDE1 },
+		{ SPU_A55MMR_PERIPH_SPI1DDE0, SPU_A55MMR_PERIPH_SPI1DDE1 },
+		{ SPU_A55MMR_PERIPH_SPI2DDE0, SPU_A55MMR_PERIPH_SPI2DDE1 },
+		{ SPU_A55MMR_PERIPH_SPI3DDE0, SPU_A55MMR_PERIPH_SPI3DDE1 },
+		{ SPU_A55MMR_PERIPH_SPI4DDE0, SPU_A55MMR_PERIPH_SPI4DDE1 },
+		{ SPU_A55MMR_PERIPH_SPI5DDE0, SPU_A55MMR_PERIPH_SPI5DDE1 },
+	};
+
+	/* Sanity check */
+	if (index > (FW_CONFIG_PERIPH_SPI5 - FW_CONFIG_PERIPH_SPI0)) {
+		ERROR("SPI entry too large");
+		return;
+	}
+
+	/* Mark slave peripherals as secure */
+	plat_spu_a55mmr_peripherals[spu_slave_periph_map[index][0]].flags &= ~ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[spu_slave_periph_map[index][1]].flags &= ~ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[spu_slave_periph_map[index][2]].flags &= ~ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+
+	/* Mark master peripherals as secure */
+	plat_spu_a55mmr_peripherals[spu_master_periph_map[index][0]].flags |= ADI_SPU_PERIPHERAL_FLAGS_MSEC;
+	plat_spu_a55mmr_peripherals[spu_master_periph_map[index][1]].flags |= ADI_SPU_PERIPHERAL_FLAGS_MSEC;
+}
+
+static void adrv906x_customer_override_spu(void)
+{
+	/* Security configuration for some peripherals is exposed to the customer
+	 * Note: only a few A55MMR peripherals are exposed
+	 *
+	 * This is a mapping between the exposed peripherals and their
+	 * corresponding SPU entry index.
+	 */
+	const enum spu_a55mmr_peripheral_ids spu_slave_periph_map[] = {
+		SPU_A55MMR_PERIPH_UART_1,
+		SPU_A55MMR_PERIPH_UART_3,
+		SPU_A55MMR_PERIPH_UART_4,
+		SPU_A55MMR_PERIPH_SPICONFIG0,
+		SPU_A55MMR_PERIPH_SPICONFIG1,
+		SPU_A55MMR_PERIPH_SPICONFIG2,
+		SPU_A55MMR_PERIPH_SPICONFIG3,
+		SPU_A55MMR_PERIPH_SPICONFIG4,
+		SPU_A55MMR_PERIPH_SPICONFIG5,
+		SPU_A55MMR_PERIPH_I2C0,
+		SPU_A55MMR_PERIPH_I2C1,
+		SPU_A55MMR_PERIPH_I2C2,
+		SPU_A55MMR_PERIPH_I2C3,
+		SPU_A55MMR_PERIPH_I2C4,
+		SPU_A55MMR_PERIPH_I2C5,
+		SPU_A55MMR_PERIPH_I2C6,
+		SPU_A55MMR_PERIPH_I2C7,
+	};
+	bool *secure_peripherals;
+	uint32_t len;
+
+	/* Sanity check */
+	if (FW_CONFIG_PERIPH_NUM_MAX != sizeof(spu_slave_periph_map) / sizeof(enum spu_a55mmr_peripheral_ids)) {
+		ERROR("sou_periph_map list size is not correct");
+		return;
+	}
+
+	secure_peripherals = plat_get_secure_peripherals(&len);
+	if (secure_peripherals == NULL) {
+		ERROR("Invalid pointer to the secure_peripheral list");
+		return;
+	}
+
+	for (uint32_t i = 0; i < len; i++)
+		if (secure_peripherals[i]) {
+			if ((i >= FW_CONFIG_PERIPH_SPI0) && (i <= FW_CONFIG_PERIPH_SPI5))
+				/* Mark all related peripherals as secure */
+				adrv906x_override_secure_spi_spu(i - FW_CONFIG_PERIPH_SPI0);
+			else
+				/* Mark the peripheral as secure */
+				plat_spu_a55mmr_peripherals[spu_slave_periph_map[i]].flags &= ~ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+		}
+}
+
+/* Disable SPU, for development/debug purposes.
+ * To enable, insert before all calls to plat_spu_setup()
+ * in adrv906x_spu_setup()
+ */
+static __unused void adrv906x_spu_disable(void)
+{
+	unsigned int i;
+
+	/* Set NO_SSEC for all SPU regions, opening them to NS accesses */
+	for (i = 0; i < SPU_A55MMR_PERIPHERALS_COUNT; i++)
+		plat_spu_a55mmr_peripherals[i].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	for (i = 0; i < SPU_ORAN_PERIPHERALS_COUNT; i++)
+		plat_spu_oran_peripherals[i].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	for (i = 0; i < SPU_XCORR_PERIPHERALS_COUNT; i++)
+		plat_spu_xcorr_peripherals[i].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	for (i = 0; i < SPU_DFE_PERIPHERALS_COUNT; i++)
+		plat_spu_dfe_peripherals[i].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	for (i = 0; i < SPU_M4_PERIPHERALS_COUNT; i++)
+		plat_spu_m4_peripherals[i].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+}
+
 /*
  * The SPU (System Protection Unit) is an access control system for hardware
  * peripherals. Each peripheral can be configured to respond only to certain
@@ -230,7 +344,7 @@ void adrv906x_tzc_setup(void)
  *      +   +   +     +   +   +     +   +   +     +   +   +     +   +   +
  *
  */
-void adrv906x_spu_setup(void)
+static void adrv906x_spu_setup(void)
 {
 	plat_boot_device_t boot_device;
 
@@ -300,44 +414,40 @@ void adrv906x_spu_setup(void)
 	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SUBSYS_CFG_PERIF_NS].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
 	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_GPIO_NSEC].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
 	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_GPIO_CROSSBAR_CONTROL].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_UART_1].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_UART_3].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_UART_4].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPICONFIG0].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPICONFIG1].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPICONFIG2].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPICONFIG3].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPICONFIG4].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPICONFIG5].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPI0DDE0].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPI0DDE1].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPI1DDE0].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPI1DDE1].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPI2DDE0].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPI2DDE1].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPI3DDE0].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPI3DDE1].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPI4DDE0].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPI4DDE1].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPI5DDE0].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPI5DDE1].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_I2C0].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_I2C1].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_I2C2].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_I2C3].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_I2C4].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_I2C5].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_I2C6].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_I2C7].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
 
 	/* For SystemC, enable UART4 (PL011 UART3) which will be used instead of the internal virtual UARTs */
 	/* TODO: Consider removing this if/when SystemC support is removed */
 	if (plat_is_sysc())
 		plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_UART_4].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
-
-	/* Overridable SSEC (TODO: Add 'overwride' support)
-	 *
-	 * SPU_A55MMR_PERIPH_UART_1 (default S)
-	 * SPU_A55MMR_PERIPH_UART_3 (default S)
-	 * SPU_A55MMR_PERIPH_UART_4 (default S)
-	 * SPU_A55MMR_PERIPH_SPICONFIG0 (default S)
-	 * SPU_A55MMR_PERIPH_SPICONFIG1 (default S)
-	 * SPU_A55MMR_PERIPH_SPICONFIG2 (default S)
-	 * SPU_A55MMR_PERIPH_SPICONFIG3 (default S)
-	 * SPU_A55MMR_PERIPH_SPICONFIG4 (default S)
-	 * SPU_A55MMR_PERIPH_SPICONFIG5 (default S)
-	 * SPU_A55MMR_PERIPH_SPI0DDE0 (default S. Need to follow SPU_A55MMR_PERIPH_SPICONFIG0)
-	 * SPU_A55MMR_PERIPH_SPI0DDE1 (default S. Need to follow SPU_A55MMR_PERIPH_SPICONFIG0)
-	 * SPU_A55MMR_PERIPH_SPI1DDE0 (default S. Need to follow SPU_A55MMR_PERIPH_SPICONFIG1)
-	 * SPU_A55MMR_PERIPH_SPI1DDE1 (default S. Need to follow SPU_A55MMR_PERIPH_SPICONFIG1)
-	 * SPU_A55MMR_PERIPH_SPI2DDE0 (default S. Need to follow SPU_A55MMR_PERIPH_SPICONFIG2)
-	 * SPU_A55MMR_PERIPH_SPI2DDE1 (default S. Need to follow SPU_A55MMR_PERIPH_SPICONFIG2)
-	 * SPU_A55MMR_PERIPH_SPI3DDE0 (default S. Need to follow SPU_A55MMR_PERIPH_SPICONFIG3)
-	 * SPU_A55MMR_PERIPH_SPI3DDE1 (default S. Need to follow SPU_A55MMR_PERIPH_SPICONFIG3)
-	 * SPU_A55MMR_PERIPH_SPI4DDE0 (default S. Need to follow SPU_A55MMR_PERIPH_SPICONFIG4)
-	 * SPU_A55MMR_PERIPH_SPI4DDE1 (default S. Need to follow SPU_A55MMR_PERIPH_SPICONFIG4)
-	 * SPU_A55MMR_PERIPH_SPI5DDE0 (default S. Need to follow SPU_A55MMR_PERIPH_SPICONFIG5)
-	 * SPU_A55MMR_PERIPH_SPI5DDE1 (default S. Need to follow SPU_A55MMR_PERIPH_SPICONFIG5)
-	 * SPU_A55MMR_PERIPH_I2C0 (default S)
-	 * SPU_A55MMR_PERIPH_I2C1 (default S)
-	 * SPU_A55MMR_PERIPH_I2C2 (default S)
-	 * SPU_A55MMR_PERIPH_I2C3 (default S)
-	 * SPU_A55MMR_PERIPH_I2C4 (default S)
-	 * SPU_A55MMR_PERIPH_I2C5 (default S)
-	 * SPU_A55MMR_PERIPH_I2C6 (default S)
-	 * SPU_A55MMR_PERIPH_I2C7 (default S)
-	 */
 
 	/* ORAN */
 	plat_spu_oran_peripherals[SPU_ORAN_PERIPH_ANTENNA_CAL].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
@@ -446,21 +556,8 @@ void adrv906x_spu_setup(void)
 		plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_QUAD_SPI_DMA_1].flags |= ADI_SPU_PERIPHERAL_FLAGS_MSEC;
 	}
 
-	/* Overridable MSEC (TODO: Add 'overwride' support)
-	 *
-	 * SPU_A55MMR_PERIPH_SPI0DDE0 (default NS)
-	 * SPU_A55MMR_PERIPH_SPI0DDE1 (default NS)
-	 * SPU_A55MMR_PERIPH_SPI1DDE0 (default NS)
-	 * SPU_A55MMR_PERIPH_SPI1DDE1 (default NS)
-	 * SPU_A55MMR_PERIPH_SPI2DDE0 (default NS)
-	 * SPU_A55MMR_PERIPH_SPI2DDE1 (default NS)
-	 * SPU_A55MMR_PERIPH_SPI3DDE0 (default NS)
-	 * SPU_A55MMR_PERIPH_SPI3DDE1 (default NS)
-	 * SPU_A55MMR_PERIPH_SPI4DDE0 (default NS)
-	 * SPU_A55MMR_PERIPH_SPI4DDE1 (default NS)
-	 * SPU_A55MMR_PERIPH_SPI5DDE0 (default NS)
-	 * SPU_A55MMR_PERIPH_SPI5DDE1 (default NS)
-	 */
+	/* Security customization by customer */
+	adrv906x_customer_override_spu();
 
 	plat_spu_setup(SPU_A55MMR_BASE, plat_spu_a55mmr_peripherals,
 		       SPU_A55MMR_PERIPHERALS_COUNT);

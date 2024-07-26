@@ -5,6 +5,7 @@
 
 #include <adrv906x_otp.h>
 #include <platform_def.h>
+#include <plat_device_profile.h>
 
 /************************** Test INSTRUCTIONS ***************************/
 /* This is a test framework to verify the functionality of OTP driver which
@@ -56,22 +57,30 @@ int adi_otp_test(void)
 	adrv906x_otp_init_driver();
 
 	printf("\nTest MACs...\n");
-	uint64_t MACs[3] = { 0x112233445566, 0x778899AABBCC, 0xDDEEFF001122 };
-	for (int i = 0; i < 3; i++) {
-		printf("Set MAC %d 0x%012lx... ", i, MACs[i]);
+	uint8_t MACs[6][ETH_LEN] = { { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 },
+				     { 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC },
+				     { 0xDD, 0xEE, 0xFF, 0x00, 0x11, 0x22 },
+				     { 0x44, 0x55, 0x66, 0x11, 0x22, 0x33 },
+				     { 0xAA, 0xBB, 0xCC, 0x77, 0x88, 0x99 },
+				     { 0x01, 0x12, 0x2D, 0xDE, 0xEF, 0xF0 } };
+	for (int i = 0; i < 6; i++) {
+		printf("Set MAC %d 0x%02x%02x%02x%02x%02x%02x... ", i, MACs[i][0], MACs[i][1], MACs[i][2], MACs[i][3], MACs[i][4], MACs[i][5]);
 		if (adrv906x_otp_set_mac_addr(mem_ctrl_base, i + 1, MACs[i]) != ADI_OTP_SUCCESS) {
 			printf("ERROR: Cannot set MAC %d\n", i);
 			return -1;
 		}
-		uint64_t mac;
-		if (adrv906x_otp_get_mac_addr(mem_ctrl_base, i + 1, &mac) != ADI_OTP_SUCCESS) {
+		uint8_t mac[ETH_LEN];
+		if (adrv906x_otp_get_mac_addr(mem_ctrl_base, i + 1, mac) != ADI_OTP_SUCCESS) {
 			printf("ERROR: Cannot get MAC %d\n", i);
 			return -1;
 		}
-		if (mac != MACs[i]) {
-			printf("ERROR: Read MAC %d: 0x%lx (expected 0x%lx)\n", i, mac, MACs[i]);
-			return -1;
-		}
+		for (int j = 0; j < ETH_LEN; j++)
+			if (mac[j] != MACs[i][j]) {
+				printf("ERROR: Read MAC %d: 0x%02x%02x%02x%02x%02x%02x (expected 0x%02x%02x%02x%02x%02x%02x)\n", i,
+				       mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+				       MACs[i][0], MACs[i][1], MACs[i][2], MACs[i][3], MACs[i][4], MACs[i][5]);
+				return -1;
+			}
 		printf("OK\n");
 	}
 

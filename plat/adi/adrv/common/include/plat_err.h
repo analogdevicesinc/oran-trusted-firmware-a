@@ -11,6 +11,4 @@ void plat_panic_reset_cause(void);
 
 int plat_warm_reset(void);
 
-void plat_halt_handler(void);
-
 #endif

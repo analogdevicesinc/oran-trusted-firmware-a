@@ -37,7 +37,9 @@
 
 typedef enum adi_tempr_sensor {
 	ADI_DEVTEMP_CLKPLL,                     /*!< Clk PLL temperature sensor      */
-	ADI_DEVTEMP_SEC_CLKPLL,                 /*!< Secondary Clk PLL temperature sensor*/
+	ADI_DEVTEMP_SEC_CLKPLL,                 /*!< Secondary Clk PLL temperature sensor */
+	ADI_DEVTEMP_ETHERNET_CLKPLL,            /*!< Ethernet Clk PLL temperature sensor */
+	ADI_DEVTEMP_SEC_ETHERNET_CLKPLL,        /*!< Secondary Ethernet Clk PLL temperature sensor */
 	ADI_DEVTEMP_MAX_SENSORS                 /*!< Max number of temperature sensors */
 } adi_tempr_sensor_e;
 

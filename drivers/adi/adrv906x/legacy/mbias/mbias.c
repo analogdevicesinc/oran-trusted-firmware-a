@@ -13,6 +13,7 @@
 #include <arch.h>
 #include <arch_helpers.h>
 #include <common/debug.h>
+#include <drivers/adi/adrv906x/mbias.h>
 #include <drivers/delay_timer.h>
 
 #include "mbias.h"

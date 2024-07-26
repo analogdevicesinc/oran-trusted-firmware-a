@@ -13,6 +13,8 @@
 #include <arch.h>
 #include <arch_helpers.h>
 #include <common/debug.h>
+#include <drivers/adi/adrv906x/pll.h>
+#include <drivers/adi/adrv906x/temperature.h>
 #include <drivers/delay_timer.h>
 #include "temperature.h"
 

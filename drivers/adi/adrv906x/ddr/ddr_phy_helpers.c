@@ -23,7 +23,9 @@
 
 /* Debug */
 /*#define DDR_DEBUG_ENABLE*/
+
 #ifdef DDR_DEBUG_ENABLE
+#define HDTCTRL_ADDR 0x150030
 #define DDR_DEBUG(...)          INFO(__VA_ARGS__)
 #else
 #define DDR_DEBUG(...)
@@ -62,7 +64,7 @@ typedef enum {
 static umctl2_timing_registers_t umctl2TimingBaseValues;
 static umctl2_timing_registers_t pstateTimings[4];
 
-static void update_umctl2_timing_values(uintptr_t base_addr_ctrl, ddr_pstate_t pstate);
+static void get_base_umctl2_timing_values(uintptr_t base_addr_ctrl, uint64_t freq);
 static uint8_t get_cdd_value(uintptr_t base_addr_phy, ucmtl2_timing_types_t timing_type, uint8_t ranks);
 static void get_cdd_array(uintptr_t base_addr_phy, ucmtl2_timing_types_t timing_type, int8_t *array);
 static uint8_t get_wrdata_delay(uintptr_t base_addr_phy, ddr_pstate_t pstate, uint8_t ranks);
@@ -87,10 +89,10 @@ static void phy_print_streaming_message(const char *message, ...);
  * Notes:
  *
  *******************************************************************************/
-ddr_error_t phy_override_user_input()
+ddr_error_t phy_override_user_input(void)
 {
 	return 0;
-};
+}
 
 /**
  *******************************************************************************
@@ -166,10 +168,14 @@ ddr_error_t phy_enable_power_and_clocks(uintptr_t base_addr_adi_interface, uintp
  * Notes: This function should not be used to override any registers that depend on values in userInput.Basic/Advanced or the message block. These should be done in PhyOverrideUserInput instead
  *
  *******************************************************************************/
-ddr_error_t phy_run_pre_training(uintptr_t base_addr_ctrl)
+ddr_error_t phy_run_pre_training(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uint64_t freq)
 {
 	DDR_DEBUG("Running DDR phy pre training tasks.\n");
-	get_base_umctl2_timing_values(base_addr_ctrl);
+	get_base_umctl2_timing_values(base_addr_ctrl, freq);
+	/* Manual PLLCtrl overrides that must be done before training */
+	mmio_write_32(base_addr_phy + DDRPHYA_MASTER0_P0_MASTER0_P0_PLLTESTMODE_P0, 0x24);
+	mmio_write_32(base_addr_phy + DDRPHYA_MASTER0_P0_MASTER0_P0_PLLCTRL1_P0, 0x21);
+	mmio_write_32(base_addr_phy + DDRPHYA_MASTER0_P0_MASTER0_P0_PLLCTRL4_P0, 0x17f);
 	return 0;
 };
 /**
@@ -195,9 +201,10 @@ ddr_error_t phy_load_imem(int train_2d, ddr_pstate_t pstate, uintptr_t base_addr
 	uintptr_t dest_ptr = (base_addr_phy + DDR_PHY_IP_ICCM_INDEX);
 	uint16_t *mem_ptr = (uint16_t *)dest_ptr;
 	unsigned int mem_length = 0;
-	int i;
+	unsigned int i;
 
 	DDR_DEBUG("Loading DDR IMEM for pstate %d.\n", pstate);
+	mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICRORESET + base_addr_phy), DDR_STALLTOMICRO_MASK);
 	/* IMEM is the same for all configurations, so we assume primary. */
 	phy_get_mem_info(1, pstate, train_2d, &mem_ptr, &mem_length, DDR_PRIMARY_CONFIGURATION);
 	/* According to design team, for address between Synopsys space and our space to align, two bytes of the .bin are written every four addresses */
@@ -294,7 +301,7 @@ ddr_error_t phy_set_dfi_clock(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy,
 		/* Set clk freq */
 		clk_set_freq(base_addr_clk, CLK_ID_DDR, (pstate_data.freq * DDR_MHZ_TO_HZ));
 		clk_freq = clk_get_freq(base_addr_clk, CLK_ID_DDR);
-		if ((clk_freq / DDR_MHZ_TO_HZ) != pstate_data.freq)
+		if ((clk_freq / DDR_MHZ_TO_HZ) != (uint64_t)pstate_data.freq)
 			return_val = ERROR_DDR_PHY_INIT_FAILED;
 
 		clk_enable_clock(base_addr_clk, CLK_ID_DDR);
@@ -330,9 +337,10 @@ ddr_error_t phy_load_dmem(int train_2d, ddr_pstate_t pstate, uintptr_t base_addr
 	uintptr_t dest_ptr = (base_addr_phy + DDR_PHY_IP_DCCM_INDEX);
 	uint16_t *mem_ptr = (uint16_t *)dest_ptr;
 	unsigned int mem_length = 0;
-	int i;
+	unsigned int i;
 
 	DDR_DEBUG("Loading DDR DMEM for pstate %d.\n", pstate);
+	mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICRORESET + base_addr_phy), DDR_STALLTOMICRO_MASK);
 	phy_get_mem_info(0, pstate, train_2d, &mem_ptr, &mem_length, configuration);
 	if (mem_ptr == NULL)
 		return ERROR_DDR_PHY_INIT_FAILED;
@@ -342,6 +350,11 @@ ddr_error_t phy_load_dmem(int train_2d, ddr_pstate_t pstate, uintptr_t base_addr
 		mem_ptr++;
 		dest_ptr += 4;
 	}
+
+#ifdef DDR_DEBUG_ENABLE
+	/* Enable DDR PHY streaming messages */
+	mmio_write_8(base_addr_phy + HDTCTRL_ADDR, 0x04);
+#endif
 
 	return 0;
 };
@@ -395,7 +408,7 @@ void phy_enable_micro_ctrl(uintptr_t base_addr_phy)
  *******************************************************************************/
 ddr_error_t phy_wait_for_done(uintptr_t base_addr_phy, int train_2d)
 {
-	int training_status = 0;
+	int training_status = DDR_PHY_MAILBOX_TRAINING_RUNNING;
 	uint64_t timeout;
 
 	timeout = timeout_init_us(DDR_PHY_TRAINING_TIMEOUT_US);
@@ -418,12 +431,15 @@ ddr_error_t phy_wait_for_done(uintptr_t base_addr_phy, int train_2d)
 			mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICRORESET + base_addr_phy), DDR_RESETTOMICRO_MASK | DDR_STALLTOMICRO_MASK);
 			ERROR("Too many arguments to streaming message.\n");
 			return ERROR_DDR_PHY_MAILBOX_FAILED;
+		case DDR_PHY_MAILBOX_TRAINING_FAILED:
+			ERROR("DDR training firmware returned an error message.\n");
+			return ERROR_DDR_PHY_FW_FAILED;
 		default:
 			continue;
 		}
 	}
 	/* If we make it here the training has passed, put the PHY MCU back into reset */
-	mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICRORESET + base_addr_phy), DDR_RESETTOMICRO_MASK | DDR_STALLTOMICRO_MASK);
+	mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICRORESET + base_addr_phy), DDR_STALLTOMICRO_MASK);
 	return ERROR_DDR_NO_ERROR;
 };
 
@@ -493,11 +509,11 @@ ddr_error_t phy_read_msg_block(uintptr_t base_addr_phy, int train_2d, int ranks,
  * Notes: Function should not be used to alter any registers that depend on values in userInput.Basic/Advanced
  *
  *******************************************************************************/
-ddr_error_t phy_run_post_training()
+ddr_error_t phy_run_post_training(void)
 {
 	DDR_DEBUG("Running DDR post training tasks.\n");
 	return 0;
-};
+}
 
 /**
  *******************************************************************************
@@ -530,12 +546,12 @@ ddr_error_t phy_enter_mission_mode(uintptr_t base_addr_ctrl, uintptr_t base_addr
 	/* If 2D training was used, we have to enter mission mode in pstate0 no matter what pstate we want to normally run at */
 	if (train_2d) {
 		/* Program the controller with the timing parameters of the selected pstate */
-		update_umctl2_timing_values(base_addr_ctrl, default_pstate.pstate);
-		return_val = phy_set_dfi_clock(base_addr_ctrl, base_addr_phy, base_addr_clk, default_pstate);
+		if (return_val == ERROR_DDR_NO_ERROR)
+			return_val = phy_set_dfi_clock(base_addr_ctrl, base_addr_phy, base_addr_clk, default_pstate);
 	} else {
 		/* If no 2D training used, enter mission mode in the last pstate trained */
-		update_umctl2_timing_values(base_addr_ctrl, last_trained.pstate);
-		return_val = phy_set_dfi_clock(base_addr_ctrl, base_addr_phy, base_addr_clk, last_trained);
+		if (return_val == ERROR_DDR_NO_ERROR)
+			return_val = phy_set_dfi_clock(base_addr_ctrl, base_addr_phy, base_addr_clk, last_trained);
 	}
 	return return_val;
 };
@@ -561,12 +577,13 @@ ddr_error_t phy_enter_mission_mode(uintptr_t base_addr_ctrl, uintptr_t base_addr
  *******************************************************************************/
 int phy_get_mailbox_message(uintptr_t base_addr_phy, int train_2d)
 {
-	/* SystemC cannot run the actual training firmware, so return the TRAINING_DONE message so the rest of the init can be tested untrained */
-	if (plat_is_sysc() == true)
-		return DDR_PHY_MAILBOX_TRAINING_DONE;
 	int i;
 	int result = DDR_PHY_MAILBOX_MAILBOX_EMPTY;
 	uint32_t mailbox_msg = DDR_PHY_TRAINING_RUNNING;
+
+	/* SystemC/Protium/Palladium cannot run the actual training firmware, so return the TRAINING_DONE message so the rest of the init can be tested untrained */
+	if (!plat_is_hardware())
+		return DDR_PHY_MAILBOX_TRAINING_DONE;
 
 	if ((mmio_read_32(base_addr_phy + DDRPHYA_APBONLY0_APBONLY0_UCTSHADOWREGS) & DDR_PHY_UCTWRITEPROTSHADOWMASK) == 0x0) {
 		/* Check if mailbox has a message ready */
@@ -595,12 +612,12 @@ int phy_get_mailbox_message(uintptr_t base_addr_phy, int train_2d)
 		result = DDR_PHY_MAILBOX_TRAINING_DONE;
 	else if (mailbox_msg == DDR_PHY_STREAMING_MESSAGE)
 		result = phy_get_streaming_message(base_addr_phy, train_2d);
+	else if (mailbox_msg == DDR_PHY_TRAINING_FAILED)
+		result = DDR_PHY_MAILBOX_TRAINING_FAILED;
 	else
 		result = DDR_PHY_MAILBOX_TRAINING_RUNNING;
 
-	/* Protium and Palladium models cannot run the actual training firmware but is able to use the mailbox, so return the TRAINING_DONE message */
-	if (plat_is_protium() || plat_is_palladium())
-		return DDR_PHY_MAILBOX_TRAINING_DONE;
+
 
 	return result;
 }
@@ -625,6 +642,7 @@ static int phy_get_streaming_message(uintptr_t base_addr_phy, int train_2d)
 
 	/* Get the streaming message */
 	mailbox_msg = mmio_read_32(base_addr_phy + DDRPHYA_APBONLY0_APBONLY0_UCTWRITEONLYSHADOW);
+	mailbox_msg |= (mmio_read_32(base_addr_phy + DDRPHYA_APBONLY0_APBONLY0_UCTDATWRITEONLYSHADOW) << 16);
 	mmio_write_32(base_addr_phy + DDRPHYA_APBONLY0_APBONLY0_DCTWRITEPROT, 0x0);
 	/* Wait for ACK from PHY */
 	for (j = 0; j < DDR_PHY_MAILBOX_TIMEOUT_US; j++) {
@@ -666,10 +684,18 @@ static int phy_get_streaming_message(uintptr_t base_addr_phy, int train_2d)
 		/* Get any remaining arguments for the print formatting */
 		arg_count = mailbox_msg & DDR_PHY_STREAMING_MESSAGE_MASK;
 		for (i = 0; i < arg_count; i++) {
+			timeout = timeout_init_us(DDR_PHY_MAILBOX_TIMEOUT_US);
+			while ((mmio_read_32(base_addr_phy + DDRPHYA_APBONLY0_APBONLY0_UCTSHADOWREGS) & DDR_PHY_UCTWRITEPROTSHADOWMASK) != 0x0) {
+				if (timeout_elapsed(timeout))
+					/* If the streaming message doesn't show up in the mailbox, error out */
+					return DDR_PHY_MAILBOX_NO_STREAMING_MESSAGE;
+			}
+
 			if (i >= DDR_PHY_STREAMING_MESSAGE_MAX_ARGUMENTS)
 				return DDR_PHY_MAILBOX_TOO_MANY_ARGUMENTS;
 			/* Get argument value and save it */
 			mailbox_msg = mmio_read_32(base_addr_phy + DDRPHYA_APBONLY0_APBONLY0_UCTWRITEONLYSHADOW);
+			mailbox_msg |= (mmio_read_32(base_addr_phy + DDRPHYA_APBONLY0_APBONLY0_UCTDATWRITEONLYSHADOW) << 16);
 			arguments[i] = mailbox_msg;
 
 			/* Tell PHY we are ready for the next argument by ACK'ing the current one */
@@ -695,7 +721,8 @@ static int phy_get_streaming_message(uintptr_t base_addr_phy, int train_2d)
 	}
 
 	/* Print the message. If no matching string was found, print the ID of the streaming message to the log */
-	phy_print_streaming_message(message, arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6], arguments[7], arguments[8], arguments[9], arguments[10], arguments[11], arguments[12], arguments[13], arguments[14], arguments[15], arguments[16], arguments[17], arguments[18], arguments[19]);
+	phy_print_streaming_message(message, arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6], arguments[7], arguments[8], arguments[9], arguments[10], arguments[11], arguments[12], arguments[13], arguments[14], arguments[15], arguments[16], \
+				    arguments[17], arguments[18], arguments[19], arguments[20], arguments[21], arguments[22], arguments[23], arguments[24], arguments[25], arguments[26], arguments[27], arguments[28], arguments[29], arguments[30], arguments[31]);
 	return DDR_PHY_MAILBOX_STREAMING_MESSAGE;
 }
 
@@ -753,15 +780,26 @@ static int phy_get_mem_info(bool select_imem, ddr_pstate_t pstate, int train_2d,
 }
 
 /* Gets the base timing values for the controller */
-void get_base_umctl2_timing_values(uintptr_t base_addr_ctrl)
+static void get_base_umctl2_timing_values(uintptr_t base_addr_ctrl, uint64_t freq)
 {
-	umctl2TimingBaseValues.wr2rd = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_DRAMTMG2) & DRAMTMG2_WR2RD_MASK) >> DRAMTMG2_WR2RD_SHIFT;
-	umctl2TimingBaseValues.rd2wr = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_DRAMTMG2) & DRAMTMG2_RD2WR_MASK) >> DRAMTMG2_RD2WR_SHIFT;
-	umctl2TimingBaseValues.wr2rd_dr = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_RANKCTL1) & RANKCTL1_WR2RD_DR_MASK) >> RANKCTL1_WR2RD_DR_SHIFT;
-	umctl2TimingBaseValues.wr2rd_s = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_DRAMTMG9) & DRAMTMG9_WR2RD_S_MASK) >> DRAMTMG9_WR2RD_S_SHIFT;
-	umctl2TimingBaseValues.diff_rank_rd_gap = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_RANKCTL) & RANKCTL_DIFF_RANK_RD_GAP_MASK) >> RANKCTL_DIFF_RANK_RD_GAP_SHIFT;
-	umctl2TimingBaseValues.diff_rank_wr_gap = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_RANKCTL) & RANKCTL_DIFF_RANK_WR_GAP_MASK) >> RANKCTL_DIFF_RANK_WR_GAP_SHIFT;
-	umctl2TimingBaseValues.wrdata_delay = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_DFITMG1) & DFITMG1_DFI_T_WRDATA_DELAY_MASK) >> DFITMG1_DFI_T_WRDATA_DELAY_SHIFT;
+	/* Base timing values from the Synopsys PHY databook*/
+	if (freq == 800) {
+		umctl2TimingBaseValues.wr2rd = 0xE;
+		umctl2TimingBaseValues.rd2wr = 0x6;
+		umctl2TimingBaseValues.wr2rd_dr = 0xE;
+		umctl2TimingBaseValues.wr2rd_s = 0x10;
+		umctl2TimingBaseValues.diff_rank_rd_gap = 0x1;
+		umctl2TimingBaseValues.diff_rank_wr_gap = 0x2;
+		umctl2TimingBaseValues.wrdata_delay = 0x8;
+	} else {
+		umctl2TimingBaseValues.wr2rd = 0xE;
+		umctl2TimingBaseValues.rd2wr = 0x6;
+		umctl2TimingBaseValues.wr2rd_dr = 0xE;
+		umctl2TimingBaseValues.wr2rd_s = 0x1C;
+		umctl2TimingBaseValues.diff_rank_rd_gap = 0x1;
+		umctl2TimingBaseValues.diff_rank_wr_gap = 0x2;
+		umctl2TimingBaseValues.wrdata_delay = 0xC;
+	}
 }
 
 /* Retrieves the training firmware timing results from the DDR PHY */
@@ -833,6 +871,9 @@ static uint8_t get_cdd_value(uintptr_t base_addr_phy, ucmtl2_timing_types_t timi
 			index = i * 3;
 			/* RR and WW don't have a 0-0, 1-1, 2-2, or 3-3 measurement, so one fewer read per rank set */
 			for (j = 0; j < (ranks - 1); j++) {
+				/* We have to use the absolute value of the measurements */
+				if (cdd_array[index] < 0)
+					cdd_array[index] = cdd_array[index] * -1;
 				if (cdd_array[index] > returnVal)
 					returnVal = cdd_array[index];
 				index += 1;
@@ -845,6 +886,9 @@ static uint8_t get_cdd_value(uintptr_t base_addr_phy, ucmtl2_timing_types_t timi
 			/* Jump to each rank's place in the array, starting with 0 and going to 3 at the maximum */
 			index = i * 4;
 			for (j = 0; j < ranks; j++) {
+				/* We have to use the absolute value of the measurements */
+				if (cdd_array[index] < 0)
+					cdd_array[index] = cdd_array[index] * -1;
 				if (cdd_array[index] > returnVal)
 					returnVal = cdd_array[index];
 				index += 1;
@@ -854,13 +898,42 @@ static uint8_t get_cdd_value(uintptr_t base_addr_phy, ucmtl2_timing_types_t timi
 	default:
 		return 0;
 	}
-	return returnVal;
+	/* The controller uses the return value in terms of DFI clock instead of MEMCLK, so we need to divide by 2 or controller values will be double what is expected */
+	return (uint8_t)returnVal / 2;
 }
 
 /* Updates the timing parameters in the controller when we switch pstates from the stored values in the global variable pstateTimings */
-static void update_umctl2_timing_values(uintptr_t base_addr_ctrl, ddr_pstate_t pstate)
+ddr_error_t update_umctl2_timing_values(uintptr_t base_addr_ctrl, ddr_pstate_t pstate)
 {
 	uint32_t timing_register;
+	int i;
+
+	/* The Timing registers are in quasi-dynamic group 2, so we must enter self-refresh before written values will be accepted.
+	 * Step 1. Signal the software entry into self refresh */
+	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_PWRCTL, 0x00000020);
+	for (i = 0; i < ADI_DDR_CTRL_TIMEOUT; i++) {
+		/* Check that self-refresh mode has been entered */
+		if ((mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_STAT) & STAT_OPERATING_MODE_MASK) == 0x00000003)
+			break;
+		else
+			mdelay(1);
+	}
+
+	if (i == ADI_DDR_CTRL_TIMEOUT)
+		return ERROR_DDR_CTRL_INIT_FAILED;
+
+	for (i = 0; i < ADI_DDR_CTRL_TIMEOUT; i++) {
+		/* Make sure self refresh was entered before of software request only, and not any other reason */
+		if (((mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_STAT) & STAT_SELFREF_TYPE_MASK) >> STAT_SELFREF_TYPE_SHIFT) == 0x00000002)
+			break;
+		else
+			mdelay(1);
+	}
+
+	if (i == ADI_DDR_CTRL_TIMEOUT)
+		return ERROR_DDR_CTRL_INIT_FAILED;
+
+	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_SWCTL, 0x00000000);
 
 	DDR_DEBUG("Updating DDR controller values with results of training.\n");
 	/* WR2RD Parameter */
@@ -908,7 +981,17 @@ static void update_umctl2_timing_values(uintptr_t base_addr_ctrl, ddr_pstate_t p
 	timing_register &= ~DFITMG1_DFI_T_WRDATA_DELAY_MASK;
 	timing_register |= (pstateTimings[pstate].wrdata_delay) << DFITMG1_DFI_T_WRDATA_DELAY_SHIFT;
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_DFITMG1, timing_register);
-	return;
+	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_PWRCTL, 0x00000000);
+
+	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_SWCTL, 0x00000001);
+	for (i = 0; i < ADI_DDR_CTRL_TIMEOUT; i++) {
+		if (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_SWSTAT) == 0x00000001)
+			break;
+		else
+			mdelay(1);
+	}
+
+	return ERROR_DDR_NO_ERROR;
 }
 
 /* Gets the value of the wrdata delay by combining the coarse and fine delay into one value */
@@ -935,10 +1018,10 @@ static uint8_t get_wrdata_delay(uintptr_t base_addr_phy, ddr_pstate_t pstate, ui
 		/* Divide value by 32 since every increment of 1 in fine delay is 1/32 of actual timing, rounding to the nearest integer value */
 		fine_delay = (timing_register & FINEDELAYMASK) >> 5;
 		coarse_delay = (timing_register & COARSEDELAYMASK) >> 6;
+		if (fine_delay > 0xF)
+			coarse_delay += 1;
 		if (coarse_delay > return_val)
 			return_val = coarse_delay;
-		if (fine_delay > return_val)
-			return_val = fine_delay;
 		u0_address += 4;
 	}
 
@@ -947,10 +1030,10 @@ static uint8_t get_wrdata_delay(uintptr_t base_addr_phy, ddr_pstate_t pstate, ui
 		/* Divide value by 32 since every increment of 1 in fine delay is 1/32 of actual timing, rounding to the nearest integer value */
 		fine_delay = (timing_register & FINEDELAYMASK) >> 5;
 		coarse_delay = (timing_register & COARSEDELAYMASK) >> 6;
+		if (fine_delay > 0xF)
+			coarse_delay += 1;
 		if (coarse_delay > return_val)
 			return_val = coarse_delay;
-		if (fine_delay > return_val)
-			return_val = fine_delay;
 		u1_address += 4;
 	}
 

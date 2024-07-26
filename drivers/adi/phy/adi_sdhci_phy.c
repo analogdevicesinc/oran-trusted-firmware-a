@@ -7,6 +7,7 @@
 #include <errno.h>
 
 #include <common/debug.h>
+#include <drivers/adi/adi_sdhci_phy.h>
 #include <drivers/delay_timer.h>
 #include <lib/mmio.h>
 

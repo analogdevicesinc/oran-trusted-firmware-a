@@ -7,6 +7,7 @@
 
 #include <plat_helpers.h>
 
+#include <platform.h>
 #include <platform_def.h>
 
 /*

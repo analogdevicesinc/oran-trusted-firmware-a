@@ -15,7 +15,7 @@
 
 #define     PLL_CAL_MAX_CNT_NORMAL                (500000ul)
 
-#define     VCO_COEFF_SERDES_TABLE_SIZE           (9u)
+#define     VCO_COEFF_ETHERNET_TABLE_SIZE           (9u)
 #define     FORCE_ALC_WAIT_US                     (10U)                 /* 10  usec timeout for force ALC wait */
 #define     PLL_TC_UPDATE_RATE                    (0.0666e-3f)
 #define     VCO_SEL_HB                            (0x1u)                /* VCO_SEL value for 2 Core HB VCO */
@@ -30,32 +30,49 @@
 #define LOCKDET_WAIT_US                           (10000U)              /* 100  msec timeout for force ALC wait */
 
 #define CLK_VCO_7G_HZ                                                     (7864320000LL)
+#define CLK_VCO_10G_HZ                                                    (10312500000LL)
 #define CLK_VCO_11G_HZ                                                    (11796480000LL)
+#define CLK_VCO_25G_HZ                                                    (12890625000LL)
 
 #define CLK_VCO_7G_MHZ                                                    (CLK_VCO_7G_HZ / 1000000UL)
+#define CLK_VCO_10G_MHZ                                                   (CLK_VCO_10G_HZ / 1000000UL)
 #define CLK_VCO_11G_MHZ                                                   (CLK_VCO_11G_HZ / 1000000UL)
+#define CLK_VCO_25G_MHZ                                                   (CLK_VCO_25G_HZ / 1000000UL)
 
 #define CLK_VCO_7G_KHZ                                                    (CLK_VCO_7G_HZ / 1000ULL)
+#define CLK_VCO_10G_KHZ                                                   (CLK_VCO_10G_HZ / 1000ULL)
 #define CLK_VCO_11G_KHZ                                                   (CLK_VCO_11G_HZ / 1000ULL)
+#define CLK_VCO_25G_KHZ                                                   (CLK_VCO_25G_HZ / 1000ULL)
 
 /* Frequency at which we switch to the HB VCO */
 #define VCO_HB_THRESHOLD_FREQ_CLK_HZ        (10050000000ull)
+#define VCO_HB_THRESHOLD_FREQ_ETHERNET_HZ     (11500000000ull)
 
 /* VCO Frequency limits for the ClkPLL */
 #define MIN_VCO_FREQ_CLK_HZ                 (7100000000ULL)
 #define MAX_VCO_FREQ_CLK_HZ                 (14200000000ULL)
 
+/* VCO Frequency limits for the Ethernet */
+#define MIN_VCO_FREQ_ETHERNET_HZ              (8125000000ULL)
+#define MAX_VCO_FREQ_ETHERNET_HZ             (16250000000ULL)
+
 #define MIN_VCO_FREQ_CLK_KHZ                (MIN_VCO_FREQ_CLK_HZ / 1000UUL)
 #define MAX_VCO_FREQ_CLK_KHZ                (MAX_VCO_FREQ_CLK_HZ / 1000UUL)
 
+#define MIN_VCO_FREQ_ETHERNET_KHZ              (MIN_VCO_FREQ_ETHERNET_HZ / 1000UUL)
+#define MAX_VCO_FREQ_ETHERNET_KHZ              (MAX_VCO_FREQ_ETHERNET_HZ / 1000UUL)
+
 #define VCO_HB_THRESHOLD_FREQ_RF_KHZ        ((10050000000ull) / 1000UL)
+#define VCO_HB_THRESHOLD_FREQ_ETHERNET_KHZ    (VCO_HB_THRESHOLD_FREQ_ETHERNET_HZ / 1000UL)
 #define VCO_HB_THRESHOLD_FREQ_CLK_KHZ       (VCO_HB_THRESHOLD_FREQ_CLK_HZ / 1000UL)
 
 #define MIN_VCO_FREQ_CLK_MHZ                (MIN_VCO_FREQ_CLK_HZ / 1000000UL)
 #define MAX_VCO_FREQ_CLK_MHZ                (MAX_VCO_FREQ_CLK_HZ / 1000000UL)
-#define VCO_HB_THRESHOLD_FREQ_SERDES_KHZ    1000u
+#define MIN_VCO_FREQ_ETHERNET_MHZ             (MIN_VCO_FREQ_ETHERNET_HZ / 1000000UL)
+#define MAX_VCO_FREQ_ETHERNET_MHZ             (MAX_VCO_FREQ_ETHERNET_HZ / 1000000UL)
 
 #define VCO_HB_THRESHOLD_FREQ_CLK_MHZ       (VCO_HB_THRESHOLD_FREQ_CLK_HZ / 1000000UL)
+#define VCO_HB_THRESHOLD_FREQ_ETHERNET_MHZ    (VCO_HB_THRESHOLD_FREQ_ETHERNET_HZ / 1000000UL)
 
 #define VCO_COEFF_CLK_TABLE_SIZE            (9u)
 
@@ -132,20 +149,13 @@ typedef struct {
 	uint8_t voutLvl;                                /*!< PLL's Loopfilter output level */
 } LoopFilterParam_t;
 
-
-/* Enumeration for PLLs */
-typedef enum {
-	PLL_CLKGEN_PLL,         /*!< Ref for the Clock Gen PLL */
-	PLL_SEC_CLKGEN_PLL,     /*!< Ref for the Secondary Clock Gen PLL */
-	PLL_LAST_PLL            /*!< Ref for last COMMON PLL  */
-}
-PllSelName_e;
 typedef enum {
 	CLK_7G,         /*!< Clk Vco running at 7G */
+	CLK_10G,        /*!< Clk Vco running at 10G */
 	CLK_11G,        /*!< Clk Vco running at 11G */
+	CLK_25G,        /*!< Clk Vco running at 25G */
 	NUM_CLK_SPD
 } clkFreq_e;
-
 
 /* VCO coef data structure def'n */
 typedef struct {

@@ -17,7 +17,7 @@ typedef struct {
 
 extern cli_command_t plat_command_list[];
 
-void plat_enter_cli();
+void plat_enter_cli(void);
 uint8_t * parse_next_param(uint32_t base, uint8_t *input_buffer, uint64_t *data);
 
 #endif /* PLAT_CLI_H */

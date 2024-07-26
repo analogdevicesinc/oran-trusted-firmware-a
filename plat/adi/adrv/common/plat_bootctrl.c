@@ -16,6 +16,7 @@
 #include <lib/mmio.h>
 #include <platform_def.h>
 #include <platform.h>
+#include <plat_board.h>
 #include <plat_bootctrl.h>
 #include <plat_err.h>
 #include <plat_status_reg.h>
@@ -92,8 +93,10 @@ void plat_bootctrl_init(uintptr_t dev_handle, uintptr_t spec, uint32_t reset_cau
 	/* Detect and respond to boot failure */
 	result = do_failure_detection(reset_cause, reset_cause_ns);
 	/* If boot failure detection results in an error all boot options have been exhausted, halt the system */
-	if (result != 0)
-		plat_halt_handler();
+	if (result != 0) {
+		NOTICE("Reset after exhausting all boot options\n");
+		plat_board_system_reset();
+	}
 
 	/* Check active slot again in case boot failure detection changed it */
 	active_boot_slot = plat_bootctrl_get_active_slot();
@@ -103,7 +106,7 @@ void plat_bootctrl_init(uintptr_t dev_handle, uintptr_t spec, uint32_t reset_cau
  * Returns the cached copy of the active boot slot that was
  * initialized during plat_bootctrl_init()
  */
-char plat_bootctrl_get_active_slot()
+char plat_bootctrl_get_active_slot(void)
 {
 	assert(active_boot_slot != INVALID_BOOT_SLOT_ID);
 	return active_boot_slot;
@@ -238,13 +241,10 @@ static int set_new_slot(char active_slot, char starting_slot)
 	/* Clear BOOT_CNT */
 	plat_wr_status_reg(BOOT_CNT, 0);
 
-	/* If new slot ID is the same as STARTING_SLOT, try recovery boot */
-	if (active_slot == starting_slot) {
-		if (plat_rd_status_reg(RECOVERY_BOOT_ACTIVE) == 1)
-			return -1;
-		else
-			plat_wr_status_reg(RECOVERY_BOOT_ACTIVE, 1);
-	}
+	/* If new slot ID is the same as STARTING_SLOT return failure */
+	if (active_slot == starting_slot)
+		return -1;
+
 	return 0;
 }
 
@@ -296,13 +296,11 @@ static int do_failure_detection(uint32_t reset_cause, uint32_t reset_cause_ns)
 			 */
 			boot_cnt = plat_rd_status_reg(BOOT_CNT);
 			NOTICE("Boot attempt %d of %d\n", boot_cnt + 1, BOOTCTRL_BOOT_CNT_THRESHOLD);
-			if (plat_rd_status_reg(RECOVERY_BOOT_ACTIVE) == 1)
-				NOTICE("Recovery boot is active\n");
 		} else {
 			/* result != 0 here indicates that set_new_slot() above failed to advance to
 			 * the next slot
 			 */
-			ERROR("All boot options, including recovery, have been exhausted\n");
+			ERROR("All boot options have been exhausted\n");
 		}
 	}
 

@@ -11,7 +11,6 @@
 #include <adrv906x_ddr.h>
 #include <adrv906x_device_profile.h>
 #include <adrv906x_nic_def.h>
-#include <plat_device_profile.h>
 
 #define ATE_FW_ADDR 0x00100000
 #define ATE_FW_SIZE 0x7FFF
@@ -76,7 +75,7 @@ static void plat_configure_nic_remap_register(size_t primary_remap_window_size)
 	}
 }
 
-int adrv906x_ddr_init()
+int adrv906x_ddr_init(void)
 {
 	int err = 0;
 	bool ecc;
@@ -126,7 +125,7 @@ int adrv906x_ddr_ate_test(uintptr_t base_addr_phy, uintptr_t base_addr_adi_inter
 }
 
 /* Runs the basic DDR mem test */
-int adrv906x_ddr_mem_test(uintptr_t base_addr_ddr, int size, bool restore)
+int adrv906x_ddr_mem_test(uintptr_t base_addr_ddr, uint32_t size, bool restore)
 {
 	int err = 0;
 
@@ -135,7 +134,7 @@ int adrv906x_ddr_mem_test(uintptr_t base_addr_ddr, int size, bool restore)
 }
 
 /* Runs the extensive DDR mem test */
-int adrv906x_ddr_extensive_mem_test(uintptr_t base_addr_ddr, int size)
+int adrv906x_ddr_extensive_mem_test(uintptr_t base_addr_ddr, uint32_t size)
 {
 	int err = 0;
 
