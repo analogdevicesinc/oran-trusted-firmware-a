@@ -35,7 +35,6 @@
 #include <plat_te.h>
 #include <plat_wdt.h>
 
-
 /*
  * Check that BL_RAM is above NS_SRAM
  * Check that SHARED_RAM is below NS_SRAM

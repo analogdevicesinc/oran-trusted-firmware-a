@@ -90,6 +90,19 @@ int plat_fixup_hw_config(void *hw_config_dtb)
 			return err;
 	}
 
+	/* Get the hsdigclk freq */
+	clk_freq = clk_get_freq(CLK_CTL, CLK_ID_HSDIGCLK);
+
+	if (clk_freq != 0) {
+		node = fdt_path_offset(hw_config_dtb, "/hsdigclk");
+		if (node < 0)
+			return node;
+
+		err = fdt_setprop_u32(hw_config_dtb, node, "clock-frequency", (uint32_t)clk_freq);
+		if (err < 0)
+			return err;
+	}
+
 	/* Update the SDHCI mmcclk freq and maximum base clock values based on HSDIG */
 	clk_freq = clk_get_freq(CLK_CTL, CLK_ID_EMMC);
 

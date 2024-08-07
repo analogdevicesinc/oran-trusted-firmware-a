@@ -64,10 +64,10 @@ const plat_pinctrl_settings sd_pin_grp[] = {
 	/*	pin#				SRCMUX						DS					ST		P_EN	PU		extendedOptions*/
 	{ SD_CLK_SEL_PIN,    SD_CLK_SEL_MUX_SEL,    CMOS_PAD_DS_0100, false, false, false, ADI_ADRV906X_UNUSED_CONFIG },
 	{ SD_CMD_PIN,	     SD_CMD_MUX_SEL,	    CMOS_PAD_DS_0100, true,  false, false, ADI_ADRV906X_UNUSED_CONFIG },
-	{ SD_DATA0_PIN,	     SD_DATA0_MUX_SEL,	    CMOS_PAD_DS_0100, true,  false, false, ADI_ADRV906X_UNUSED_CONFIG },
-	{ SD_DATA1_PIN,	     SD_DATA1_MUX_SEL,	    CMOS_PAD_DS_0100, true,  false, false, ADI_ADRV906X_UNUSED_CONFIG },
-	{ SD_DATA2_PIN,	     SD_DATA2_MUX_SEL,	    CMOS_PAD_DS_0100, true,  false, false, ADI_ADRV906X_UNUSED_CONFIG },
-	{ SD_DATA3_PIN,	     SD_DATA3_MUX_SEL,	    CMOS_PAD_DS_0100, true,  false, false, ADI_ADRV906X_UNUSED_CONFIG },
+	{ SD_DATA0_PIN,	     SD_DATA0_MUX_SEL,	    CMOS_PAD_DS_0001, true,  false, false, ADI_ADRV906X_UNUSED_CONFIG },
+	{ SD_DATA1_PIN,	     SD_DATA1_MUX_SEL,	    CMOS_PAD_DS_0001, true,  false, false, ADI_ADRV906X_UNUSED_CONFIG },
+	{ SD_DATA2_PIN,	     SD_DATA2_MUX_SEL,	    CMOS_PAD_DS_0001, true,  false, false, ADI_ADRV906X_UNUSED_CONFIG },
+	{ SD_DATA3_PIN,	     SD_DATA3_MUX_SEL,	    CMOS_PAD_DS_0001, true,  false, false, ADI_ADRV906X_UNUSED_CONFIG },
 	{ SD_CARDDETECT_PIN, SD_CARDDETECT_MUX_SEL, CMOS_PAD_DS_0100, true,  false, false, ADI_ADRV906X_UNUSED_CONFIG }
 };
 const size_t sd_pin_grp_members = sizeof(sd_pin_grp) / sizeof(plat_pinctrl_settings);

@@ -84,6 +84,13 @@
 	};
 
 	/* Populated by BL31. Intentionally left blank here */
+	hsdigclk: hsdigclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+	};
+
+	/* Populated by BL31. Intentionally left blank here */
 	mmcclk: mmcclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;

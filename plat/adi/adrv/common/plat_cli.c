@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Analog Devices Incorporated - All Rights Reserved
+ * Copyright (c) 2024, Analog Devices Incorporated - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -14,7 +14,7 @@
 #include <plat_security.h>
 #include <plat_wdt.h>
 
-#define MAX_INPUT_COMMAND_LENGTH    100
+#define MAX_INPUT_COMMAND_LENGTH    250
 
 /* Max command length is 100. Adding an extra index so we can ensure input strings are properly terminated before parsing */
 static uint8_t input_buffer[MAX_INPUT_COMMAND_LENGTH + 1];
@@ -47,7 +47,7 @@ static int remove_mmap_region(uintptr_t base, size_t size)
 	return rc;
 }
 
-/* Debug write function. Writes a value of specifed width to the address specified*/
+/* Debug write function. Writes a value of specifed width to the address specified */
 static void common_debug_write_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t width;
@@ -102,7 +102,7 @@ static void common_debug_write_function(uint8_t *command_buffer, bool help)
 	return;
 }
 
-/* Debug read function. Reads from a location in memory*/
+/* Debug read function. Reads from a location in memory */
 static void common_debug_read_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t width;
@@ -231,8 +231,7 @@ static void common_debug_hexdump_function(uint8_t *command_buffer, bool help)
 	return;
 }
 
-
-/* Performs a warm reset of the board*/
+/* Performs a warm reset of the board */
 static void common_reset_function(uint8_t *command_buffer, bool help)
 {
 	if (help) {
@@ -241,7 +240,7 @@ static void common_reset_function(uint8_t *command_buffer, bool help)
 	} else {
 		plat_warm_reset();
 	}
-	/*If we reach here it mean the reset failed*/
+	/* If we reach here it mean the reset failed */
 	return;
 }
 
@@ -261,7 +260,7 @@ cli_command_t common_command_list[] = {
 	{ "end",     common_end_function	   }
 };
 
-/* Converts ASCII string to an integer*/
+/* Converts ASCII string to an integer */
 static bool atoi(uint8_t *string, uint64_t *data)
 {
 	uint64_t value = 0u;
@@ -276,7 +275,7 @@ static bool atoi(uint8_t *string, uint64_t *data)
 		count++;
 	}
 
-	/* If count == 0, we failed to convert the string for some reason*/
+	/* If count == 0, we failed to convert the string for some reason */
 	if (count == 0) {
 		return false;
 	} else {
@@ -285,7 +284,7 @@ static bool atoi(uint8_t *string, uint64_t *data)
 	}
 }
 
-/* Converts ASCII string to hex value.*/
+/* Converts ASCII string to hex value. */
 static bool atoh(uint8_t *string, uint64_t *data)
 {
 	uint64_t value = 0u;
@@ -309,7 +308,7 @@ static bool atoh(uint8_t *string, uint64_t *data)
 		count++;
 	}
 
-	/* If count == 0, we failed to convert the string for some reason*/
+	/* If count == 0, we failed to convert the string for some reason */
 	if (count == 0) {
 		return false;
 	} else {
@@ -320,7 +319,7 @@ static bool atoh(uint8_t *string, uint64_t *data)
 
 /* Parses the next parameter in the command buffer as a base 10(for int) or base 16(for hex) value.
  * The delimiter between parameters is a space, ' '. Prints an error and returns NULL if a paramater was
- * not successfully extracted, otherwise, returns a point to the remaining part of the buffer.*/
+ * not successfully extracted, otherwise, returns a point to the remaining part of the buffer. */
 uint8_t *parse_next_param(uint32_t base, uint8_t *buffer, uint64_t *data)
 {
 	uint8_t *str;
@@ -333,7 +332,7 @@ uint8_t *parse_next_param(uint32_t base, uint8_t *buffer, uint64_t *data)
 	} else {
 		str = (uint8_t *)strchr((char const *)buffer, ' ');
 		if (str != NULL) {
-			str++; /* skip over the ' ' delimiter  */
+			str++; /* skip over the ' ' delimiter */
 			if (base == 10u) {
 				status = atoi(str, data);
 				if (!status) {
@@ -359,12 +358,12 @@ uint8_t *parse_next_param(uint32_t base, uint8_t *buffer, uint64_t *data)
 
 /* Prints out the help output for each command by calling every command in both lists
  * with the help input set to true. It is up to each command to print out what it thinks
- * the help string should be.*/
+ * the help string should be. */
 static void print_help(void)
 {
 	int i = 0;
 
-	/*Iterate through each command and force help argument to true*/
+	/* Iterate through each command and force help argument to true */
 	while (strcmp("end", plat_command_list[i].cmdName)) {
 		plat_command_list[i].cmdFunction(input_buffer, true);
 		i++;
@@ -375,12 +374,12 @@ static void print_help(void)
 		common_command_list[i].cmdFunction(input_buffer, true);
 		i++;
 	}
-	/* Exit doesn't have an official function, but we should still print out a listing for it*/
+	/* Exit doesn't have an official function, but we should still print out a listing for it */
 	printf("exit                               ");
 	printf("Exits the CLI and resumes boot.\n");
 }
 
-/* Parses the command in the buffer and attempts to find its corresponding function in the command lists.*/
+/* Parses the command in the buffer and attempts to find its corresponding function in the command lists. */
 static void parse_command(uint8_t *command)
 {
 	uint8_t *findEqual;
@@ -407,7 +406,7 @@ static void parse_command(uint8_t *command)
 		}
 		i++;
 	}
-	/*If we reach here it means we have reached the "end" entry in the platform specific command list without finding a match*/
+	/* If we reach here it means we have reached the "end" entry in the platform specific command list without finding a match */
 	plat_command_list[i].cmdFunction(command, false);
 
 	/* Search the command list with user input command for a match */
@@ -422,11 +421,11 @@ static void parse_command(uint8_t *command)
 		}
 		i++;
 	}
-	/*If we reach here it means we have reached the "end" entry in the common command list without finding a match*/
+	/* If we reach here it means we have reached the "end" entry in the common command list without finding a match */
 	common_command_list[i].cmdFunction(command, false);
 }
 
-/* Main cli function. Sits here infinitely accepting command until the exit command is given or the board is reset*/
+/* Main cli function. Sits here infinitely accepting command until the exit command is given or the board is reset */
 void plat_enter_cli(void)
 {
 	uint8_t keypress = 0x00;
@@ -436,8 +435,10 @@ void plat_enter_cli(void)
 	/* Disable WDT */
 	plat_secure_wdt_stop();
 
+#ifndef RMA_CLI
 	/* Do security setup so writes/reads don't get blocked by various things */
 	plat_security_setup();
+#endif
 
 	/*Clear out input buffer */
 	memset(input_buffer, 0x00, MAX_INPUT_COMMAND_LENGTH);
@@ -487,7 +488,7 @@ void plat_enter_cli(void)
 					if ((keypress != '\n') || (lastKeypress != '\r'))
 						printf("No command was entered, try again\n");
 				} else {
-					/* Either process the command or run help  */
+					/* Either process the command or run help */
 					if (strncmp((char *)input_buffer, "help", 4u) == 0u) {
 						/* Parse the command */
 						print_help();
@@ -497,7 +498,7 @@ void plat_enter_cli(void)
 						printf("Continuing boot\n");
 						break;
 					} else {
-						/*Ensure input buffer is null-terminated no matter what input we have*/
+						/* Ensure input buffer is null-terminated no matter what input we have */
 						input_buffer[MAX_INPUT_COMMAND_LENGTH] = 0x0;
 						parse_command(input_buffer);
 					}

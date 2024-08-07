@@ -25,6 +25,7 @@
 #include <plat_bootctrl.h>
 #include <plat_console.h>
 #include <plat_device_profile.h>
+#include <plat_err.h>
 #include <plat_io_storage.h>
 #include <plat_mmap.h>
 #include <plat_ras.h>
@@ -32,7 +33,10 @@
 #include <plat_status_reg.h>
 #include <plat_te.h>
 #include <plat_wdt.h>
-#include <plat_err.h>
+
+#ifdef RMA_CLI
+#include <plat_cli.h>
+#endif
 
 /*
  * Memory region mappings
@@ -174,6 +178,11 @@ void bl1_plat_arch_setup(void)
 void bl1_platform_setup(void)
 {
 	char active_boot_slot[] = " ";
+
+#ifdef RMA_CLI
+	/* Enter CLI for secure debug access and RMA */
+	plat_enter_cli();
+#endif
 
 	/* Enable system timer */
 	generic_delay_timer_init();

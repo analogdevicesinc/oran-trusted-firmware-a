@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Analog Devices Incorporated, All Rights Reserved
+ * Copyright (c) 2024, Analog Devices Incorporated, All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -18,10 +18,10 @@ typedef struct __attribute__((packed, aligned(sizeof(uint64_t)))){
 } host_keys_t;
 
 typedef enum {
-	ADI_ENCLAVE_CHAL_GET_VALUE		= 0xC565B77CUL,
-	ADI_ENCLAVE_CHAL_SECURE_DEBUG_ACCESS	= 0xD75F3B50UL,
+	ADI_ENCLAVE_CHAL_GET_VALUE		= 0x417F4E04CUL,
+	ADI_ENCLAVE_CHAL_SECURE_DEBUG_ACCESS	= 0x3A2275B8UL,
 	ADI_ENCLAVE_CHAL_SET_CUST_RMA		= 0x75A9E161UL,
-	ADI_ENCLAVE_CHAL_SET_ADI_RMA		= 0xCC9CC56BUL,
+	ADI_ENCLAVE_CHAL_SET_ADI_RMA		= 0x6A6E3D86UL,
 } chal_type_e;
 
 typedef enum {

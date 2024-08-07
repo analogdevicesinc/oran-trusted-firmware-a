@@ -26,6 +26,7 @@
 #include <plat_boot.h>
 #include <plat_cli.h>
 #include <plat_security.h>
+#include <plat_wdt.h>
 #include <platform_def.h>
 
 #define CLK_7G_VCO_HZ                                                     (7864320000LL)
@@ -60,6 +61,7 @@ static void ate_test_command_function(uint8_t *command_buffer, bool help)
 		/* Program CLK PLL */
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
 		clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		plat_secure_wdt_stop();
 		printf("CLKPLL programmed, ready for ATE testing.\n");
 	}
 	return;
@@ -79,6 +81,7 @@ static void ate_ddr_command_function(uint8_t *command_buffer, bool help)
 		/* Program CLK PLL */
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
 		clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		plat_secure_wdt_stop();
 
 		printf("Preparing DDR for ATE testing.\n");
 		result = adrv906x_ddr_iterative_init_pre_reset(DDR_CTL_BASE, DDR_PHY_BASE, DDR_ADI_INTERFACE_BASE, CLK_CTL, DRAM_BASE, DDR_PRIMARY_CONFIGURATION);
@@ -108,6 +111,7 @@ static void ddr_iterative_init_pre_reset_command_function(uint8_t *command_buffe
 		/* Program CLK PLL */
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
 		clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		plat_secure_wdt_stop();
 		printf("Performing pre-reset init for the DDR.\n");
 		result = adrv906x_ddr_iterative_init_pre_reset(DDR_CTL_BASE, DDR_PHY_BASE, DDR_ADI_INTERFACE_BASE, CLK_CTL, DRAM_BASE, DDR_PRIMARY_CONFIGURATION);
 		if (result)
@@ -157,6 +161,7 @@ static void ddr_init_command_function(uint8_t *command_buffer, bool help)
 		/* Program CLK PLL */
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
 		clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		plat_secure_wdt_stop();
 		printf("Initializing the DDR...\n");
 		/*Initialize the DDR*/
 		adrv906x_ddr_init();
@@ -190,6 +195,7 @@ static void ddr_mem_test_command_function(uint8_t *command_buffer, bool help)
 		/* Initialize the DDR before attempting a memory test*/
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
 		clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		plat_secure_wdt_stop();
 
 		/* Configure TZC */
 		plat_security_setup();
@@ -231,6 +237,7 @@ static void ddr_extensive_mem_test_command_function(uint8_t *command_buffer, boo
 		/* Initialize the DDR before attempting a memory test*/
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
 		clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		plat_secure_wdt_stop();
 
 		/* Configure TZC */
 		plat_security_setup();

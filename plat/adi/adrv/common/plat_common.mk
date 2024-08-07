@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2017-2021, ARM Limited and Contributors. All rights reserved.
+# Copyright (c) 2017-2024, ARM Limited and Contributors. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -8,6 +8,10 @@
 BL1_CPPFLAGS += -march=armv8-a+crc
 BL2_CPPFLAGS += -march=armv8-a+crc
 BL31_CPPFLAGS += -march=armv8-a+crc
+
+ifeq (${RMA_CLI}, 1)
+BL1_CFLAGS += -DRMA_CLI
+endif
 
 PLAT_PARTITION_MAX_ENTRIES := 32
 $(eval $(call add_define,PLAT_PARTITION_MAX_ENTRIES))
@@ -78,6 +82,11 @@ PLAT_BL_COMMON_SOURCES	+=	drivers/adi/test/test_framework.c
 endif
 
 BL1_SOURCES		+=	plat/adi/adrv/common/plat_bl1_setup.c
+
+ifeq (${RMA_CLI}, 1)
+BL1_SOURCES		+=	plat/adi/adrv/common/plat_cli.c
+BL1_SOURCES		+=	plat/adi/adrv/common/plat_rma_cli.c
+endif
 
 ifneq (${TRUSTED_BOARD_BOOT},0)
 BL1_SOURCES		+=	drivers/auth/tbbr/tbbr_cot_bl1.c

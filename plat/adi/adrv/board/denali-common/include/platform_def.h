@@ -9,4 +9,7 @@
 
 #include <plat_adrv906x_def.h>
 
+#undef SD_0_CLK_RATE_HZ
+#define SD_0_CLK_RATE_HZ           (125U * 100U * 1000U)
+
 #endif /* PLATFORM_DEF_H */

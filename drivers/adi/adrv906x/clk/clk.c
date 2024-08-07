@@ -70,6 +70,7 @@ static clk_data_t clk_data[MAX_CLK_INST] = { 0 };
 static char *id_name_tbl[CLK_ID_NUM] = {
 	"A55Core",
 	"SYSCLK",
+	"HSDIGCLK",
 	"TIMER",
 	"WDT",
 	"DDR",
@@ -314,6 +315,10 @@ uint64_t clk_get_freq_by_src(const uintptr_t baseaddr, const clk_id_t clk_id, co
 		divider = clk_get_div(baseaddr, clk_src, CLK_ID_SYSCLK);
 		sysclk_freq = hsdig_freq / divider;
 		clk_freq = sysclk_freq;
+		break;
+	case CLK_ID_HSDIGCLK:
+		/* the hsdig clock is fetched */
+		clk_freq = hsdig_freq;
 		break;
 	case CLK_ID_TIMER:
 		clk_freq = hsdig_freq / TIMER_CLK_DIV;

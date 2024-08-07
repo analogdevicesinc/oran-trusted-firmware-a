@@ -16,12 +16,13 @@
 
 /* IDs for clock outputs from this block */
 typedef enum {
-	CLK_ID_CORE,    /* Core clock. Clock for A55 clusters and cores */
-	CLK_ID_SYSCLK,  /* System clock. Clock for most A55 peripherals. */
-	CLK_ID_TIMER,   /* Clock that feeds A55 timer */
-	CLK_ID_WDT,     /* Watchdog timer clock */
-	CLK_ID_DDR,     /* DDR clock*/
-	CLK_ID_EMMC,    /* eMMC Card Clock */
+	CLK_ID_CORE,            /* Core clock. Clock for A55 clusters and cores */
+	CLK_ID_SYSCLK,          /* System clock. Clock for most A55 peripherals. */
+	CLK_ID_HSDIGCLK,        /* High Speed digital clock */
+	CLK_ID_TIMER,           /* Clock that feeds A55 timer */
+	CLK_ID_WDT,             /* Watchdog timer clock */
+	CLK_ID_DDR,             /* DDR clock*/
+	CLK_ID_EMMC,            /* eMMC Card Clock */
 	CLK_ID_NUM
 } clk_id_t;
 

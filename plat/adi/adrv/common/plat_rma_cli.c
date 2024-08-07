@@ -1,0 +1,139 @@
+/*
+ * Copyright (c) 2024, Analog Devices Incorporated - All Rights Reserved
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+#include <common/debug.h>
+#include <errno.h>
+
+#include <drivers/adi/adi_te_interface.h>
+#include <plat_cli.h>
+#include <platform_def.h>
+
+static void plat_end_function(uint8_t *command_buffer, bool help)
+{
+	return;
+}
+
+static void print_data(uint8_t *buf, uint8_t len)
+{
+	for (uint8_t i = 0; i < len; i++)
+		printf("%02x ", buf[i]);
+	printf("\n");
+}
+
+static void common_challenge_request_function(uint8_t *command_buffer, bool help)
+{
+	uint8_t challenge_buf[16] = { 0 };
+	uint32_t chal_buf_len = sizeof(challenge_buf);
+	int status = -1;
+	uint64_t type = 0;
+	chal_type_e chal;
+
+	if (help) {
+		printf("request <type>                     ");
+		printf("Performs challenge response request TE mailbox API.\n");
+		printf("                                   ");
+		printf("<type>, 0=SECURE_DEBUG_ACCESS, 1=SET_CUST_RMA, 2=SET_ADI_RMA\n");
+	} else {
+		printf("Challenge response request\n");
+
+		/* Get challenge type */
+		command_buffer = parse_next_param(10, command_buffer, &type);
+		if (command_buffer == NULL) {
+			printf("No challenge type provided\n");
+			return;
+		}
+
+		switch (type) {
+		case 0:
+			chal = ADI_ENCLAVE_CHAL_SECURE_DEBUG_ACCESS;
+			break;
+		case 1:
+			chal = ADI_ENCLAVE_CHAL_SET_CUST_RMA;
+			break;
+		case 2:
+			chal = ADI_ENCLAVE_CHAL_SET_ADI_RMA;
+			break;
+		default:
+			ERROR("Invalid challenge type: %ld\n", type);
+			return;
+		}
+
+		/* Call challenge request API */
+		status = adi_enclave_request_challenge(TE_MAILBOX_BASE, chal, challenge_buf, &chal_buf_len);
+		if (status != 0)
+			printf("Status of challenge response API : %x\n", status);
+		else
+			print_data(challenge_buf, chal_buf_len);
+	}
+	return;
+}
+
+
+static void common_secure_debug_access_function(uint8_t *command_buffer, bool help)
+{
+	int status = -1;
+	uint8_t response_buf[64] = { 0 };
+	uint64_t data = 0;
+
+	if (help) {
+		printf("debug                              ");
+		printf("Performs secure debug access TE mailbox API.\n");
+	} else {
+		printf("Secure debug access\n");
+
+		/* Get signed response buffer */
+		for (int i = 0; i < 64; i++) {
+			if (command_buffer == NULL) {
+				ERROR("Missing signed response\n");
+				return;
+			}
+			command_buffer = parse_next_param(16, command_buffer, &data);
+			response_buf[i] = (uint8_t)data;
+		}
+
+		/* Call secure debug access API */
+		status = adi_enclave_priv_secure_debug_access(TE_MAILBOX_BASE, response_buf, sizeof(response_buf));
+
+		printf("Status of secure debug access: %x\n", status);
+	}
+	return;
+}
+
+static void common_rma_function(uint8_t *command_buffer, bool help)
+{
+	int status = -1;
+	uint8_t response_buf[64] = { 0 };
+	uint64_t data = 0;
+
+	if (help) {
+		printf("rma                                ");
+		printf("Performs RMA TE mailbox API.\n");
+	} else {
+		printf("RMA\n");
+
+		/* Get signed response buffer */
+		for (int i = 0; i < 64; i++) {
+			command_buffer = parse_next_param(16, command_buffer, &data);
+			if (command_buffer == NULL) {
+				ERROR("Missing signed response\n");
+				return;
+			}
+			response_buf[i] = (uint8_t)data;
+		}
+
+		/* Call secure debug access API */
+		status = adi_enclave_priv_set_rma(TE_MAILBOX_BASE, response_buf, sizeof(response_buf));
+
+		printf("Status of RMA: %x\n", status);
+	}
+	return;
+}
+
+cli_command_t plat_command_list[] = {
+	{ "request", common_challenge_request_function	 },
+	{ "debug",   common_secure_debug_access_function },
+	{ "rma",     common_rma_function		 },
+	{ "end",     plat_end_function			 }
+};
