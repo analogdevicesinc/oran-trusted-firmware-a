@@ -42,7 +42,9 @@
 #define BOOTROM_DATA_MASK 0xFFFFFFFF
 #define BOOTROM_SRAM_LOAD_ADDR 0x00100000
 #define OTP_QRR_BIT_ADDRESS 0x1
+#define LAST_SAMANA_OTP_ADDRESS 0x3DFF
 #define BYTES_PER_OTP_WRITE 4
+static int adrv906x_dump_otp_memory(const uintptr_t start_addr, const int size);
 static int adrv906x_program_bootrom_in_otp(const uintptr_t mem_ctrl_base, uintptr_t base_addr_image, int num_bytes);
 
 static void plat_end_function(uint8_t *command_buffer, bool help)
@@ -523,6 +525,50 @@ static void bootrom_in_otp_command_function(uint8_t *command_buffer, bool help)
 	return;
 }
 
+static void otp_qrr_command_function(uint8_t *command_buffer, bool help)
+{
+	uint32_t qrr;
+
+	if (help) {
+		printf("otpqrr                             ");
+		printf("Programs the QRR bit in the Samana OTP region\n");
+	} else {
+		if (otp_write(OTP_BASE, OTP_QRR_BIT_ADDRESS, 0x1, OTP_ECC_ON) != ADI_OTP_SUCCESS) {
+			printf("Error programming the QRR bit in OTP.\n");
+		} else {
+			otp_read(OTP_BASE, OTP_QRR_BIT_ADDRESS, &qrr, OTP_ECC_ON);
+			if (qrr != 0x1)
+				printf("Error programming the QRR bit in OTP.\n");
+			else
+				printf("Programmed the QRR bit in OTP successfully.\n");
+		}
+	}
+	return;
+}
+
+static void otp_dump_command_function(uint8_t *command_buffer, bool help)
+{
+	uint64_t start_addr, size;
+
+	if (help) {
+		printf("otpdump <addr> <size>              ");
+		printf("Dumps (dec)<size> OTP addresses starting from (hex) OTP address\n");
+		printf("                                   ");
+		printf("i.e. otpdump 0 4 will dump the first four OTP addresses.\n");
+	} else {
+		command_buffer = parse_next_param(16, command_buffer, &start_addr);
+		if (command_buffer == NULL)
+			return;
+		command_buffer = parse_next_param(10, command_buffer, &size);
+		if (command_buffer == NULL)
+			return;
+
+		if (adrv906x_dump_otp_memory(start_addr, size))
+			printf("Failed to dump memory from OTP.\n");
+	}
+	return;
+}
+
 static void program_pll_command_function(uint8_t *command_buffer, bool help)
 {
 	uintptr_t base_addr, dig_core_base_addr;
@@ -845,12 +891,33 @@ cli_command_t plat_command_list[] = {
 	{ "i2cdetect",	   i2c_detect_command_function			  },
 	{ "i2cread",	   i2c_read_command_function			  },
 	{ "i2cwrite",	   i2c_write_command_function			  },
+	{ "otpdump",	   otp_dump_command_function			  },
+	{ "otpqrr",	   otp_qrr_command_function			  },
 	{ "pllvcoout",	   pll_vco_output_command_function		  },
 	{ "pllvtuneout",   pll_vtune_output_command_function		  },
 	{ "programpll",	   program_pll_command_function			  },
 	{ "sdread",	   sd_read_command_function			  },
 	{ "end",	   plat_end_function				  }
 };
+
+static int adrv906x_dump_otp_memory(const uintptr_t start_addr, int size)
+{
+	uint32_t addr = start_addr;
+	uint32_t readback;
+
+	while ((addr <= LAST_SAMANA_OTP_ADDRESS) && (size > 0)) {
+		if (otp_read(OTP_BASE, addr, &readback, OTP_ECC_ON) != ADI_OTP_SUCCESS) {
+			printf("Failed to read from OTP memory at address %x\n", addr);
+			return -EIO;
+		} else {
+			printf("0x%x: %x\n", addr, readback);
+		}
+		addr++;
+		size--;
+	}
+
+	return ADI_OTP_SUCCESS;
+}
 
 static int adrv906x_program_bootrom_in_otp(const uintptr_t mem_ctrl_base, uintptr_t base_addr_image, int num_bytes)
 {
