@@ -27,7 +27,8 @@ typedef enum {
 	DDR_INIT_FULL,
 	DDR_PRE_RESET_INIT,
 	DDR_REMAP_INIT,
-	DDR_POST_RESET_INIT
+	DDR_POST_RESET_INIT,
+	DDR_CUSTOM_TRAINING
 } ddr_init_stages_t;
 
 typedef enum {
@@ -66,7 +67,7 @@ ddr_error_t ddr_basic_mem_test(uintptr_t base_addr_ddr, uint32_t size, bool rest
 ddr_error_t ddr_extensive_mem_test(uintptr_t base_addr_ddr, uint32_t size);
 ddr_error_t ddr_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, uintptr_t base_addr_ddr, uint32_t ddr_size, uint32_t ddr_remap_size, uint8_t ddr_dfi_pad_sequence[], uint8_t ddr_phy_pad_sequence[], ddr_init_stages_t stage, ddr_config_t configuration, bool ecc);
 ddr_error_t ddr_pre_reset_init(uintptr_t base_addr_ctrl, bool ecc);
-ddr_error_t ddr_post_reset_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, ddr_config_t configuration);
+ddr_error_t ddr_post_reset_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, ddr_init_stages_t stage, ddr_config_t configuration);
 ddr_error_t ddr_ate_test(uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, uintptr_t ate_fw_addr, uintptr_t ate_msg_blk_addr, uint32_t ate_fw_size, uint32_t ate_msg_blk_size);
 ddr_error_t ddr_custom_training_test(uintptr_t base_addr_phy, uint8_t hdt_ctrl, uint16_t sequence_ctrl, int train_2d);
 

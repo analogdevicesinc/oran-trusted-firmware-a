@@ -25,7 +25,7 @@
 #define DDR_SAR_REGISTER_INCREMENTS     0x10000000
 
 /* Debug */
-/*#define DDR_DEBUG_ENABLE*/
+#define DDR_DEBUG_ENABLE
 #ifdef DDR_DEBUG_ENABLE
 #define DDR_DEBUG(...)          INFO(__VA_ARGS__)
 #else
@@ -383,7 +383,7 @@ ddr_error_t ddr_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_
 	else
 		is_x16 = DDR_SECONDARY_ECC_ISX16;
 
-	if ((stage == DDR_INIT_FULL) || (stage == DDR_PRE_RESET_INIT)) {
+	if ((stage == DDR_INIT_FULL) || (stage == DDR_CUSTOM_TRAINING) || (stage == DDR_PRE_RESET_INIT)) {
 		clk_set_freq(base_addr_clk, CLK_ID_DDR, (ADI_DDR_FREQ_DEFAULT_MHZ * DDR_MHZ_TO_HZ));    /* Set dividers before enabling clock */
 		clk_enable_clock(base_addr_clk, CLK_ID_DDR);                                            /* Enable all of the DDR clocks before running the init */
 
@@ -416,7 +416,7 @@ ddr_error_t ddr_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_
 			return ERROR_DDR_CTRL_INIT_FAILED;
 	}
 
-	if ((stage == DDR_INIT_FULL) || (stage == DDR_REMAP_INIT)) {
+	if ((stage == DDR_INIT_FULL) || (stage == DDR_CUSTOM_TRAINING) || (stage == DDR_REMAP_INIT)) {
 		if (rtn_val == ERROR_DDR_NO_ERROR)
 			rtn_val = ddr_configure_remapping_registers(base_addr_ctrl, base_addr_ddr, ddr_remap_size);
 
@@ -441,12 +441,15 @@ ddr_error_t ddr_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_
 
 	if ((stage == DDR_INIT_FULL) || (stage == DDR_POST_RESET_INIT)) {
 		if (rtn_val == ERROR_DDR_NO_ERROR) {
-			rtn_val = ddr_post_reset_init(base_addr_ctrl, base_addr_phy, base_addr_adi_interface, base_addr_clk, configuration);
+			rtn_val = ddr_post_reset_init(base_addr_ctrl, base_addr_phy, base_addr_adi_interface, base_addr_clk, stage, configuration);
 			update_umctl2_timing_values(base_addr_ctrl, DDR_PSTATE0);
 		}
 
 		if (rtn_val == ERROR_DDR_NO_ERROR && ecc)
 			rtn_val = ddr_scrub_ecc(base_addr_ctrl, ddr_size, is_x16);
+	} else if (stage == DDR_CUSTOM_TRAINING) {
+		rtn_val = ddr_post_reset_init(base_addr_ctrl, base_addr_phy, base_addr_adi_interface, base_addr_clk, stage, configuration);
 	}
+
 	return rtn_val;
 }

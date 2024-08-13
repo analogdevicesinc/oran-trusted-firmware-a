@@ -146,6 +146,12 @@ int adrv906x_ddr_extensive_mem_test(uintptr_t base_addr_ddr, uint32_t size)
 int adrv906x_ddr_custom_training_test(uintptr_t base_addr_phy, uint16_t sequence_ctrl, int train_2d)
 {
 	int err = 0;
+	bool ecc;
+
+	ecc = plat_is_primary_ecc_enabled();
+	err = ddr_init(DDR_CTL_BASE, DDR_PHY_BASE, DDR_ADI_INTERFACE_BASE, CLK_CTL, DRAM_BASE, plat_get_dram_physical_size(), plat_get_primary_ddr_remap_window_size(), ddr_dfi_pad_sequence, ddr_phy_pad_sequence, DDR_CUSTOM_TRAINING, DDR_PRIMARY_CONFIGURATION, ecc);
+	if (err)
+		return err;
 
 	/* Always set the verbosity of the training test messages to the max for custom testing */
 	err = ddr_custom_training_test(base_addr_phy, DDR_HDTCTRL_MAX_VERBOSITY, sequence_ctrl, train_2d);

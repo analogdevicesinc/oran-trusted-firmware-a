@@ -147,30 +147,75 @@ ddr_error_t ddr_ate_test(uintptr_t base_addr_phy, uintptr_t base_addr_adi_interf
  * the IMEM/DMEM have been loaded and are still in memory*/
 ddr_error_t ddr_custom_training_test(uintptr_t base_addr_phy, uint8_t hdt_ctrl, uint16_t sequence_ctrl, int train_2d)
 {
-	ddr_error_t result;
-	uint16_t tests = sequence_ctrl;
+	ddr_error_t result = ERROR_DDR_NO_ERROR;
+	uint16_t tests_1d = sequence_ctrl;
+	uint16_t tests_2d = sequence_ctrl;
+
+	NOTICE("Starting DDR custom tests.\n");
 
 	if (train_2d) {
 		/* 2D training requires some tests to always run, set them here */
-		tests |= TWOD_TRAINING_REQUIRED_TESTS_MASK;
+		tests_2d |= TWOD_TRAINING_REQUIRED_TESTS_MASK;
 		/* 2D training requires some bits of SequenceCtrl to be 0, set them here */
-		tests &= ~TWOD_TRAINING_RESERVED_TESTS_MASK;
+		tests_2d &= ~TWOD_TRAINING_RESERVED_TESTS_MASK;
+		/* 2D training relies on results from 1D training, so we must run 1D training every time */
+		tests_1d = 0x31f;
 	} else { /* Same thing if we are doing 1D training tests */
-		tests |= ONED_TRAINING_REQUIRED_TESTS_MASK;
-		tests &= ~ONED_TRAINING_RESERVED_TESTS_MASK;
+		tests_1d |= ONED_TRAINING_REQUIRED_TESTS_MASK;
+		tests_1d &= ~ONED_TRAINING_RESERVED_TESTS_MASK;
 	}
 
+	mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICROCONTMUXSEL + base_addr_phy), 0x0);
+/* Load the Imem */
+	if (result == ERROR_DDR_NO_ERROR)
+		result = phy_load_imem(0, DDR_PSTATE0, base_addr_phy);
+
+/* Load the Dmem */
+	if (result == ERROR_DDR_NO_ERROR)
+		result = phy_load_dmem(0, DDR_PSTATE0, base_addr_phy, DDR_PRIMARY_CONFIGURATION);
+
 	/* Overwrite SequenceCtrl with new value */
-	NOTICE("Setting sequence_ctrl to 0x%x.\n", tests);
-	mmio_write_16(base_addr_phy + SEQUENCECTRL_ADDR, tests);
+	NOTICE("Setting sequence_ctrl to 0x%x.\n", tests_1d);
+	mmio_write_16(base_addr_phy + SEQUENCECTRL_ADDR, tests_1d);
 
 	/* Set verbosity of messages coming out of the DDR Phy */
 	mmio_write_8(base_addr_phy + HDTCRL_ADDR, hdt_ctrl);
 
-	NOTICE("Starting tests...\n");
-	/* Enable uCtrl and wait for DONE message */
-	phy_enable_micro_ctrl(base_addr_phy);
-	result = phy_wait_for_done(base_addr_phy, train_2d);
+	mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICROCONTMUXSEL + base_addr_phy), 0x1);
+/* Enable uCtrl and wait for DONE message */
+	if (result == ERROR_DDR_NO_ERROR) {
+		phy_enable_micro_ctrl(base_addr_phy);
+		result = phy_wait_for_done(base_addr_phy, 0);
+	}
 
+	/* Only run the 2D training if requested */
+	if (train_2d & (result == ERROR_DDR_NO_ERROR)) {
+		mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICROCONTMUXSEL + base_addr_phy), 0x0);
+		/* Load the Imem */
+		if (result == ERROR_DDR_NO_ERROR)
+			result = phy_load_imem(train_2d, DDR_PSTATE0, base_addr_phy);
+
+		/* Load the Dmem */
+		if (result == ERROR_DDR_NO_ERROR)
+			result = phy_load_dmem(train_2d, DDR_PSTATE0, base_addr_phy, DDR_PRIMARY_CONFIGURATION);
+		/* Overwrite SequenceCtrl with new value */
+		NOTICE("Setting sequence_ctrl to 0x%x.\n", tests_2d);
+		mmio_write_16(base_addr_phy + SEQUENCECTRL_ADDR, tests_2d);
+
+		/* Set verbosity of messages coming out of the DDR Phy */
+		mmio_write_8(base_addr_phy + HDTCRL_ADDR, hdt_ctrl);
+
+		/*	Isolate the APB access from the internal CSRs by setting the MicroContMuxSel CSR to 1.
+		 *   This allows the firmware unrestricted access to the configuration CSRs. */
+		mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICROCONTMUXSEL + base_addr_phy), 0x1);
+		/* Enable uCtrl and wait for DONE message */
+		if (result == ERROR_DDR_NO_ERROR) {
+			phy_enable_micro_ctrl(base_addr_phy);
+			result = phy_wait_for_done(base_addr_phy, train_2d);
+		}
+
+		/*Enable access to the internal CSRs by setting the MicroContMuxSel CSR to 0.*/
+		mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICROCONTMUXSEL + base_addr_phy), 0x0);
+	}
 	return result;
 }

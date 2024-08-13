@@ -325,6 +325,15 @@ static void ddr_custom_training_test_command_function(uint8_t *command_buffer, b
 		command_buffer = parse_next_param(10, command_buffer, &train_2d);
 		if (command_buffer == NULL)
 			return;
+
+		/* Initialize the clocks and the TZC in case user runs custom training without a normal DDR init */
+		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
+		clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		plat_secure_wdt_stop();
+
+		/* Configure TZC */
+		plat_security_setup();
+
 		result = adrv906x_ddr_custom_training_test(DDR_PHY_BASE, sequence_ctrl, train_2d);
 		if (result)
 			printf("Error occurred during DDR training firmware custom test:%d\n", result);

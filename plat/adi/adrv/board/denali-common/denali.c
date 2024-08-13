@@ -17,6 +17,11 @@
 #include <drivers/spi_nor.h>
 #include <lib/utils.h>
 
+#ifdef  TFA_DEBUG
+#include <lib/mmio.h>
+#define TEST_SCRATCHPAD_ADDR 0x18290200
+#endif
+
 #include <adrv906x_board.h>
 #include <adrv906x_device_profile.h>
 #include <adrv906x_pinctrl.h>
@@ -307,13 +312,10 @@ bool plat_sysref_disable(bool mcs_completed)
 
 bool plat_clkdev_init(void)
 {
-	/* Currently this is unsupported (and is unrecoverable)
-	 * Enable the console, print a message, and halt the boot.
-	 */
 	plat_console_boot_init();
-	ERROR("Booting from ROSC is not supported\n");
-	plat_board_system_reset();
-
+#ifdef TFA_DEBUG
+	mmio_write_8(TEST_SCRATCHPAD_ADDR, 0xa5);
+#endif
 	return true;
 }
 

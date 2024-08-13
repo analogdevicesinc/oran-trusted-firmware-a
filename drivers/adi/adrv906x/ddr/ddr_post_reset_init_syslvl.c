@@ -30,7 +30,7 @@
  *
  *******************************************************************************
  */
-ddr_error_t ddr_post_reset_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, ddr_config_t configuration)
+ddr_error_t ddr_post_reset_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, ddr_init_stages_t stage, ddr_config_t configuration)
 {
 	ddr_error_t return_val = ERROR_DDR_NO_ERROR;
 	int i;
@@ -98,8 +98,8 @@ ddr_error_t ddr_post_reset_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_ph
 		return ERROR_DDR_CTRL_INIT_FAILED;
 
 	/* Steps 8-13 in table 6-8 will be handled in this function */
-	return_val = ddr_function_configurations[configuration].phy_function(base_addr_ctrl, base_addr_phy, base_addr_adi_interface, base_addr_clk, configuration);
-	if (return_val != ERROR_DDR_NO_ERROR)
+	return_val = ddr_function_configurations[configuration].phy_function(base_addr_ctrl, base_addr_phy, base_addr_adi_interface, base_addr_clk, stage, configuration);
+	if (return_val != ERROR_DDR_NO_ERROR || (stage == DDR_CUSTOM_TRAINING))
 		return return_val;
 
 

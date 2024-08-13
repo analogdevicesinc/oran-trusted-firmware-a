@@ -26,6 +26,13 @@ ASFLAGS			+=	-DTEST_FRAMEWORK
 ASFLAGS_aarch64		+=	-DTEST_FRAMEWORK
 endif
 
+ifeq (${TFA_DEBUG}, 1)
+TF_CFLAGS		+=	-DTFA_DEBUG
+TF_CFLAGS_aarch64	+=	-DTFA_DEBUG
+ASFLAGS			+=	-DTFA_DEBUG
+ASFLAGS_aarch64		+=	-DTFA_DEBUG
+endif
+
 PLAT_INCLUDES		:=	-Iinclude/plat/common -Iplat/adi/adrv/common/include
 
 PLAT_BL_COMMON_SOURCES	:=	common/tf_crc32.c \

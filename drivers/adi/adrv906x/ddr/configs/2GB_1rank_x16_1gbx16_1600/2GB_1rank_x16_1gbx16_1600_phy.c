@@ -32,7 +32,7 @@
  */
 
 /* Start of PhyInit */
-ddr_error_t ddr_2gb_1rank_x16_1gbx16_1600_phy_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, ddr_config_t configuration)
+ddr_error_t ddr_2gb_1rank_x16_1gbx16_1600_phy_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, ddr_init_stages_t stage, ddr_config_t configuration)
 {
 	ddr_error_t result = ERROR_DDR_NO_ERROR;
 	ddr_pstate_data_t pstate = { DDR_PSTATE0, 800 };
@@ -239,6 +239,11 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_1600_phy_init(uintptr_t base_addr_ctrl, uin
 /* Run pre-training command; */
 	if (result == ERROR_DDR_NO_ERROR)
 		result = phy_run_pre_training(base_addr_ctrl, base_addr_phy, pstate.freq);
+
+	if (stage == DDR_CUSTOM_TRAINING) {
+		result = phy_set_dfi_clock(base_addr_ctrl, base_addr_phy, base_addr_clk, pstate);
+		return result;
+	}
 
 /* Load the Imem */
 	if (result == ERROR_DDR_NO_ERROR)

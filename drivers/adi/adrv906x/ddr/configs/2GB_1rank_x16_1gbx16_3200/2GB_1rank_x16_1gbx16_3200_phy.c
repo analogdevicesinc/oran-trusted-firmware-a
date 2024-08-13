@@ -32,7 +32,7 @@
  */
 
 /* Start of PhyInit */
-ddr_error_t ddr_2gb_1rank_x16_1gbx16_3200_phy_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, ddr_config_t configuration)
+ddr_error_t ddr_2gb_1rank_x16_1gbx16_3200_phy_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, ddr_init_stages_t stage, ddr_config_t configuration)
 {
 	ddr_error_t result = ERROR_DDR_NO_ERROR;
 	ddr_pstate_data_t pstate = { DDR_PSTATE0, 1600 };
@@ -249,10 +249,14 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_3200_phy_init(uintptr_t base_addr_ctrl, uin
 //       This allows the memory controller unrestricted access to the configuration CSRs.
 	mmio_write_32((DDRPHYA_APBONLY0_APBONLY0_MICROCONTMUXSEL + base_addr_phy), 0x0);
 
+	if (stage == DDR_CUSTOM_TRAINING) {
+		result = phy_set_dfi_clock(base_addr_ctrl, base_addr_phy, base_addr_clk, pstate);
+		return result;
+	}
+
 /* Load the Imem */
 	if (result == ERROR_DDR_NO_ERROR)
 		result = phy_load_imem(train_2d, DDR_PSTATE0, base_addr_phy);
-
 
 /* Set DFI clock to desired runtime frequency */
 	if (result == ERROR_DDR_NO_ERROR)
