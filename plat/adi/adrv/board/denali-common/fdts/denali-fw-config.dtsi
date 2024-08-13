@@ -26,7 +26,7 @@
 	};
 
 	eth-pll {
-		freq = <0>; /* 0 for 10GHz, 1 for 25GHz */
+		freq = <1>; /* 0 for 10GHz, 1 for 25GHz */
 	};
 
 	orx-adc {
