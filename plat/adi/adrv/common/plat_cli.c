@@ -12,6 +12,7 @@
 #include <plat_err.h>
 #include <plat_mmap.h>
 #include <plat_security.h>
+#include <plat_status_reg.h>
 #include <plat_wdt.h>
 
 #define MAX_INPUT_COMMAND_LENGTH    250
@@ -238,6 +239,10 @@ static void common_reset_function(uint8_t *command_buffer, bool help)
 		printf("reset                              ");
 		printf("Performs immediate reset of the board.\n");
 	} else {
+		/* Clear reset cause prior to reset */
+		plat_wr_status_reg(RESET_CAUSE, RESET_VALUE);
+		plat_wr_status_reg(RESET_CAUSE_NS, RESET_VALUE);
+
 		plat_warm_reset();
 	}
 	/* If we reach here it mean the reset failed */
