@@ -22,7 +22,7 @@
 #include "ddr_regmap.h"
 
 /* Debug */
-#define DDR_DEBUG_ENABLE
+/*#define DDR_DEBUG_ENABLE*/
 
 #ifdef DDR_DEBUG_ENABLE
 #define HDTCTRL_ADDR 0x150030

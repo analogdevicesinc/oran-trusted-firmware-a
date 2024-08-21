@@ -25,7 +25,7 @@
 #define DDR_SAR_REGISTER_INCREMENTS     0x10000000
 
 /* Debug */
-#define DDR_DEBUG_ENABLE
+/*#define DDR_DEBUG_ENABLE*/
 #ifdef DDR_DEBUG_ENABLE
 #define DDR_DEBUG(...)          INFO(__VA_ARGS__)
 #else
