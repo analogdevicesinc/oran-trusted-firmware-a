@@ -56,7 +56,7 @@
 };
 
 &emac0 {
-	status = "disabled";
+	status = "okay";
 	phy-mode = "rgmii";
 	fixed-link {
 		speed = <1000>;
