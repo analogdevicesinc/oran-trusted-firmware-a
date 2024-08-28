@@ -54,6 +54,13 @@ void plat_secure_wdt_start(void)
 	wdt1_timeout_load_val = wdt_clk_freq * wdt1_sp805_timeout_val;
 	wdt0_timeout_load_val = wdt_clk_freq * wdt0_sp805_timeout_seconds_val + CONVERT_FREQ_S_TO_MS(wdt_clk_freq) * SP805_CALCULATE_TIMEOUT(WDT0_OFFSET_MS);
 
+	/* Stop WDT0 and WDT1 before starting them. This ensures the driver unlocks
+	 * the hardware before configuring (in case it was already configured by a
+	 * previous boot stage).
+	 */
+	sp805_stop(WDOG_TIMER1_BASE);
+	sp805_stop(WDOG_TIMER0_BASE);
+
 	/* Configure and start WDT0 and WDT1.
 	 * Configure WDT0 with reset and interrupt enabled, WDT1 with only interrupt enabled
 	 */
