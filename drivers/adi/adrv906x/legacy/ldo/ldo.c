@@ -98,6 +98,14 @@ extern int ldo_powerup(const uint64_t base, PllSelName_e pll)
 		udelay(VCOLCR_WAIT_TIME);
 	}
 
+	/* Ensure LDO_VOUT_ADJ is set to the reset value (0)
+	 * before powering up. This is to workaround an issue
+	 * where the warm reset signal isn't propagated to the
+	 * Ethernet PLL subsystem. But this is safe to do for all
+	 * LDOs.
+	 */
+	WRITE_PLL_MEM_MAP_LDO_VOUT_ADJ(base, 0x0);
+
 	WRITE_PLL_MEM_MAP_VCO_LDO_PD(base, POWERUP);
 	udelay(LDO_DEFAULT_PWR_UP_SETTLE);
 

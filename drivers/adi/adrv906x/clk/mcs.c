@@ -222,11 +222,23 @@ static int clk_initialize_clk_pll_programming(bool secondary, uint8_t clkpll_fre
 static int clk_initialize_eth_pll_programming(bool secondary)
 {
 	uintptr_t a55_sys_cfg_base_addr;
+	uintptr_t emac_common_base;
 
-	if (secondary)
+	if (secondary) {
 		a55_sys_cfg_base_addr = SEC_A55_SYS_CFG;
-	else
+		emac_common_base = SEC_EMAC_COMMON_BASE;
+	} else {
 		a55_sys_cfg_base_addr = A55_SYS_CFG;
+		emac_common_base = EMAC_COMMON_BASE;
+	}
+
+	/* Workaround for ethernet PLL warm reset issue.
+	 * The warm reset signal does not propagate to the ethernet PLL
+	 * subsystem, so we must reset it here, before initializing it.
+	 */
+	WRITE_EMAC_COMMON_ETHPLL_MEM_MAP_RSTN(emac_common_base, 0x0);
+	udelay(50);
+	WRITE_EMAC_COMMON_ETHPLL_MEM_MAP_RSTN(emac_common_base, 0x1);
 
 	WRITE_A55_SYS_CFG_CLOCK_CONTROLS_ETH_DEVCLK_CONTROLS_ETH_DEVCLK_DIV_KILLCLK(a55_sys_cfg_base_addr, 0x0);
 	WRITE_A55_SYS_CFG_CLOCK_CONTROLS_ETH_DEVCLK_CONTROLS_ETH_DEVCLK_DIV_MCS_RST(a55_sys_cfg_base_addr, 0x0);

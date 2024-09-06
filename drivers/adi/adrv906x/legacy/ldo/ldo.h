@@ -16,7 +16,7 @@
 #define     LDO_DEFAULT_PWR_UP_DEL                (2000u)       /* Default Power-up delay: 2 mSecs */
 #define     LDO_DEFAULT_ENB_OUT_DEL               (8000u)       /* Default EnableLDO output delay: 8 mSecs */
 #define     LDO_DEFAULT_PWR_UP_SETTLE             (9000u)       /* Default Power-up delay: 9 mSecs */
-#define     LDO_PWRGOOD_MAX_WAIT_TIME             (5000u)       /* Maximum wait time for powergood signal to be set: 5 ms */
+#define     LDO_PWRGOOD_MAX_WAIT_TIME             (10000u)      /* Maximum wait time for powergood signal to be set: 10 ms */
 #define     LDO_NOMINAL_VOL_SEL                   (0x8u)        /* Nominal LDO DC Output Voltage Selection: 1.000V */
 #define     VCOLCR_WAIT_TIME                      (15u)         /* Time for VCO LCR to power up. 12.5us in user guide. We wait 15us. */
 #define     SHUNT_LDO_MAX_WAIT_TIME               (5u)          /* Maximum wait time for shunt LDO powerup: 5us */

@@ -245,25 +245,33 @@ static void init(void)
 		else
 			pll_freq = CLK_10G_VCO_HZ;
 		err = clk_initialize_pll_programming(false, true, plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting());
-		if (err)
+		if (err) {
 			ERROR("Failed preparing eth pll for programming.\n");
+			plat_error_handler(-ENXIO);
+		}
 
 		if (!err) {
 			err = ldo_powerup(ETH_PLL_BASE, PLL_ETHERNET_PLL);
-			if (err)
-				WARN("Failed to initialize Ethernet LDO %d\n", err);
+			if (err) {
+				ERROR("Failed to initialize Ethernet LDO %d\n", err);
+				plat_error_handler(-ENXIO);
+			}
 		}
 
 		if (!err) {
 			err = pll_clk_power_init(ETH_PLL_BASE, DIG_CORE_BASE, pll_freq, ETH_REF_CLK_DFLT, PLL_ETHERNET_PLL);
-			if (err)
-				WARN("Problem powering on Ethernet pll = %d\n", err);
+			if (err) {
+				ERROR("Problem powering on Ethernet pll = %d\n", err);
+				plat_error_handler(-ENXIO);
+			}
 		}
 
 		if (!err) {
 			err = pll_program(ETH_PLL_BASE, PLL_ETHERNET_PLL);
-			if (err)
-				WARN("Problem programming Ethernet pll = %d\n", err);
+			if (err) {
+				ERROR("Problem programming Ethernet pll = %d\n", err);
+				plat_error_handler(-ENXIO);
+			}
 		}
 	}
 
