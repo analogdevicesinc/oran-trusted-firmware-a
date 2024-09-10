@@ -17,8 +17,28 @@
 
 #define MAX_INPUT_COMMAND_LENGTH    250
 
+typedef struct {
+	int errno;
+	char cmd[MAX_COMMAND_NAME_LENGTH + 1];
+} adrv_err_t;
+
 /* Max command length is 100. Adding an extra index so we can ensure input strings are properly terminated before parsing */
 static uint8_t input_buffer[MAX_INPUT_COMMAND_LENGTH + 1];
+static adrv_err_t adrv_last_cmd_err = {
+	0,
+	{ '\0' }
+};
+
+static void set_command_error(char *cmd, int err)
+{
+	if (cmd && strcmp(cmd, "getlasterror") && strcmp(cmd, "end")) {
+		strlcpy(adrv_last_cmd_err.cmd, cmd, MAX_COMMAND_NAME_LENGTH);
+		if (err)
+			adrv_last_cmd_err.errno = -1;
+		else
+			adrv_last_cmd_err.errno = 0;
+	}
+}
 
 static int add_mmap_region(uintptr_t base, size_t size, unsigned int attr)
 {
@@ -49,7 +69,7 @@ static int remove_mmap_region(uintptr_t base, size_t size)
 }
 
 /* Debug write function. Writes a value of specifed width to the address specified */
-static void common_debug_write_function(uint8_t *command_buffer, bool help)
+static int common_debug_write_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t width;
 	uint64_t address;
@@ -62,18 +82,23 @@ static void common_debug_write_function(uint8_t *command_buffer, bool help)
 	} else {
 		command_buffer = parse_next_param(10, command_buffer, &width);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(16, command_buffer, &address);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(16, command_buffer, &data);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 
 		if (width != 8 && width != 16 && width != 32 && width != 64) {
 			printf("Invalid write width specified. Supported widths: 8, 16, 32, 64\n");
+			return -1;
 		} else if ((address % (width / 8)) != 0) {
 			printf("Address must be aligned to width\n");
+			return -1;
 		} else {
 			rc = add_mmap_region(address, width, MT_DEVICE | MT_RW | MT_SECURE);
 			switch (width) {
@@ -95,16 +120,18 @@ static void common_debug_write_function(uint8_t *command_buffer, bool help)
 				break;
 			default:
 				printf("Invalid write width specified. Supported widths: 8, 16, 32, 64\n");
+				return -1;
 			}
+
 			if (rc == 0)
-				remove_mmap_region(address, width);
+				rc = remove_mmap_region(address, width);
 		}
 	}
-	return;
+	return rc;
 }
 
 /* Debug read function. Reads from a location in memory */
-static void common_debug_read_function(uint8_t *command_buffer, bool help)
+static int common_debug_read_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t width;
 	uint64_t address;
@@ -117,15 +144,18 @@ static void common_debug_read_function(uint8_t *command_buffer, bool help)
 	} else {
 		command_buffer = parse_next_param(10, command_buffer, &width);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(16, command_buffer, &address);
 		if (command_buffer == NULL)
-			return;
+			return -1;
 
 		if (width != 8 && width != 16 && width != 32 && width != 64) {
 			printf("Invalid write width specified. Supported widths: 8, 16, 32, 64\n");
+			return -1;
 		} else if ((address % (width / 8)) != 0) {
 			printf("Address must be aligned to width\n");
+			return -1;
 		} else {
 			rc = add_mmap_region(address, width, MT_DEVICE | MT_RW | MT_SECURE);
 			switch (width) {
@@ -147,16 +177,18 @@ static void common_debug_read_function(uint8_t *command_buffer, bool help)
 				break;
 			default:
 				printf("Invalid read width specified. Supported widths: 8, 16, 32, 64\n");
+				return -1;
 			}
+
 			if (rc == 0)
-				remove_mmap_region(address, width);
+				rc = remove_mmap_region(address, width);
 		}
 	}
-	return;
+	return rc;
 }
 
 /* Debug hexdump function. Dumps a block of memory */
-static void common_debug_hexdump_function(uint8_t *command_buffer, bool help)
+static int common_debug_hexdump_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t size;
 	uint64_t width;
@@ -169,13 +201,15 @@ static void common_debug_hexdump_function(uint8_t *command_buffer, bool help)
 	} else {
 		command_buffer = parse_next_param(10, command_buffer, &width);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(16, command_buffer, &address);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(10, command_buffer, &size);
 		if (command_buffer == NULL)
-			return;
+			return -1;
 
 		rc = add_mmap_region(address, size, MT_DEVICE | MT_RW | MT_SECURE);
 
@@ -221,48 +255,67 @@ static void common_debug_hexdump_function(uint8_t *command_buffer, bool help)
 				break;
 			default:
 				printf("Invalid regmap width. Supported widths: 8, 32\n");
-				return;
+				return -1;
 			}
 		}
 
 		printf("\n");
 		if (rc == 0)
-			remove_mmap_region(address, width);
+			rc = remove_mmap_region(address, width);
 	}
-	return;
+	return rc;
 }
 
 /* Performs a warm reset of the board */
-static void common_reset_function(uint8_t *command_buffer, bool help)
+static int common_reset_function(uint8_t *command_buffer, bool help)
 {
+	bool ret = true;
+
 	if (help) {
 		printf("reset                              ");
 		printf("Performs immediate reset of the board.\n");
 	} else {
 		/* Clear reset cause prior to reset */
-		plat_wr_status_reg(RESET_CAUSE, RESET_VALUE);
-		plat_wr_status_reg(RESET_CAUSE_NS, RESET_VALUE);
+		ret = plat_wr_status_reg(RESET_CAUSE, RESET_VALUE);
+		if (ret == false) return -1;
+		ret = plat_wr_status_reg(RESET_CAUSE_NS, RESET_VALUE);
+		if (ret == false) return -1;
 
 		plat_warm_reset();
 	}
 	/* If we reach here it mean the reset failed */
-	return;
+	return -1;
+}
+
+static int common_get_last_error_function(uint8_t *command_buffer, bool help)
+{
+	if (help) {
+		printf("getlasterror                       ");
+		printf("Get the last command's execution status and report back error code to console.\n");
+	} else {
+		if (strlen(adrv_last_cmd_err.cmd))
+			printf("Last command '%s' %s with status code = %d.\n", adrv_last_cmd_err.cmd, adrv_last_cmd_err.errno == 0 ? "succeeded" : "failed", adrv_last_cmd_err.errno);
+		else
+			printf("Last command not found!\n");
+	}
+	return 0;
 }
 
 /* Function for signifying we have reach the end of the command function list.
 * Prints out warning that command could not be found for debugging purposes */
-static void common_end_function(uint8_t *command_buffer, bool help)
+static int common_end_function(uint8_t *command_buffer, bool help)
 {
 	NOTICE("Could not find command in any command list.\n");
-	return;
+	return 0;
 }
 
 cli_command_t common_command_list[] = {
-	{ "write",   common_debug_write_function   },
-	{ "read",    common_debug_read_function	   },
-	{ "hexdump", common_debug_hexdump_function },
-	{ "reset",   common_reset_function	   },
-	{ "end",     common_end_function	   }
+	{ "write",	  common_debug_write_function	 },
+	{ "read",	  common_debug_read_function	 },
+	{ "hexdump",	  common_debug_hexdump_function	 },
+	{ "reset",	  common_reset_function		 },
+	{ "getlasterror", common_get_last_error_function },
+	{ "end",	  common_end_function		 }
 };
 
 /* Converts ASCII string to an integer */
@@ -369,14 +422,14 @@ static void print_help(void)
 	int i = 0;
 
 	/* Iterate through each command and force help argument to true */
-	while (strcmp("end", plat_command_list[i].cmdName)) {
-		plat_command_list[i].cmdFunction(input_buffer, true);
+	while (strcmp("end", plat_command_list[i].cmd_name)) {
+		plat_command_list[i].cmd_function(input_buffer, true);
 		i++;
 	}
 
 	i = 0;
-	while (strcmp("end", common_command_list[i].cmdName)) {
-		common_command_list[i].cmdFunction(input_buffer, true);
+	while (strcmp("end", common_command_list[i].cmd_name)) {
+		common_command_list[i].cmd_function(input_buffer, true);
 		i++;
 	}
 	/* Exit doesn't have an official function, but we should still print out a listing for it */
@@ -384,50 +437,61 @@ static void print_help(void)
 	printf("Exits the CLI and resumes boot.\n");
 }
 
+/* At finding a command in the command list, execute its corresponding function and set its err status to the
+ *   global struct variable 'adrv_last_cmd_err'.
+ *   This function returns true at command found and executed, otherwise false.
+ */
+static bool execute_command(uint8_t *command, int cmd_len, cli_command_t *command_list)
+{
+	int i;
+	int err = 0;
+	char cmd_name[MAX_COMMAND_NAME_LENGTH + 1] = { '\0' };
+
+	if (!command_list) return false;
+	strlcpy(cmd_name, (char *)command, cmd_len + 1);
+
+	/* Search the command list with user input command for a match */
+	i = 0;
+	while (strcmp("end", command_list[i].cmd_name)) {
+		/*****************************************
+		* Scan the table until a match is found.
+		*****************************************/
+		if (strncmp((char *)command, (char *)command_list[i].cmd_name, (size_t)cmd_len) == 0u) {
+			/*reset command error status before execution*/
+			set_command_error(cmd_name, 0);
+			err = command_list[i].cmd_function(command, false);
+			set_command_error(cmd_name, err);
+			return true;
+		}
+
+		i++;
+		if (i > MAX_COMMAND_COUNT) {
+			printf("Command not found!\n");
+			return false;
+		}
+	}
+
+	/* If we reach here it means we have reached the "end" entry in the platform specific command list without finding a match */
+	command_list[i].cmd_function(command, false);
+	return false;
+}
+
 /* Parses the command in the buffer and attempts to find its corresponding function in the command lists. */
 static void parse_command(uint8_t *command)
 {
-	uint8_t *findEqual;
-	int i;
-	int cmdLen;
+	uint8_t *find_equal;
+	int cmd_len;
 
-	findEqual = (uint8_t *)strchr((char *)command, ' ');
+	find_equal = (uint8_t *)strchr((char *)command, ' ');
 
 	/* Simple command with no input parameters to process. */
-	if (!findEqual)
-		cmdLen = strlen((char *)command) - 1u;
+	if (!find_equal)
+		cmd_len = strlen((char *)command) - 1u;
 	else
-		cmdLen = findEqual - command;
+		cmd_len = find_equal - command;
 
-	/* Search the command list with user input command for a match */
-	i = 0;
-	while (strcmp("end", plat_command_list[i].cmdName)) {
-		/*****************************************
-		* Scan the table until a match is found.
-		*****************************************/
-		if (strncmp((char *)command, (char *)plat_command_list[i].cmdName, (size_t)cmdLen) == 0u) {
-			plat_command_list[i].cmdFunction(command, false);
-			return;
-		}
-		i++;
-	}
-	/* If we reach here it means we have reached the "end" entry in the platform specific command list without finding a match */
-	plat_command_list[i].cmdFunction(command, false);
-
-	/* Search the command list with user input command for a match */
-	i = 0;
-	while (strcmp("end", common_command_list[i].cmdName)) {
-		/*****************************************
-		* Scan the table until a match is found.
-		*****************************************/
-		if (strncmp((char *)command, (char *)common_command_list[i].cmdName, (size_t)cmdLen) == 0u) {
-			common_command_list[i].cmdFunction(command, false);
-			return;
-		}
-		i++;
-	}
-	/* If we reach here it means we have reached the "end" entry in the common command list without finding a match */
-	common_command_list[i].cmdFunction(command, false);
+	if (!execute_command(command, cmd_len, plat_command_list))
+		execute_command(command, cmd_len, common_command_list);
 }
 
 /* Main cli function. Sits here infinitely accepting command until the exit command is given or the board is reset */

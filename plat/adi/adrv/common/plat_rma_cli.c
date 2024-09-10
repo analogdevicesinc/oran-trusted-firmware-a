@@ -10,9 +10,9 @@
 #include <plat_cli.h>
 #include <platform_def.h>
 
-static void plat_end_function(uint8_t *command_buffer, bool help)
+static int plat_end_function(uint8_t *command_buffer, bool help)
 {
-	return;
+	return 0;
 }
 
 static void print_data(uint8_t *buf, uint8_t len)
@@ -22,11 +22,11 @@ static void print_data(uint8_t *buf, uint8_t len)
 	printf("\n");
 }
 
-static void common_challenge_request_function(uint8_t *command_buffer, bool help)
+static int common_challenge_request_function(uint8_t *command_buffer, bool help)
 {
 	uint8_t challenge_buf[16] = { 0 };
 	uint32_t chal_buf_len = sizeof(challenge_buf);
-	int status = -1;
+	int status = 0;
 	uint64_t type = 0;
 	chal_type_e chal;
 
@@ -42,7 +42,7 @@ static void common_challenge_request_function(uint8_t *command_buffer, bool help
 		command_buffer = parse_next_param(10, command_buffer, &type);
 		if (command_buffer == NULL) {
 			printf("No challenge type provided\n");
-			return;
+			return -1;
 		}
 
 		switch (type) {
@@ -57,7 +57,7 @@ static void common_challenge_request_function(uint8_t *command_buffer, bool help
 			break;
 		default:
 			ERROR("Invalid challenge type: %ld\n", type);
-			return;
+			return -1;
 		}
 
 		/* Call challenge request API */
@@ -67,13 +67,13 @@ static void common_challenge_request_function(uint8_t *command_buffer, bool help
 		else
 			print_data(challenge_buf, chal_buf_len);
 	}
-	return;
+	return status;
 }
 
 
-static void common_secure_debug_access_function(uint8_t *command_buffer, bool help)
+static int common_secure_debug_access_function(uint8_t *command_buffer, bool help)
 {
-	int status = -1;
+	int status = 0;
 	uint8_t response_buf[64] = { 0 };
 	uint64_t data = 0;
 
@@ -87,7 +87,7 @@ static void common_secure_debug_access_function(uint8_t *command_buffer, bool he
 		for (int i = 0; i < 64; i++) {
 			if (command_buffer == NULL) {
 				ERROR("Missing signed response\n");
-				return;
+				return -1;
 			}
 			command_buffer = parse_next_param(16, command_buffer, &data);
 			response_buf[i] = (uint8_t)data;
@@ -98,12 +98,12 @@ static void common_secure_debug_access_function(uint8_t *command_buffer, bool he
 
 		printf("Status of secure debug access: %x\n", status);
 	}
-	return;
+	return status;
 }
 
-static void common_rma_function(uint8_t *command_buffer, bool help)
+static int common_rma_function(uint8_t *command_buffer, bool help)
 {
-	int status = -1;
+	int status = 0;
 	uint8_t response_buf[64] = { 0 };
 	uint64_t data = 0;
 
@@ -118,7 +118,7 @@ static void common_rma_function(uint8_t *command_buffer, bool help)
 			command_buffer = parse_next_param(16, command_buffer, &data);
 			if (command_buffer == NULL) {
 				ERROR("Missing signed response\n");
-				return;
+				return -1;
 			}
 			response_buf[i] = (uint8_t)data;
 		}
@@ -128,7 +128,7 @@ static void common_rma_function(uint8_t *command_buffer, bool help)
 
 		printf("Status of RMA: %x\n", status);
 	}
-	return;
+	return status;
 }
 
 cli_command_t plat_command_list[] = {

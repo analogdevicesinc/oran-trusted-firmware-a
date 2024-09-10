@@ -44,67 +44,85 @@
 #define OTP_QRR_BIT_ADDRESS 0x1
 #define LAST_SAMANA_OTP_ADDRESS 0x3DFF
 #define BYTES_PER_OTP_WRITE 4
+
 static int adrv906x_dump_otp_memory(const uintptr_t start_addr, const int size);
 static int adrv906x_program_bootrom_in_otp(const uintptr_t mem_ctrl_base, uintptr_t base_addr_image, int num_bytes);
 
-static void plat_end_function(uint8_t *command_buffer, bool help)
+static int plat_end_function(uint8_t *command_buffer, bool help)
 {
-	return;
+	return 0;
 }
 
 /* ATE test mode. Programs the CLKPLL and then returns to interpreter loop. ATE
  * can then run their scan tests as needed. */
-static void ate_test_command_function(uint8_t *command_buffer, bool help)
+static int ate_test_command_function(uint8_t *command_buffer, bool help)
 {
+	bool ret = true;
+
 	if (help) {
 		printf("atetest                            ");
 		printf("Programs and locks the CLKPLL, then exits back to interpreter loop. ATE tests can then be run in background.\n");
 	} else {
 		/* Program CLK PLL */
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
-		clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		ret = clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		if (ret == false)
+			return -1;
+
 		plat_secure_wdt_stop();
 		printf("CLKPLL programmed, ready for ATE testing.\n");
 	}
-	return;
+	return 0;
 }
 
 /* ATE DDR command. Will run the DDR ATE firmware and then print the results to the console*/
-static void ate_ddr_command_function(uint8_t *command_buffer, bool help)
+static int ate_ddr_command_function(uint8_t *command_buffer, bool help)
 {
-	int result;
+	int result = 0;
+	bool ret = true;
 
 	if (help) {
 		printf("ateddr                             ");
 		printf("Programs the CLK PLL, then runs the DDR ATE firmware and prints the result to the console.\n");
 	} else {
 		/* Add region for reading ATE to memory map */
-		plat_setup_ns_sram_mmap();
+		if ((result = plat_setup_ns_sram_mmap()) != 0)
+			return result;
+
 		/* Program CLK PLL */
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
-		clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		ret = clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		if (ret == false)
+			return -1;
+
 		plat_secure_wdt_stop();
 
 		printf("Preparing DDR for ATE testing.\n");
 		result = adrv906x_ddr_iterative_init_pre_reset(DDR_CTL_BASE, DDR_PHY_BASE, DDR_ADI_INTERFACE_BASE, CLK_CTL, DRAM_BASE, DDR_PRIMARY_CONFIGURATION);
-		if (result)
+		if (result) {
 			printf("Error occurred while running DDR pre init:%d\n", result);
+			return result;
+		}
+
 		result = adrv906x_ddr_iterative_init_remapping(DDR_CTL_BASE, DDR_PHY_BASE, DDR_ADI_INTERFACE_BASE, CLK_CTL, DRAM_BASE, DDR_PRIMARY_CONFIGURATION);
-		if (result)
+		if (result) {
 			printf("Error occurred wile running DDR remapping init:%d\n", result);
+			return result;
+		}
 
 		/* Run DDR firmware */
 		result = adrv906x_ddr_ate_test(DDR_PHY_BASE, DDR_ADI_INTERFACE_BASE, CLK_CTL);
 		if (result)
 			printf("Error occured while running ATE firmware:%d\n", result);
 	}
-	return;
+	return result;
 }
 
 /* Function to perform the DDR controller init. Step 1 in the DDR iterative init */
-static void ddr_iterative_init_pre_reset_command_function(uint8_t *command_buffer, bool help)
+static int ddr_iterative_init_pre_reset_command_function(uint8_t *command_buffer, bool help)
 {
-	int result;
+	int result = 0;
+	bool ret = true;
 
 	if (help) {
 		printf("ddrpreinit                         ");
@@ -112,19 +130,23 @@ static void ddr_iterative_init_pre_reset_command_function(uint8_t *command_buffe
 	} else {
 		/* Program CLK PLL */
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
-		clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		ret = clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		if (ret == false)
+			return -1;
+
 		plat_secure_wdt_stop();
 		printf("Performing pre-reset init for the DDR.\n");
 		result = adrv906x_ddr_iterative_init_pre_reset(DDR_CTL_BASE, DDR_PHY_BASE, DDR_ADI_INTERFACE_BASE, CLK_CTL, DRAM_BASE, DDR_PRIMARY_CONFIGURATION);
 		if (result)
 			printf("Error occurred while running DDR pre init:%d\n", result);
 	}
+	return result;
 }
 
 /* Function to run the DDR Phy training and controller update. Step 3 in the DDR iterative init*/
-static void ddr_iterative_init_post_reset_command_function(uint8_t *command_buffer, bool help)
+static int ddr_iterative_init_post_reset_command_function(uint8_t *command_buffer, bool help)
 {
-	int result;
+	int result = 0;
 
 	if (help) {
 		printf("ddrpostinit                        ");
@@ -135,12 +157,13 @@ static void ddr_iterative_init_post_reset_command_function(uint8_t *command_buff
 		if (result)
 			printf("Error occurred while running DDR post init:%d\n", result);
 	}
+	return result;
 }
 
 /* Function to run just the ECC and address remapping portions of the DDR init. Step 2 in the DDR iterative init*/
-static void ddr_iterative_init_remapping_command_function(uint8_t *command_buffer, bool help)
+static int ddr_iterative_init_remapping_command_function(uint8_t *command_buffer, bool help)
 {
-	int result;
+	int result = 0;
 
 	if (help) {
 		printf("ddrremapinit                       ");
@@ -149,34 +172,45 @@ static void ddr_iterative_init_remapping_command_function(uint8_t *command_buffe
 		printf("Performing DDR pin and ECC remapping.\n");
 		result = adrv906x_ddr_iterative_init_remapping(DDR_CTL_BASE, DDR_PHY_BASE, DDR_ADI_INTERFACE_BASE, CLK_CTL, DRAM_BASE, DDR_PRIMARY_CONFIGURATION);
 		if (result)
-			printf("Error occurred wile running DDR remapping init:%d\n", result);
+			printf("Error occurred while running DDR remapping init:%d\n", result);
 	}
+	return result;
 }
 
 /*This command does a standard init of the ddr, non-interactive*/
-static void ddr_init_command_function(uint8_t *command_buffer, bool help)
+static int ddr_init_command_function(uint8_t *command_buffer, bool help)
 {
+	int result = 0;
+	bool ret = true;
+
 	if (help) {
 		printf("ddrinit                            ");
 		printf("Initiates a standard init of the DDR.\n");
 	} else {
 		/* Program CLK PLL */
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
-		clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		ret = clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		if (ret == false)
+			return -1;
+
 		plat_secure_wdt_stop();
 		printf("Initializing the DDR...\n");
 		/*Initialize the DDR*/
-		adrv906x_ddr_init();
+		result = adrv906x_ddr_init();
+		if (result)
+			printf("Error while initializing the DDR:%d\n", result);
 	}
+	return result;
 }
 
 /* This command performs the basic mem test for the DDR */
-static void ddr_mem_test_command_function(uint8_t *command_buffer, bool help)
+static int ddr_mem_test_command_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t base_addr_ddr;
 	uint64_t size;
 	uint64_t restore;
-	int result;
+	int result = 0;
+	bool ret = true;
 
 	if (help) {
 		printf("ddrmemtest <addr> <size> <restore> ");
@@ -186,17 +220,22 @@ static void ddr_mem_test_command_function(uint8_t *command_buffer, bool help)
 	} else {
 		command_buffer = parse_next_param(16, command_buffer, &base_addr_ddr);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(16, command_buffer, &size);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(10, command_buffer, &restore);
 		if (command_buffer == NULL)
-			return;
+			return -1;
 
 		/* Initialize the DDR before attempting a memory test*/
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
-		clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		ret = clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		if (ret == false)
+			return -1;
+
 		plat_secure_wdt_stop();
 
 		/* Configure TZC */
@@ -205,7 +244,7 @@ static void ddr_mem_test_command_function(uint8_t *command_buffer, bool help)
 		result = adrv906x_ddr_init();
 		if (result) {
 			printf("Error initializing the DDR: %d\n", result);
-			return;
+			return result;
 		}
 
 		printf("Basic memory test invalidates the cache before running, reset is recommended before attempting any other operations after running.\n");
@@ -216,14 +255,16 @@ static void ddr_mem_test_command_function(uint8_t *command_buffer, bool help)
 		else
 			printf("Memory test passed.\n");
 	}
+	return result;
 }
 
 /* This command performs the extensive mem test for the DDR */
-static void ddr_extensive_mem_test_command_function(uint8_t *command_buffer, bool help)
+static int ddr_extensive_mem_test_command_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t base_addr_ddr;
 	uint64_t size;
-	int result;
+	int result = 0;
+	bool ret = true;
 
 	if (help) {
 		printf("ddrextmemtest <addr> <size>        ");
@@ -231,14 +272,18 @@ static void ddr_extensive_mem_test_command_function(uint8_t *command_buffer, boo
 	} else {
 		command_buffer = parse_next_param(16, command_buffer, &base_addr_ddr);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(16, command_buffer, &size);
 		if (command_buffer == NULL)
-			return;
+			return -1;
 
 		/* Initialize the DDR before attempting a memory test*/
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
-		clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		ret = clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		if (ret == false)
+			return -1;
+
 		plat_secure_wdt_stop();
 
 		/* Configure TZC */
@@ -247,7 +292,7 @@ static void ddr_extensive_mem_test_command_function(uint8_t *command_buffer, boo
 		result = adrv906x_ddr_init();
 		if (result) {
 			printf("Error initializing the DDR: %d\n", result);
-			return;
+			return result;
 		}
 
 		printf("Extensive memory test invalidates the cache before running, reset is recommended before attempting any other operations after running.\n");
@@ -258,10 +303,11 @@ static void ddr_extensive_mem_test_command_function(uint8_t *command_buffer, boo
 		else
 			printf("Extensive memory test passed.\n");
 	}
+	return result;
 }
 
 /* Function to select which DDR signal to send to its observation pin*/
-static void  ddr_debug_mux_output_command_function(uint8_t *command_buffer, bool help)
+static int  ddr_debug_mux_output_command_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t group;
 	uint64_t instance;
@@ -282,30 +328,36 @@ static void  ddr_debug_mux_output_command_function(uint8_t *command_buffer, bool
 	} else {
 		command_buffer = parse_next_param(10, command_buffer, &group);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(10, command_buffer, &instance);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(16, command_buffer, &source);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(10, command_buffer, &output);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		if (!adi_adrv906x_debug_xbar_set_output(DEBUG_XBAR_SOURCE_CONTROL_BASE, DEBUG_XBAR_SRC_I_DWC_DDRPHY_DTO, output)) {
 			printf("Error setting debug crossbar output.\n");
-			return;
+			return -1;
 		}
 		adrv906x_ddr_mux_set_output(DDR_PHY_BASE, DDR_ADI_INTERFACE_BASE, CLK_CTL, group, instance, source);
 	}
+	return 0;
 }
 
 /* Function to select and run a subset of the DDR training firmware tests */
-static void ddr_custom_training_test_command_function(uint8_t *command_buffer, bool help)
+static int ddr_custom_training_test_command_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t sequence_ctrl;
 	uint64_t train_2d;
-	int result;
+	int result = 0;
+	bool ret = true;
 
 	if (help) {
 		printf("ddrtrain <seq> <train2d>           ");
@@ -321,14 +373,18 @@ static void ddr_custom_training_test_command_function(uint8_t *command_buffer, b
 	} else {
 		command_buffer = parse_next_param(16, command_buffer, &sequence_ctrl);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(10, command_buffer, &train_2d);
 		if (command_buffer == NULL)
-			return;
+			return -1;
 
 		/* Initialize the clocks and the TZC in case user runs custom training without a normal DDR init */
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
-		clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		ret = clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
+		if (ret == false)
+			return -1;
+
 		plat_secure_wdt_stop();
 
 		/* Configure TZC */
@@ -340,10 +396,11 @@ static void ddr_custom_training_test_command_function(uint8_t *command_buffer, b
 		else
 			printf("DDR training firmware custom test passed.\n");
 	}
+	return result;
 }
 
 /* Function to route the CLKPLL and Ethernet PLL VCO output to its test points */
-static void pll_vco_output_command_function(uint8_t *command_buffer, bool help)
+static int pll_vco_output_command_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t pll;
 	uint64_t xbar_pin = 0;
@@ -361,11 +418,12 @@ static void pll_vco_output_command_function(uint8_t *command_buffer, bool help)
 	} else {
 		command_buffer = parse_next_param(10, command_buffer, &pll);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(10, command_buffer, &xbar_pin);
 		if (command_buffer == NULL && (pll == 2 || pll == 3)) {
 			printf("Ethernet PLL VCO routing needs a second parameter.\n");
-			return;
+			return -1;
 		}
 
 		switch (pll) {
@@ -380,7 +438,7 @@ static void pll_vco_output_command_function(uint8_t *command_buffer, bool help)
 			mmio_write_32(EMAC_COMMON_BASE + EMAC_COMMON_CONTROL_OUT_GPIO_SELECTION0, ETH_PLL_16_CLK_DIV16);
 			if (!adi_adrv906x_debug_xbar_set_output(DEBUG_XBAR_SOURCE_CONTROL_BASE, DEBUG_XBAR_SRC_I_ETH_DBG_TO_GPIO_0, xbar_pin)) {
 				printf("Error setting debug crossbar output.\n");
-				return;
+				return -1;
 			}
 			break;
 		case 3:
@@ -388,21 +446,22 @@ static void pll_vco_output_command_function(uint8_t *command_buffer, bool help)
 			mmio_write_32(SEC_EMAC_COMMON_BASE + EMAC_COMMON_CONTROL_OUT_GPIO_SELECTION0, ETH_PLL_16_CLK_DIV16);
 			if (!adi_adrv906x_debug_xbar_set_output(SEC_DEBUG_XBAR_SOURCE_CONTROL_BASE, DEBUG_XBAR_SRC_I_ETH_DBG_TO_GPIO_0, xbar_pin)) {
 				printf("Error setting debug crossbar output.\n");
-				return;
+				return -1;
 			}
 			break;
 		default:
 			printf("Unsupported pll selected, try again.\n");
-			return;
+			return -1;
 		}
 
 		pll_configure_vco_test_out(base);
 		printf("PLL VCO routing complete\n");
 	}
+	return 0;
 }
 
 /* Vtune out command. Will route the Vtune output of the CLKPLL or the ETH PLL to its corresponding test point*/
-static void pll_vtune_output_command_function(uint8_t *command_buffer, bool help)
+static int pll_vtune_output_command_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t pll;
 	uintptr_t base;
@@ -417,7 +476,7 @@ static void pll_vtune_output_command_function(uint8_t *command_buffer, bool help
 	} else {
 		command_buffer = parse_next_param(10, command_buffer, &pll);
 		if (command_buffer == NULL)
-			return;
+			return -1;
 
 		switch (pll) {
 		case 0:
@@ -434,12 +493,13 @@ static void pll_vtune_output_command_function(uint8_t *command_buffer, bool help
 			break;
 		default:
 			printf("Unsupported pll selected, try again.\n");
-			return;
+			return -1;
 		}
 
 		pll_configure_vtune_test_out(base);
 		printf("PLL Vtune routing complete\n");
 	}
+	return 0;
 }
 
 /* Help function to print the debug crossbar current configuration */
@@ -456,7 +516,7 @@ static void print_debug_crossbar_status(void)
 }
 
 /* DEBUG MUX SHOW command */
-static void xbar_show_command_function(uint8_t *command_buffer, bool help)
+static int xbar_show_command_function(uint8_t *command_buffer, bool help)
 {
 	if (help) {
 		printf("debugmuxshow                       ");
@@ -464,11 +524,11 @@ static void xbar_show_command_function(uint8_t *command_buffer, bool help)
 	} else {
 		print_debug_crossbar_status();
 	}
-	return;
+	return 0;
 }
 
 /* DEBUG MUX OUT command. Routes a debug mux source to the selected output */
-static void xbar_output_command_function(uint8_t *command_buffer, bool help)
+static int xbar_output_command_function(uint8_t *command_buffer, bool help)
 {
 	uintptr_t base_addr = DEBUG_XBAR_SOURCE_CONTROL_BASE;
 	uint64_t source;
@@ -480,20 +540,24 @@ static void xbar_output_command_function(uint8_t *command_buffer, bool help)
 	} else {
 		command_buffer = parse_next_param(10, command_buffer, &source);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(10, command_buffer, &output);
 		if (command_buffer == NULL)
-			return;
-		if (!adi_adrv906x_debug_xbar_set_output(base_addr, source, output))
+			return -1;
+
+		if (!adi_adrv906x_debug_xbar_set_output(base_addr, source, output)) {
 			printf("Error setting debug crossbar output.\n");
-		else
+			return -1;
+		} else {
 			print_debug_crossbar_status();
+		}
 	}
-	return;
+	return 0;
 }
 
 /* DEBUG MUX MAP command. Configures the debug mux according a predefined map number (see drivers/adi/adrv906x/debug_xbar/debug_xbar_default_maps.c) */
-static void xbar_map_command_function(uint8_t *command_buffer, bool help)
+static int xbar_map_command_function(uint8_t *command_buffer, bool help)
 {
 	uintptr_t base_addr = DEBUG_XBAR_SOURCE_CONTROL_BASE;
 	uint64_t map_num;
@@ -504,37 +568,44 @@ static void xbar_map_command_function(uint8_t *command_buffer, bool help)
 	} else {
 		command_buffer = parse_next_param(10, command_buffer, &map_num);
 		if (command_buffer == NULL)
-			return;
-		if (!adi_adrv906x_debug_xbar_set_default_map(base_addr, map_num))
+			return -1;
+
+		if (!adi_adrv906x_debug_xbar_set_default_map(base_addr, map_num)) {
 			printf("Error setting debug crossbar map.\n");
-		else
+			return -1;
+		} else {
 			print_debug_crossbar_status();
+		}
 	}
-	return;
+	return 0;
 }
 
-static void bootrom_in_otp_command_function(uint8_t *command_buffer, bool help)
+static int bootrom_in_otp_command_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t num_bytes;
+	int result = 0;
 
 	if (help) {
 		printf("bootrominotp <num_bytes>           ");
 		printf("Programs the OTP with the BootROM image loaded at 0x0010_0000 of length num_bytes.\n");
 	} else {
 		/* Add region for reading image to memory map */
-		plat_setup_ns_sram_mmap();
+		if ((result = plat_setup_ns_sram_mmap()) != 0)
+			return result;
+
 		command_buffer = parse_next_param(16, command_buffer, &num_bytes);
 		if (command_buffer == NULL)
-			return;
-		if (adrv906x_program_bootrom_in_otp(OTP_BASE, BOOTROM_SRAM_LOAD_ADDR, num_bytes))
+			return -1;
+
+		if ((result = adrv906x_program_bootrom_in_otp(OTP_BASE, BOOTROM_SRAM_LOAD_ADDR, num_bytes)) != 0)
 			printf("Error programming BootROM into OTP.\n");
 		else
 			printf("BootROM programming in OTP successful.\n");
 	}
-	return;
+	return result;
 }
 
-static void otp_qrr_command_function(uint8_t *command_buffer, bool help)
+static int otp_qrr_command_function(uint8_t *command_buffer, bool help)
 {
 	uint32_t qrr;
 
@@ -544,20 +615,24 @@ static void otp_qrr_command_function(uint8_t *command_buffer, bool help)
 	} else {
 		if (otp_write(OTP_BASE, OTP_QRR_BIT_ADDRESS, 0x1, OTP_ECC_ON) != ADI_OTP_SUCCESS) {
 			printf("Error programming the QRR bit in OTP.\n");
+			return -1;
 		} else {
 			otp_read(OTP_BASE, OTP_QRR_BIT_ADDRESS, &qrr, OTP_ECC_ON);
-			if (qrr != 0x1)
+			if (qrr != 0x1) {
 				printf("Error programming the QRR bit in OTP.\n");
-			else
+				return -1;
+			} else {
 				printf("Programmed the QRR bit in OTP successfully.\n");
+			}
 		}
 	}
-	return;
+	return 0;
 }
 
-static void otp_dump_command_function(uint8_t *command_buffer, bool help)
+static int otp_dump_command_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t start_addr, size;
+	int result = 0;
 
 	if (help) {
 		printf("otpdump <addr> <size>              ");
@@ -567,24 +642,25 @@ static void otp_dump_command_function(uint8_t *command_buffer, bool help)
 	} else {
 		command_buffer = parse_next_param(16, command_buffer, &start_addr);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(10, command_buffer, &size);
 		if (command_buffer == NULL)
-			return;
+			return -1;
 
-		if (adrv906x_dump_otp_memory(start_addr, size))
+		if ((result = adrv906x_dump_otp_memory(start_addr, size)) != 0)
 			printf("Failed to dump memory from OTP.\n");
 	}
-	return;
+	return result;
 }
 
-static void program_pll_command_function(uint8_t *command_buffer, bool help)
+static int program_pll_command_function(uint8_t *command_buffer, bool help)
 {
 	uintptr_t base_addr, dig_core_base_addr;
 	uint64_t pll, freq, pll_freq, ref_clk;
 	bool secondary, eth_pll;
 	PllSelName_e pll_sel_name;
-	int err;
+	int result = 0;
 
 	if (help) {
 		printf("programpll <pll> <freq>            ");
@@ -596,10 +672,12 @@ static void program_pll_command_function(uint8_t *command_buffer, bool help)
 	} else {
 		command_buffer = parse_next_param(10, command_buffer, &pll);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(10, command_buffer, &freq);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		switch (pll) {
 		case 0:
 			base_addr = CLKPLL_BASE;
@@ -635,7 +713,7 @@ static void program_pll_command_function(uint8_t *command_buffer, bool help)
 			break;
 		default:
 			printf("Unsupported pll selected, try again.\n");
-			return;
+			return -1;
 		}
 
 		switch (freq) {
@@ -653,42 +731,41 @@ static void program_pll_command_function(uint8_t *command_buffer, bool help)
 			break;
 		default:
 			printf("Unsupported frequency for pll, please try again.\n");
-			return;
+			return -1;
 		}
 
-		err = clk_initialize_pll_programming(secondary, eth_pll, plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting());
-		if (err) {
+		result = clk_initialize_pll_programming(secondary, eth_pll, plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting());
+		if (result) {
 			ERROR("Failed preparing pll for programming.\n");
-			return;
+			return result;
 		}
 		printf("Initializing LDO for pll...\n");
-		err = ldo_powerup(base_addr, pll_sel_name);
-		if (err) {
-			ERROR("Failed to initialize LDO %d\n", err);
-			return;
+		result = ldo_powerup(base_addr, pll_sel_name);
+		if (result) {
+			ERROR("Failed to initialize LDO %d\n", result);
+			return result;
 		}
 
 		printf("Turning on PLL...\n");
-		err = pll_clk_power_init(base_addr, dig_core_base_addr, pll_freq, ref_clk, pll_sel_name);
-		if (err) {
-			ERROR("Problem powering on pll = %d\n", err);
-			return;
+		result = pll_clk_power_init(base_addr, dig_core_base_addr, pll_freq, ref_clk, pll_sel_name);
+		if (result) {
+			ERROR("Problem powering on pll = %d\n", result);
+			return result;
 		}
 
 		printf("Programming PLL...\n");
-		err = pll_program(base_addr, pll_sel_name);
-		if (err) {
-			ERROR("Problem programming pll = %d\n", err);
-			return;
-		}
+		result = pll_program(base_addr, pll_sel_name);
+		if (result)
+			ERROR("Problem programming pll = %d\n", result);
 	}
-	return;
+	return result;
 }
 
-static void sd_read_command_function(uint8_t *command_buffer, bool help)
+static int sd_read_command_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t block_offset;
 	uint64_t num_blocks;
+	int result = 0;
 
 	if (help) {
 		printf("sdread <blk_offset> <num_blks>     ");
@@ -696,31 +773,36 @@ static void sd_read_command_function(uint8_t *command_buffer, bool help)
 	} else {
 		if (plat_get_boot_device() != PLAT_BOOT_DEVICE_SD_0) {
 			printf("Error: Boot device must be set to SD_0\n");
-			return;
+			return -1;
 		}
 
-		plat_setup_ns_sram_mmap();
+		if ((result = plat_setup_ns_sram_mmap()) != 0)
+			return result;
+
 		plat_init_boot_device();
 
 		command_buffer = parse_next_param(10, command_buffer, &block_offset);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(10, command_buffer, &num_blocks);
 		if (command_buffer == NULL)
-			return;
+			return -1;
 
-		if (mmc_read_blocks(block_offset, (uintptr_t)0x00100000, num_blocks * 512) != (num_blocks * 512))
+		if (mmc_read_blocks(block_offset, (uintptr_t)0x00100000, num_blocks * 512) != (num_blocks * 512)) {
 			printf("Error reading from SD card.\n");
-		else
+			return -1;
+		} else {
 			printf("SD card read successful.\n");
+		}
 	}
-	return;
+	return result;
 }
 
-static void i2c_detect_command_function(uint8_t *command_buffer, bool help)
+static int i2c_detect_command_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t bus;
-	int ret;
+	int result = 0;
 	struct adi_i2c_handle hi2c;
 	uint8_t i;
 	uint8_t dummy;
@@ -731,17 +813,22 @@ static void i2c_detect_command_function(uint8_t *command_buffer, bool help)
 	} else {
 		command_buffer = parse_next_param(10, command_buffer, &bus);
 		if (command_buffer == NULL)
-			return;
+			return -1;
 
 		switch (bus) {
-		case 0: hi2c.base = I2C_0_BASE; break;
-		default: printf("Bus not supported\n"); return;
+		case 0:
+			hi2c.base = I2C_0_BASE;
+			break;
+		default:
+			printf("Bus not supported\n");
+			return -1;
 		}
 		hi2c.sclk = clk_get_freq(CLK_CTL, CLK_ID_SYSCLK);
 		hi2c.twi_clk = 40000;
 
-		ret = adi_twi_i2c_init(&hi2c);
-		if (ret < 0) return;
+		result = adi_twi_i2c_init(&hi2c);
+		if (result < 0)
+			return result;
 
 		printf("\n");
 		printf("     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f");
@@ -752,25 +839,27 @@ static void i2c_detect_command_function(uint8_t *command_buffer, bool help)
 				printf("   ");
 				continue;
 			}
-			ret = adi_twi_i2c_read(&hi2c, i, 0, 1, &dummy, 1);
-			if (ret < 0)
+			result = adi_twi_i2c_read(&hi2c, i, 0, 1, &dummy, 1);
+			if (result < 0) {
 				printf("-- ");
-			else
+				return result;
+			} else {
 				printf("%02x ", i);
+			}
 		}
 		printf("\n");
 	}
-	return;
+	return result;
 }
 
-static void i2c_read_command_function(uint8_t *command_buffer, bool help)
+static int i2c_read_command_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t bus;
 	uint64_t slave;
 	uint64_t addr;
 	uint64_t addr_len;
 	uint64_t num_bytes;
-	int ret;
+	int result = 0;
 	struct adi_i2c_handle hi2c;
 	uint8_t i;
 	uint8_t buffer[100] = { 0 };
@@ -781,45 +870,54 @@ static void i2c_read_command_function(uint8_t *command_buffer, bool help)
 	} else {
 		command_buffer = parse_next_param(10, command_buffer, &bus);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(16, command_buffer, &slave);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(16, command_buffer, &addr);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(10, command_buffer, &addr_len);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(10, command_buffer, &num_bytes);
 		if (command_buffer == NULL)
-			return;
+			return -1;
 
 		switch (bus) {
-		case 0: hi2c.base = I2C_0_BASE; break;
-		default: printf("Bus not supported\n"); return;
+		case 0:
+			hi2c.base = I2C_0_BASE;
+			break;
+		default:
+			printf("Bus not supported\n");
+			return -1;
 		}
 		hi2c.sclk = clk_get_freq(CLK_CTL, CLK_ID_SYSCLK);
 		hi2c.twi_clk = 40000;
 
-		ret = adi_twi_i2c_init(&hi2c);
-		if (ret < 0) return;
+		result = adi_twi_i2c_init(&hi2c);
+		if (result < 0)
+			return result;
 
 		printf("Read slave 0x%lx address 0x%lx %ld bytes\n", slave, addr, num_bytes);
-		ret = adi_twi_i2c_read(&hi2c, slave, addr, addr_len, buffer, num_bytes);
-		if (ret < 0) {
-			printf("Read error: %d\n", ret);
-			return;
+		result = adi_twi_i2c_read(&hi2c, slave, addr, addr_len, buffer, num_bytes);
+		if (result < 0) {
+			printf("Read error: %d\n", result);
+			return result;
 		}
 
 		for (i = 0; i < num_bytes; i++)
 			printf("0x%02x ", buffer[i]);
 		printf("\n");
 	}
-	return;
+	return result;
 }
 
-static void i2c_write_command_function(uint8_t *command_buffer, bool help)
+static int i2c_write_command_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t bus;
 	uint64_t slave;
@@ -827,7 +925,7 @@ static void i2c_write_command_function(uint8_t *command_buffer, bool help)
 	uint64_t addr_len;
 	uint64_t aux;
 	uint64_t num_bytes;
-	int ret;
+	int result = 0;
 	struct adi_i2c_handle hi2c;
 	uint8_t i;
 	uint8_t buffer[100] = { 0 };
@@ -838,48 +936,59 @@ static void i2c_write_command_function(uint8_t *command_buffer, bool help)
 	} else {
 		command_buffer = parse_next_param(10, command_buffer, &bus);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(16, command_buffer, &slave);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(16, command_buffer, &addr);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(10, command_buffer, &addr_len);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		command_buffer = parse_next_param(10, command_buffer, &num_bytes);
 		if (command_buffer == NULL)
-			return;
+			return -1;
+
 		for (i = 0; i < num_bytes; i++) {
 			command_buffer = parse_next_param(16, command_buffer, &aux);
 			if (command_buffer == NULL)
-				return;
+				return -1;
+
 			if (aux > 0xff) {
 				printf("Invalid byte: 0x%lx\n", aux);
-				return;
+				return -1;
 			}
 			buffer[i] = aux;
 		}
 
 		switch (bus) {
-		case 0: hi2c.base = I2C_0_BASE; break;
-		default: printf("Bus not supported\n"); return;
+		case 0:
+			hi2c.base = I2C_0_BASE;
+			break;
+		default:
+			printf("Bus not supported\n");
+			return -1;
 		}
 		hi2c.sclk = clk_get_freq(CLK_CTL, CLK_ID_SYSCLK);
 		hi2c.twi_clk = 40000;
 
-		ret = adi_twi_i2c_init(&hi2c);
-		if (ret < 0) return;
+		result = adi_twi_i2c_init(&hi2c);
+		if (result < 0)
+			return result;
 
 		printf("Write slave 0x%lx address 0x%lx %ld bytes\n", slave, addr, num_bytes);
-		ret = adi_twi_i2c_write(&hi2c, slave, addr, addr_len, buffer, num_bytes);
-		if (ret < 0) {
-			printf("Write error: %d\n", ret);
-			return;
+		result = adi_twi_i2c_write(&hi2c, slave, addr, addr_len, buffer, num_bytes);
+		if (result < 0) {
+			printf("Write error: %d\n", result);
+			return result;
 		}
 	}
-	return;
+	return result;
 }
 
 cli_command_t plat_command_list[] = {

@@ -10,9 +10,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define MAX_COMMAND_NAME_LENGTH    64
+#define MAX_COMMAND_COUNT          200
+
 typedef struct {
-	char cmdName[50];
-	void (*cmdFunction)(uint8_t *command_buffer, bool help);
+	char cmd_name[MAX_COMMAND_NAME_LENGTH];
+	int (*cmd_function)(uint8_t *command_buffer, bool help);
 } cli_command_t;
 
 extern cli_command_t plat_command_list[];
