@@ -15,6 +15,7 @@
 #define GPINT0  (0)
 #define GPINT1  (1)
 #define GPINT_INTS_PER_WORD     (48)
+#define TOTAL_GPINTS                    (96)
 
 struct gpint_settings {
 	uint64_t upper_word;
@@ -25,6 +26,7 @@ struct gpint_settings {
 
 void adrv906x_gpint_init(uintptr_t base_address);
 void adrv906x_gpint_get_status(uintptr_t gpint_base_addr, struct gpint_settings *settings);
+void adrv906x_gpint_get_masked_status(uintptr_t gpint_base_addr, struct gpint_settings *settings, uint32_t gpint);
 void adrv906x_gpint_enable(uintptr_t gpint_base_addr, uint32_t gpint, struct gpint_settings *settings);
 void adrv906x_gpint_disable(uintptr_t gpint_base_addr, uint32_t gpint, struct gpint_settings *settings);
 void adrv906x_gpint_warm_reset_enable(void);

@@ -11,6 +11,7 @@
 
 #define ADI_ERRNO(x) (ELAST + x)
 
-#define EECC ADI_ERRNO(1)
+#define ECECC ADI_ERRNO(1)      /* Cache ECC Error */
+#define EDECC ADI_ERRNO(2)      /* DRAM ECC Error */
 
 #endif

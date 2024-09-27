@@ -7,9 +7,12 @@
 #include <lib/mmio.h>
 
 #include <adrv906x_clkrst_def.h>
+#include <adrv906x_ddr.h>
 #include <drivers/arm/sp805.h>
 #include <platform.h>
 #include <plat_err.h>
+#include <plat_errno.h>
+#include <plat_status_reg.h>
 
 #define RESET_DELAY_NS          10000000
 #define CALC_DELAY_LOOPS        (RESET_DELAY_NS / 9)             /* Delay calculated based on 10ns/instruction and 9 instructions per loop iteration */
@@ -48,3 +51,16 @@ int plat_warm_reset(void)
 }
 
 #pragma GCC pop_options
+
+void plat_panic_reset_cause(void)
+{
+	bool result = true;
+
+	result = adrv906x_ddr_check_ecc_errors(DDR_CTL_BASE);
+	if (result)
+		/* Set the RESET_CAUSE boot register with the DRAM ECC value */
+		plat_wr_status_reg(RESET_CAUSE, DRAM_ECC_ERROR);
+	else
+		/* Set the RESET_CAUSE boot register with the appropriate value for panic case */
+		plat_wr_status_reg(RESET_CAUSE, OTHER_RESET_CAUSE);
+}

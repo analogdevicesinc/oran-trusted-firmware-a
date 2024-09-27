@@ -105,6 +105,27 @@ void adrv906x_gpint_init(uintptr_t base_addr)
 	adrv906x_gpint_level_pulse(base_addr);
 }
 
+/* Takes the current status bits for upper and lower words and returns status removing non enabled GPINT sources */
+void adrv906x_gpint_get_masked_status(uintptr_t gpint_base_addr, struct gpint_settings *settings, uint32_t gpint)
+{
+	uint8_t byte_current;
+	int byte;
+
+	settings->lower_word = 0;
+	settings->upper_word = 0;
+
+	/* Read GPINT status byte by byte and store into corresponding upper and lower words */
+	for (byte = 0; byte < GPINT_BYTES; byte++) {
+		byte_current = mmio_read_8(gpint_base_addr + gpint_status_offset[byte]);
+		byte_current &= ~(mmio_read_8(gpint_base_addr + gpint_mask_offset[byte][gpint]));
+
+		if (byte < NUM_BYTES_PER_WORD)
+			settings->lower_word |= (((uint64_t)byte_current) << (BYTE_SIZE * byte));
+		else
+			settings->upper_word |= (((uint64_t)byte_current) << (BYTE_SIZE * (byte - NUM_BYTES_PER_WORD)));
+	}
+}
+
 /* Gets the current status bits for the upper and lower words */
 void adrv906x_gpint_get_status(uintptr_t gpint_base_addr, struct gpint_settings *settings)
 {

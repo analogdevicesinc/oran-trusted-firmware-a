@@ -21,4 +21,8 @@ int adrv906x_ddr_iterative_init_pre_reset(uintptr_t base_addr_ctrl, uintptr_t ba
 int adrv906x_ddr_iterative_init_post_reset(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, uintptr_t base_addr_ddr, ddr_config_t configuration);
 int adrv906x_ddr_iterative_init_remapping(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, uintptr_t base_addr_ddr, ddr_config_t configuration);
 
+bool adrv906x_ddr_check_ecc_errors(uintptr_t base_addr_ctrl);
+bool adrv906x_ddr_log_correctable_error(uintptr_t base_addr_ctrl);
+bool adrv906x_ddr_log_uncorrectable_error(uintptr_t base_addr_ctrl);
+
 #endif /* __ADRV906X_DDR_H__ */

@@ -26,8 +26,11 @@ void plat_error_handler(int err)
 	 */
 
 	switch (-err) {
-	case EECC:
-		plat_wr_status_reg(RESET_CAUSE, ECC_ERROR);
+	case ECECC:
+		plat_wr_status_reg(RESET_CAUSE, CACHE_ECC_ERROR);
+		break;
+	case EDECC:
+		plat_wr_status_reg(RESET_CAUSE, DRAM_ECC_ERROR);
 		break;
 	case EAUTH:
 		plat_wr_status_reg(RESET_CAUSE, IMG_VERIFY_FAIL);
@@ -41,10 +44,4 @@ void plat_error_handler(int err)
 
 	while (1)
 		;
-}
-
-void plat_panic_reset_cause(void)
-{
-	/* Set the RESET_CAUSE boot register with the appropriate value for panic case */
-	plat_wr_status_reg(RESET_CAUSE, OTHER_RESET_CAUSE);
 }

@@ -33,6 +33,46 @@ static uint8_t ddr_phy_pad_sequence[DDR_PHY_PAD_SEQUENCE_SIZE] = { \
 	0x0, 0x2,  0x1,	 0x5 \
 };
 
+bool adrv906x_ddr_check_ecc_errors(uintptr_t base_addr_ctrl)
+{
+	bool correctable, uncorrectable;
+
+	correctable = adrv906x_ddr_log_correctable_error(base_addr_ctrl);
+	uncorrectable = adrv906x_ddr_log_uncorrectable_error(base_addr_ctrl);
+
+	return correctable || uncorrectable;
+}
+
+bool adrv906x_ddr_log_correctable_error(uintptr_t base_addr_ctrl)
+{
+	ddr_ecc_error_data_t data = { 0 };
+	bool status = false;
+
+	status = ddr_get_ecc_error_info(base_addr_ctrl, true, &data);
+	if (status)
+		ERROR("DDR Correctable Error: Rank: %d, Row: %d, Bank Group: %d, Bank: %d, Block: %d, Corrected bit num: %d, Error Count:%d\n",
+		      data.rank, data.row, data.bank_group, data.bank, data.block, data.corrected_bit_num, data.error_count);
+	else
+		INFO("No DDR ECC correctable error.\n");
+
+	return status;
+}
+
+bool adrv906x_ddr_log_uncorrectable_error(uintptr_t base_addr_ctrl)
+{
+	ddr_ecc_error_data_t data = { 0 };
+	bool status = false;
+
+	status = ddr_get_ecc_error_info(base_addr_ctrl, false, &data);
+	if (status)
+		ERROR("DDR Uncorrectable Error: Rank: %d, Row: %d, Bank Group: %d, Bank: %d, Block: %d, Error Count:%d\n",
+		      data.rank, data.row, data.bank_group, data.bank, data.block, data.error_count);
+	else
+		INFO("No DDR uncorrectable ECC error found.\n");
+
+	return status;
+}
+
 /* This function programs the remapping register in the NIC to split the 3GB of available address space between the primary and secondary DDRs
  * Any address space not given to the primary is given to the secondary, and vice versa. So, if the primary size was 2GB, then the addresses
  * 0x4000_0000 through 0x9FFF_FFFF would get routed to the primary, and 0xA000_0000 and above would be routed to the secondary. */

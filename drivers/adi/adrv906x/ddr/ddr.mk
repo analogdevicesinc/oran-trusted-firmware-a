@@ -8,6 +8,7 @@ DDR_SOURCES		:=	drivers/adi/adrv906x/ddr/aarch64/adrv906x_ddr_mem.S\
 				drivers/adi/adrv906x/ddr/ddr.c \
 				drivers/adi/adrv906x/ddr/ddr_config.c \
 				drivers/adi/adrv906x/ddr/ddr_debug.c \
+				drivers/adi/adrv906x/ddr/ddr_edac.c \
 				drivers/adi/adrv906x/ddr/ddr_messages.c \
 				drivers/adi/adrv906x/ddr/ddr_phy_helpers.c \
 				drivers/adi/adrv906x/ddr/ddr_post_reset_init_syslvl.c \

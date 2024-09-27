@@ -7,6 +7,7 @@
 #define DDR_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define ADI_DDR_CTRL_TIMEOUT                      (20)
 #define ADI_DDR_ECC_SCRUB_TIMEOUT                 (2000)
@@ -48,6 +49,16 @@ typedef enum {
 	ERROR_DDR_ECC_SCRUB_FAILED
 } ddr_error_t;
 
+typedef struct {
+	uint8_t rank;
+	uint8_t row;
+	uint8_t bank_group;
+	uint8_t bank;
+	uint16_t block;
+	uint8_t corrected_bit_num;
+	uint16_t error_count;
+} ddr_ecc_error_data_t;
+
 typedef enum {
 	DDR_MASTER0,
 	DDR_ANIB,
@@ -70,6 +81,9 @@ ddr_error_t ddr_pre_reset_init(uintptr_t base_addr_ctrl, bool ecc);
 ddr_error_t ddr_post_reset_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, ddr_init_stages_t stage, ddr_config_t configuration);
 ddr_error_t ddr_ate_test(uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, uintptr_t ate_fw_addr, uintptr_t ate_msg_blk_addr, uint32_t ate_fw_size, uint32_t ate_msg_blk_size);
 ddr_error_t ddr_custom_training_test(uintptr_t base_addr_phy, uint8_t hdt_ctrl, uint16_t sequence_ctrl, int train_2d);
+
+/* DDR ECC reporting functions */
+bool ddr_get_ecc_error_info(uintptr_t base_addr_ctrl, bool correctable, ddr_ecc_error_data_t *data);
 
 /* Debug-only functions */
 void ddr_mux_set_output(uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, uint8_t group, uint8_t instance, uint8_t source);

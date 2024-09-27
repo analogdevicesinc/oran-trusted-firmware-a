@@ -33,6 +33,7 @@ PLAT_BL_COMMON_SOURCES	+=	drivers/adi/adrv906x/debug_xbar/debug_xbar.c \
 
 BL1_SOURCES		+=	drivers/adi/adrv906x/clk/clk.c \
 				drivers/adi/adrv906x/clk/mcs.c \
+				drivers/adi/adrv906x/ddr/ddr_edac.c \
 				drivers/adi/adrv906x/gpio/adrv906x_gpio.c \
 				drivers/adi/i2c/adi_twi_i2c.c \
 				drivers/adi/mmc/adi_sdhci.c \
@@ -42,6 +43,7 @@ BL1_SOURCES		+=	drivers/adi/adrv906x/clk/clk.c \
 				drivers/arm/sp805/sp805.c \
 				drivers/gpio/gpio.c \
 				plat/adi/adrv/adrv906x/adrv906x_bl1_setup.c \
+				plat/adi/adrv/adrv906x/adrv906x_ddr.c \
 				plat/adi/adrv/adrv906x/adrv906x_gpint.c \
 				plat/adi/adrv/adrv906x/adrv906x_peripheral_clk_rst.c \
 				plat/adi/adrv/adrv906x/adrv906x_pinctrl_svc.c \
@@ -80,14 +82,16 @@ ifeq (${DEBUG},1)
 BL2_SOURCES		+=	plat/adi/adrv/adrv906x/adrv906x_cli.c
 endif
 
-BL31_SOURCES	+=		drivers/adi/adrv906x/clk/clk.c \
+BL31_SOURCES	+=	drivers/adi/adrv906x/clk/clk.c \
 				drivers/adi/adrv906x/clk/mcs.c \
+				drivers/adi/adrv906x/ddr/ddr_edac.c \
 				drivers/adi/adrv906x/gpio/adrv906x_gpio.c \
 				drivers/adi/adrv906x/transmuter/transmuter.c \
 				drivers/adi/adrv906x/transmuter/transmuter_def.c \
 				drivers/arm/sp805/sp805.c \
 				drivers/gpio/gpio.c \
 				plat/adi/adrv/adrv906x/adrv906x_bl31_setup.c \
+				plat/adi/adrv/adrv906x/adrv906x_ddr.c \
 				plat/adi/adrv/adrv906x/adrv906x_fixup_hw_config.c \
 				plat/adi/adrv/adrv906x/adrv906x_gpint.c \
 				plat/adi/adrv/adrv906x/adrv906x_el3_int_handlers.c \

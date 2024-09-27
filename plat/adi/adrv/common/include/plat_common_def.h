@@ -142,7 +142,7 @@
 #define BL31_LIMIT                      (BL31_BASE + BL1_RW_MAX_SIZE + BL2_MAX_SIZE)
 #else
 #ifndef BL31_MAX_SIZE
-#define BL31_MAX_SIZE                   UL(0x30000)                               /* 192 KB max for BL31 */
+#define BL31_MAX_SIZE                   UL(0x31000)                               /* 196 KB max for BL31 */
 #endif
 #define BL31_BASE                       (BL2_BASE - BL31_MAX_SIZE)
 #define BL31_LIMIT                      (BL31_BASE + BL31_MAX_SIZE)
