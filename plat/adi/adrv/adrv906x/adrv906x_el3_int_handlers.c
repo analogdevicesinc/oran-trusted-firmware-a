@@ -165,6 +165,7 @@ static uint64_t ddr_ecc_uncorrected_err_handler(uint32_t id, uint32_t flags, voi
 static uint64_t ddr_ap_err_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
 {
 	WARN("DDR Address Protection errors have exceeded threshold\n");
+	adrv906x_ddr_clear_ap_error(DDR_CTL_BASE);
 	return 0;
 }
 

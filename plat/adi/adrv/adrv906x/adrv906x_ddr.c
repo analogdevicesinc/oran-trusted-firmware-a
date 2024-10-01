@@ -43,6 +43,11 @@ bool adrv906x_ddr_check_ecc_errors(uintptr_t base_addr_ctrl)
 	return correctable || uncorrectable;
 }
 
+void adrv906x_ddr_clear_ap_error(uintptr_t base_addr_ctrl)
+{
+	ddr_clear_ap_error(base_addr_ctrl);
+}
+
 bool adrv906x_ddr_log_correctable_error(uintptr_t base_addr_ctrl)
 {
 	ddr_ecc_error_data_t data = { 0 };

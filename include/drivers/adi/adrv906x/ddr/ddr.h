@@ -84,6 +84,7 @@ ddr_error_t ddr_custom_training_test(uintptr_t base_addr_phy, uint8_t hdt_ctrl, 
 
 /* DDR ECC reporting functions */
 bool ddr_get_ecc_error_info(uintptr_t base_addr_ctrl, bool correctable, ddr_ecc_error_data_t *data);
+void ddr_clear_ap_error(uintptr_t base_addr_ctrl);
 
 /* Debug-only functions */
 void ddr_mux_set_output(uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, uint8_t group, uint8_t instance, uint8_t source);

@@ -44,6 +44,16 @@ static bool ddr_check_ecc_error_status(uintptr_t base_addr_ctrl, bool correctabl
 		return ((mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCSTAT) & ECCSTAT_ECC_UNCORRECTED_ERR_MASK) >> ECCSTAT_ECC_UNCORRECTED_ERR_SHIFT) == 1;
 }
 
+/* Clears the AP error from the controller side so interrupt line is not continuously triggered */
+void ddr_clear_ap_error(uintptr_t base_addr_ctrl)
+{
+	uint32_t register_data;
+
+	register_data = mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCTL);
+	register_data |= ECCCTL_ECC_AP_ERR_INTR_CLR_MASK;
+	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCTL, register_data);
+}
+
 /* Retrieves the info(row, bank, etc.) of an ECC error */
 bool ddr_get_ecc_error_info(uintptr_t base_addr_ctrl, bool correctable, ddr_ecc_error_data_t *data)
 {
@@ -74,6 +84,10 @@ bool ddr_get_ecc_error_info(uintptr_t base_addr_ctrl, bool correctable, ddr_ecc_
 		}
 
 		data->error_count = ddr_get_correctable_error_count(base_addr_ctrl);
+
+		register_data = mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCTL);
+		register_data |= ECCCTL_ECC_CORRECTED_ERR_CLR_MASK;
+		mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCTL, register_data);
 	} else {
 		/* Retrieve the rank and row from ECCUADDR0 */
 		register_data = mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCUADDR0);
@@ -87,6 +101,9 @@ bool ddr_get_ecc_error_info(uintptr_t base_addr_ctrl, bool correctable, ddr_ecc_
 		data->block = (register_data & ECCUADDR1_ECC_UNCORR_COL_MASK) >> ECCUADDR1_ECC_UNCORR_COL_SHIFT;
 
 		data->error_count = ddr_get_uncorrectable_error_count(base_addr_ctrl);
+		register_data = mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCTL);
+		register_data |= ECCCTL_ECC_UNCORRECTED_ERR_CLR_MASK;
+		mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCTL, register_data);
 	}
 
 	return true;
