@@ -203,6 +203,45 @@ static int ddr_init_command_function(uint8_t *command_buffer, bool help)
 	return result;
 }
 
+/* This command sets custom parameters used for subsequent DDR init calls */
+static int ddr_custom_values_command_function(uint8_t *command_buffer, bool help)
+{
+	uint64_t parameter;
+	ddr_custom_values_t ddr_custom_parameters;
+
+	if (help) {
+		printf("ddrvalues <tximp> <txodt> <calrate> <rdptrinit>\n");
+		printf("                                   ");
+		printf("Set custom values for the TxImpedanceCtrl*_B*_P*, TxODTDRVSTREN_B*_P*, MasterCalRate, ARdPtrInitVal to be used by DDR.\n");
+	} else {
+		command_buffer = parse_next_param(16, command_buffer, &parameter);
+		if (command_buffer == NULL)
+			return -1;
+		ddr_custom_parameters.data_tx_impedance_ctrl = (uint32_t)parameter;
+
+		command_buffer = parse_next_param(16, command_buffer, &parameter);
+		if (command_buffer == NULL)
+			return -1;
+		ddr_custom_parameters.data_tx_odt_drive_strength = (uint32_t)parameter;
+
+		command_buffer = parse_next_param(16, command_buffer, &parameter);
+		if (command_buffer == NULL)
+			return -1;
+		ddr_custom_parameters.master_cal_rate = (uint32_t)parameter;
+
+		command_buffer = parse_next_param(16, command_buffer, &parameter);
+		if (command_buffer == NULL)
+			return -1;
+		ddr_custom_parameters.ard_ptr_init_val = (uint32_t)parameter;
+
+		/* Set the parameters for later DDR init */
+		printf("Setting DDR custom parameters.\n");
+		adrv906x_ddr_set_custom_parameters(&ddr_custom_parameters);
+	}
+
+	return 0;
+}
+
 /* This command performs the basic mem test for the DDR */
 static int ddr_mem_test_command_function(uint8_t *command_buffer, bool help)
 {
@@ -1003,6 +1042,7 @@ cli_command_t plat_command_list[] = {
 	{ "ddrpostinit",   ddr_iterative_init_post_reset_command_function },
 	{ "ddrremapinit",  ddr_iterative_init_remapping_command_function  },
 	{ "ddrtrain",	   ddr_custom_training_test_command_function	  },
+	{ "ddrvalues",	   ddr_custom_values_command_function		  },
 	{ "debugmuxshow",  xbar_show_command_function			  },
 	{ "debugmuxout",   xbar_output_command_function			  },
 	{ "debugmuxmap",   xbar_map_command_function			  },

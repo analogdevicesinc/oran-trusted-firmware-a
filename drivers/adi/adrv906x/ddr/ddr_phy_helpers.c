@@ -44,6 +44,14 @@ extern unsigned char adi_sec_dmem0_2d_end[];
 extern unsigned char adi_imem_1d_end[];
 extern unsigned char adi_imem_2d_end[];
 
+static bool ddr_custom_parameters_enable = false;
+static ddr_custom_values_t ddr_custom_parameters = {
+	.ard_ptr_init_val		= 0,
+	.data_tx_impedance_ctrl		= 0,
+	.data_tx_odt_drive_strength	= 0,
+	.master_cal_rate		= 0
+};
+
 typedef struct {
 	uint8_t wr2rd;
 	uint8_t wr2rd_s;
@@ -71,6 +79,62 @@ static uint8_t get_wrdata_delay(uintptr_t base_addr_phy, ddr_pstate_t pstate, ui
 static int phy_get_mem_info(bool select_imem, ddr_pstate_t pstate, int train_2d, uint16_t **mem_ptr, unsigned int *mem_length, ddr_config_t configuration);
 static int phy_get_streaming_message(uintptr_t base_addr_phy, int train_2d);
 static void phy_print_streaming_message(const char *message, ...);
+
+/* Check if custom parameters have already been entered
+ * Can be used to avoid overwriting existing custom parameters */
+bool ddr_check_for_custom_parameters()
+{
+	return ddr_custom_parameters_enable;
+}
+
+/* Set the value of custom parameters and enable them */
+void ddr_set_custom_parameters(ddr_custom_values_t *parameters)
+{
+	if (parameters != NULL) {
+		/* Copy argument values into the static struct. Ensure that this function is making a deep copy
+		 * if any dynamically allocated members are added to the struct definition */
+		ddr_custom_parameters.ard_ptr_init_val = parameters->ard_ptr_init_val;
+		ddr_custom_parameters.data_tx_impedance_ctrl = parameters->data_tx_impedance_ctrl;
+		ddr_custom_parameters.data_tx_odt_drive_strength = parameters->data_tx_odt_drive_strength;
+		ddr_custom_parameters.master_cal_rate = parameters->master_cal_rate;
+		ddr_custom_parameters_enable = true;
+	}
+}
+
+/* Weak defined function expected to be defined in customer board specific code */
+#pragma weak ddr_board_custom_pre_training
+void ddr_board_custom_pre_training(uintptr_t base_addr_phy)
+{
+	INFO("Using default values for DDR PHY init.\n");
+}
+
+static void ddr_program_custom_parameters(uintptr_t base_addr_phy)
+{
+	if (ddr_custom_parameters_enable) {
+		INFO("Updating DDR PHY configuration values with custom numbers.\n");
+		INFO("Setting TXODTDRVSTREN to %x.\n", ddr_custom_parameters.data_tx_odt_drive_strength);
+		mmio_write_32((DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXODTDRVSTREN_B0_P0 + base_addr_phy), ddr_custom_parameters.data_tx_odt_drive_strength);
+		mmio_write_32((DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXODTDRVSTREN_B1_P0 + base_addr_phy), ddr_custom_parameters.data_tx_odt_drive_strength);
+		mmio_write_32((DDRPHYA_DBYTE1_P0_DBYTE1_P0_TXODTDRVSTREN_B0_P0 + base_addr_phy), ddr_custom_parameters.data_tx_odt_drive_strength);
+		mmio_write_32((DDRPHYA_DBYTE1_P0_DBYTE1_P0_TXODTDRVSTREN_B1_P0 + base_addr_phy), ddr_custom_parameters.data_tx_odt_drive_strength);
+		INFO("TXODTDRVSTREN now is set to %x.\n", mmio_read_32(DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXODTDRVSTREN_B0_P0 + base_addr_phy));
+
+		INFO("Setting TXIMPEDANCECTRL to %x.\n", ddr_custom_parameters.data_tx_impedance_ctrl);
+		mmio_write_32((DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXIMPEDANCECTRL1_B0_P0 + base_addr_phy), ddr_custom_parameters.data_tx_impedance_ctrl);
+		mmio_write_32((DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXIMPEDANCECTRL1_B1_P0 + base_addr_phy), ddr_custom_parameters.data_tx_impedance_ctrl);
+		mmio_write_32((DDRPHYA_DBYTE1_P0_DBYTE1_P0_TXIMPEDANCECTRL1_B0_P0 + base_addr_phy), ddr_custom_parameters.data_tx_impedance_ctrl);
+		mmio_write_32((DDRPHYA_DBYTE1_P0_DBYTE1_P0_TXIMPEDANCECTRL1_B1_P0 + base_addr_phy), ddr_custom_parameters.data_tx_impedance_ctrl);
+		INFO("TXIMPEDANCECTRL now is set to %x.\n", mmio_read_32(DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXIMPEDANCECTRL1_B0_P0 + base_addr_phy));
+
+		INFO("Setting MASTER0_CALRATE to %x.\n", ddr_custom_parameters.master_cal_rate);
+		mmio_write_32((DDRPHYA_MASTER0_P0_MASTER0_P0_CALRATE + base_addr_phy), ddr_custom_parameters.master_cal_rate);
+		INFO("MASTER0_CALRATE now is set to %x.\n", mmio_read_32(DDRPHYA_MASTER0_P0_MASTER0_P0_CALRATE + base_addr_phy));
+
+		INFO("Setting ARDPTRINITVAL to %x.\n", ddr_custom_parameters.ard_ptr_init_val);
+		mmio_write_32((DDRPHYA_MASTER0_P0_MASTER0_P0_ARDPTRINITVAL_P0 + base_addr_phy), ddr_custom_parameters.ard_ptr_init_val);
+		INFO("ARDPTRINITVAL now is set to %x.\n", ddr_custom_parameters.ard_ptr_init_val);
+	}
+}
 
 /**
  *******************************************************************************
@@ -176,6 +240,12 @@ ddr_error_t phy_run_pre_training(uintptr_t base_addr_ctrl, uintptr_t base_addr_p
 	mmio_write_32(base_addr_phy + DDRPHYA_MASTER0_P0_MASTER0_P0_PLLTESTMODE_P0, 0x24);
 	mmio_write_32(base_addr_phy + DDRPHYA_MASTER0_P0_MASTER0_P0_PLLCTRL1_P0, 0x21);
 	mmio_write_32(base_addr_phy + DDRPHYA_MASTER0_P0_MASTER0_P0_PLLCTRL4_P0, 0x17f);
+
+	/* Run board specific pre training */
+	ddr_board_custom_pre_training(base_addr_phy);
+	/* Program custom parameters into PHY registers */
+	ddr_program_custom_parameters(base_addr_phy);
+
 	return 0;
 };
 /**

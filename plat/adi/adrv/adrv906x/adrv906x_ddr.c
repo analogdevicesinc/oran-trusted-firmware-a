@@ -203,6 +203,12 @@ int adrv906x_ddr_custom_training_test(uintptr_t base_addr_phy, uint16_t sequence
 	return err;
 }
 
+/* Set custom parameters before running a DDR init */
+void adrv906x_ddr_set_custom_parameters(ddr_custom_values_t *values)
+{
+	ddr_set_custom_parameters(values);
+}
+
 /* Sets the source routed to the DDR's observation pin. Source numbers can be found in tables 9-3 - 9-5 in the PHY databook */
 void adrv906x_ddr_mux_set_output(uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, uint8_t group, uint8_t instance, uint8_t source)
 {

@@ -8,6 +8,7 @@
 
 #include <common/debug.h>
 #include <drivers/adi/adrv906x/clk.h>
+#include <drivers/adi/adrv906x/ddr/ddr.h>
 #include <drivers/adi/adrv906x/debug_xbar/debug_xbar.h>
 #include <drivers/adi/adrv906x/debug_xbar/debug_xbar_default_maps.h>
 #include <drivers/adi/adrv906x/sysref_simulator.h>
@@ -16,9 +17,9 @@
 #include <drivers/gpio.h>
 #include <drivers/spi_nor.h>
 #include <lib/utils.h>
+#include <lib/mmio.h>
 
 #ifdef  TFA_DEBUG
-#include <lib/mmio.h>
 #define TEST_SCRATCHPAD_ADDR 0x18290200
 #endif
 
@@ -317,6 +318,21 @@ bool plat_clkdev_init(void)
 	mmio_write_8(TEST_SCRATCHPAD_ADDR, 0xa5);
 #endif
 	return true;
+}
+
+void ddr_board_custom_pre_training(uintptr_t base_addr_phy)
+{
+	INFO("Using default config values for DDR PHY training.\n");
+
+	/*  You can utilize the base address passed in to the pre_training function to write directly
+	 *  to DDR registers. The defines for all of the DDR register offsets, masks, etc are
+	 *  in drivers/adi/adrv906x/ddr/ddr_regmap.h
+	 *
+	 *	mmio_write_32((DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXODTDRVSTREN_B0_P0 + base_addr_phy), 0x18);
+	 *	mmio_write_32((DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXODTDRVSTREN_B1_P0 + base_addr_phy), 0x18);
+	 *	mmio_write_32((DDRPHYA_DBYTE1_P0_DBYTE1_P0_TXODTDRVSTREN_B0_P0 + base_addr_phy), 0x18);
+	 *	mmio_write_32((DDRPHYA_DBYTE1_P0_DBYTE1_P0_TXODTDRVSTREN_B1_P0 + base_addr_phy), 0x18);
+	 */
 }
 
 void plat_board_bl1_setup(void)

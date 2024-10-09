@@ -16,6 +16,7 @@ int adrv906x_ddr_ate_test(uintptr_t base_addr_phy, uintptr_t base_addr_adi_inter
 int adrv906x_ddr_extensive_mem_test(uintptr_t base_addr_ddr, uint32_t size);
 int adrv906x_ddr_mem_test(uintptr_t base_addr_ddr, uint32_t size, bool restore);
 int adrv906x_ddr_custom_training_test(uintptr_t base_addr_phy, uint16_t sequence_ctrl, int train_2d);
+void adrv906x_ddr_set_custom_parameters(ddr_custom_values_t *values);
 void adrv906x_ddr_mux_set_output(uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, uint8_t group, uint8_t instance, uint8_t source);
 int adrv906x_ddr_iterative_init_pre_reset(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, uintptr_t base_addr_ddr, ddr_config_t configuration);
 int adrv906x_ddr_iterative_init_post_reset(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, uintptr_t base_addr_ddr, ddr_config_t configuration);

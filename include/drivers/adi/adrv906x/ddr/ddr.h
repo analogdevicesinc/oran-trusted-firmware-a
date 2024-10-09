@@ -74,6 +74,13 @@ typedef struct {
 	int freq;
 } ddr_pstate_data_t;
 
+typedef struct {
+	uint32_t ard_ptr_init_val;              /* Address/Command FIFO RdPtr Initial Value */
+	uint32_t data_tx_impedance_ctrl;        /* Data TX Impedance */
+	uint32_t data_tx_odt_drive_strength;    /* Data TX ODT Driver Strength Control */
+	uint32_t master_cal_rate;               /* Impedance Calibration Rate Control */
+} ddr_custom_values_t;
+
 ddr_error_t ddr_basic_mem_test(uintptr_t base_addr_ddr, uint32_t size, bool restore);
 ddr_error_t ddr_extensive_mem_test(uintptr_t base_addr_ddr, uint32_t size);
 ddr_error_t ddr_init(uintptr_t base_addr_ctrl, uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, uintptr_t base_addr_ddr, uint32_t ddr_size, uint32_t ddr_remap_size, uint8_t ddr_dfi_pad_sequence[], uint8_t ddr_phy_pad_sequence[], ddr_init_stages_t stage, ddr_config_t configuration, bool ecc);
@@ -88,5 +95,11 @@ void ddr_clear_ap_error(uintptr_t base_addr_ctrl);
 
 /* Debug-only functions */
 void ddr_mux_set_output(uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, uint8_t group, uint8_t instance, uint8_t source);
+
+/* Optional functions used for updating training parameters with board specific values
+ *  Functions expected to be defined in board specific files if utilized */
+bool ddr_check_for_custom_parameters(void);
+void ddr_set_custom_parameters(ddr_custom_values_t *values);
+void ddr_board_custom_pre_training(uintptr_t base_addr_phy);
 
 #endif /* DDR_H */
