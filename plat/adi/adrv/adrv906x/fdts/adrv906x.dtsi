@@ -194,7 +194,7 @@
 		reg = <EMAC_1G_BASE 0x1168>;
 		phy-mode = "rgmii";
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_emac>;
+		pinctrl-0 = <&pinctrl_emac_rgmii>;
 		snps,reset-gpio = <&gpio ADI_ADRV906X_PIN_88 GPIO_ACTIVE_LOW>;
 		snps,reset-active-low;
 		snps,reset-delays-us = <1000 1000 1000>;

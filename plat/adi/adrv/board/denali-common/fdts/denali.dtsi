@@ -58,6 +58,10 @@
 &emac0 {
 	status = "okay";
 	phy-handle = <&phy0>;
+	/* Default to RGMII. For RMII uncomment the next lines:
+	phy-mode = "rmii";
+	pinctrl-0 = <&pinctrl_emac_rmii>;
+	clocks = <&dwmac_clk PHY_INTERFACE_MODE_RMII>; */
 
 	mdio0 {
 		#address-cells = <1>;
