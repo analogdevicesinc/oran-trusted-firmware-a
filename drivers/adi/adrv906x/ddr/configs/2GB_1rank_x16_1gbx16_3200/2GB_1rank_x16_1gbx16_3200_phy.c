@@ -173,10 +173,10 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_3200_phy_init(uintptr_t base_addr_ctrl, uin
 	mmio_write_32((DDRPHYA_DBYTE1_P0_DBYTE1_P0_TXODTDRVSTREN_B1_P0 + base_addr_phy), 0x18);
 /* Pstate=0, Memclk=1600MHz, Programming TxImpedanceCtrl1::DrvStrenFSDqP to 0x18*/
 /* Pstate=0, Memclk=1600MHz, Programming TxImpedanceCtrl1::DrvStrenFSDqN to 0x18*/
-	mmio_write_32((DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXIMPEDANCECTRL1_B0_P0 + base_addr_phy), 0x618);
-	mmio_write_32((DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXIMPEDANCECTRL1_B1_P0 + base_addr_phy), 0x618);
-	mmio_write_32((DDRPHYA_DBYTE1_P0_DBYTE1_P0_TXIMPEDANCECTRL1_B0_P0 + base_addr_phy), 0x618);
-	mmio_write_32((DDRPHYA_DBYTE1_P0_DBYTE1_P0_TXIMPEDANCECTRL1_B1_P0 + base_addr_phy), 0x618);
+	mmio_write_32((DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXIMPEDANCECTRL1_B0_P0 + base_addr_phy), 0x659);
+	mmio_write_32((DDRPHYA_DBYTE0_P0_DBYTE0_P0_TXIMPEDANCECTRL1_B1_P0 + base_addr_phy), 0x659);
+	mmio_write_32((DDRPHYA_DBYTE1_P0_DBYTE1_P0_TXIMPEDANCECTRL1_B0_P0 + base_addr_phy), 0x659);
+	mmio_write_32((DDRPHYA_DBYTE1_P0_DBYTE1_P0_TXIMPEDANCECTRL1_B1_P0 + base_addr_phy), 0x659);
 /* Programming ATxImpedance::ADrvStrenP to 0x1f*/
 /* Programming ATxImpedance::ADrvStrenN to 0x1f*/
 	mmio_write_32((DDRPHYA_ANIB0_P0_ANIB0_P0_ATXIMPEDANCE + base_addr_phy), 0x3ff);
