@@ -11,7 +11,7 @@
 	dual-tile;
 
 	/* To enable Linux on the secondary tile, uncomment this property */
-	/*secondary_linux_enabled;*/
+	/*secondary-linux-enabled;*/
 
 	ddr-secondary {
 		physical-size = <0x10000000>; /* 256MB. Actual physical size of the secondary's DDR. */

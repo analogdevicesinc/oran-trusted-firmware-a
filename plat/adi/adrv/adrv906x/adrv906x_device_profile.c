@@ -505,7 +505,7 @@ void plat_dprof_init(void)
 	if (err != 0)
 		handle_fw_config_read_error("Dual tile configuration", err);
 
-	err = fw_config_prop_exists("/", "secondary_linux_enabled", &secondary_linux_enabled);
+	err = fw_config_prop_exists("/", "secondary-linux-enabled", &secondary_linux_enabled);
 	if (err != 0)
 		handle_fw_config_read_error("Secondary linux configuration", err);
 
