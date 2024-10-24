@@ -481,6 +481,18 @@ static void post_switch_devclk_clock(enum adrv906x_tile_type tile)
 	clk_set_src_post_switch(baseaddr, CLK_SRC_CLKPLL);
 }
 
+static void switch_devclk_clock(enum adrv906x_tile_type tile)
+{
+	uintptr_t baseaddr;
+
+	if (tile == ADRV906X_PRIMARY_TILE)
+		baseaddr = CLK_CTL;
+	else
+		baseaddr = SEC_CLK_CTL;
+
+	clk_set_src(baseaddr, CLK_SRC_DEVCLK);
+}
+
 static void use_device_clock_as_hsdig_until_mcs(enum adrv906x_tile_type tile)
 {
 	uintptr_t baseaddr;
@@ -680,35 +692,36 @@ bool clk_do_mcs(bool dual_tile, uint8_t clkpll_freq_setting, uint8_t orx_adc_fre
 	if (plat_sysref_disable(mcs1_completed))
 		sysref_disable_completed = true;
 
-	/* 15 */
-	post_switch_devclk_clock(ADRV906X_PRIMARY_TILE);
-	if (dual_tile)
-		post_switch_devclk_clock(ADRV906X_SECONDARY_TILE);
-
-	/* Note: Show result here just after recovering the UART with the post switch function */
-
-	if (!sysref_enable_completed) {
-		ERROR("MCS: Sysref enable failed\n");
-		return false;
-	}
-	if (!sysref_disable_completed) {
-		ERROR("MCS: Sysref disable failed\n");
-		return false;
-	}
-
-	if ((mcs1_completed && !dual_tile) ||
-	    (mcs1_completed && dual_tile && mcs2_completed)) {
+	/* 15. Check for any errors in the MCS sequence and report them */
+	if ((sysref_enable_completed && sysref_disable_completed) && ((mcs1_completed && !dual_tile) ||
+								      (mcs1_completed && dual_tile && mcs2_completed))) {
+		/* If we pass MCS, finish the switch and report back */
+		post_switch_devclk_clock(ADRV906X_PRIMARY_TILE);
+		if (dual_tile)
+			post_switch_devclk_clock(ADRV906X_SECONDARY_TILE);
 		INFO("Multi-Chip Sync completed \n");
 		return true;
 	} else {
+		/* If MCS fails, the current clock setup is in an unknown state,
+		 *  so switch back to a known good clock(DEVCLK) to print before erroring out */
+		switch_devclk_clock(ADRV906X_PRIMARY_TILE);
+
+		if (!sysref_enable_completed)
+			ERROR("MCS: Sysref enable failed\n");
+
+		if (!sysref_disable_completed)
+			ERROR("MCS: Sysref disable failed\n");
+
 		if (!mcs1_completed) {
 			if (dual_tile)
 				ERROR("Multi-Chip Sync failed on Primary\n");
 			else
 				ERROR("Multi-Chip Sync failed\n");
 		}
+
 		if (dual_tile && !mcs2_completed)
 			ERROR("Multi-Chip Sync failed on Secondary\n");
+
 		return false;
 	}
 }

@@ -34,6 +34,7 @@
 #include <plat_cli.h>
 #include <plat_pinctrl.h>
 #include <plat_setup.h>
+#include <plat_wdt.h>
 
 /* BRINGUP TODO: Remove Ethernet PLL defines */
 #define CLK_10G_VCO_HZ                                                    (10312500000LL)
@@ -168,8 +169,14 @@ static void init(void)
 	/* Multi-Chip Sync */
 	INFO("Performing MCS.\n");
 	if (!clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), false)) {
-		ERROR("MCS failed.\n");
-		plat_error_handler(-ENXIO);
+		/* Secondary tile in no-c2c case needs to stop and not reset after MCS failure */
+		if (plat_get_dual_tile_no_c2c_enabled() && !plat_get_dual_tile_no_c2c_primary()) {
+			plat_secure_wdt_stop();
+			while (1);
+		} else {
+			ERROR("MCS failed.\n");
+			plat_error_handler(-ENXIO);
+		}
 	}
 	INFO("MCS complete.\n");
 

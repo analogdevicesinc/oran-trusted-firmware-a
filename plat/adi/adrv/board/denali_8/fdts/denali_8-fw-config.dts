@@ -8,7 +8,7 @@
 #include "denali-fw-config.dtsi"
 
 / {
-	dual_tile;
+	dual-tile;
 
 	/* To enable Linux on the secondary tile, uncomment this property */
 	/*secondary_linux_enabled;*/

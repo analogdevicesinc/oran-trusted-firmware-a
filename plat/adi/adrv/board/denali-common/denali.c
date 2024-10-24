@@ -284,9 +284,8 @@ bool plat_sysref_disable(bool mcs_completed)
 				/* Secondary shouldn´t do anything related to sysref */
 				return true;
 			} else {
-				/* MCS failed: leave kickoff output asserted, disable WDT and halt the boot */
-				plat_secure_wdt_stop();
-				while (1);
+				/* MCS failed: Secondary doesn't control sysref so just return and let BL2 report error and enter loop */
+				return true;
 			}
 		}
 		/* Primary shall disable both sysref outputs, same as in the dual_tile wich c2c case */

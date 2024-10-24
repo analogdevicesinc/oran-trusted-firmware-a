@@ -501,7 +501,7 @@ void plat_dprof_init(void)
 	else
 		NOTICE("Using eth-pll frequency value %d from FW_CONFIG\n", eth_pll_freq_setting);
 
-	err = fw_config_prop_exists("/", "dual_tile", &dual_tile_enabled);
+	err = fw_config_prop_exists("/", "dual-tile", &dual_tile_enabled);
 	if (err != 0)
 		handle_fw_config_read_error("Dual tile configuration", err);
 
