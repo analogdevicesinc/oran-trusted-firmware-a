@@ -62,8 +62,6 @@ uintptr_t plat_pinctrl_smc_handler(unsigned int smc_fid,
 		break;
 	case SET:
 		/* PinMUX SET command received*/
-		NOTICE("PINCTRL service: SET 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n", (unsigned int)x2, (unsigned int)x3, (unsigned int)x4, (unsigned int)x5, (unsigned int)x6, (unsigned int)x7);
-
 		plat_pinctrl_settings settings;
 		settings.pin_pad = x2;
 		settings.src_mux = x3;
