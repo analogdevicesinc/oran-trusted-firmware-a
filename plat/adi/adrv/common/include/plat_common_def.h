@@ -109,7 +109,7 @@
  * BL1 specific defines.
  */
 #ifndef BL1_RO_MAX_SIZE
-#define BL1_RO_MAX_SIZE         UL(0x21000)                                             /* 128KB max for BL1 RO */
+#define BL1_RO_MAX_SIZE         UL(0x22000)                                             /* 128KB max for BL1 RO */
 #endif
 #ifndef BL1_RW_MAX_SIZE
 #define BL1_RW_MAX_SIZE         UL(0x18000)                                             /* 96KB max for BL1 RW */
