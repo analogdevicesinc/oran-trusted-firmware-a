@@ -45,6 +45,27 @@ void pinctrl_set_pad_drv_strn(const uintptr_t baseaddr, uint32_t pad_num, adrv90
 		mmio_write_32(ds_addr_3, mmio_read_32(ds_addr_3) | bitmask);
 }
 
+void pinctrl_get_pad_drv_strn(const uintptr_t baseaddr, uint32_t pad_num, adrv906x_cmos_pad_ds_t *pad_ds)
+{
+	uint32_t offset = (pad_num / PAD_DS_BIT_WIDTH) << BYTE_WORD_SIZE_SHIFT;
+	uintptr_t ds_addr_0 = baseaddr + CMOS_PAD_DS0N_OFFSET + offset;
+	uintptr_t ds_addr_1 = baseaddr + CMOS_PAD_DS1N_OFFSET + offset;
+	uintptr_t ds_addr_2 = baseaddr + CMOS_PAD_DS2N_OFFSET + offset;
+	uintptr_t ds_addr_3 = baseaddr + CMOS_PAD_DS3N_OFFSET + offset;
+	uint32_t bitpos = pad_num % PAD_DS_BIT_WIDTH;
+	uint32_t bitmask = (0x1 << bitpos);
+
+	*pad_ds = 0;
+	if ((mmio_read_32(ds_addr_0) & bitmask))
+		*pad_ds |= 0x1;
+	if ((mmio_read_32(ds_addr_1) & bitmask))
+		*pad_ds |= 0x2;
+	if ((mmio_read_32(ds_addr_2) & bitmask))
+		*pad_ds |= 0x4;
+	if ((mmio_read_32(ds_addr_3) & bitmask))
+		*pad_ds |= 0x8;
+}
+
 void pinctrl_set_pad_st_en(const uintptr_t baseaddr, uint32_t pad_num, bool enable)
 {
 	uint32_t offset = (pad_num / PAD_ST_BIT_WIDTH) << BYTE_WORD_SIZE_SHIFT;
@@ -56,6 +77,19 @@ void pinctrl_set_pad_st_en(const uintptr_t baseaddr, uint32_t pad_num, bool enab
 		mmio_write_32(stn_addr, mmio_read_32(stn_addr) & ~bitmask);
 	else
 		mmio_write_32(stn_addr, mmio_read_32(stn_addr) | bitmask);
+}
+
+void pinctrl_get_pad_st_en(const uintptr_t baseaddr, uint32_t pad_num, bool *enable)
+{
+	uint32_t offset = (pad_num / PAD_ST_BIT_WIDTH) << BYTE_WORD_SIZE_SHIFT;
+	uintptr_t stn_addr = baseaddr + CMOS_PAD_ST0_OFFSET + offset;
+	uint32_t bitpos = pad_num % PAD_ST_BIT_WIDTH;
+	uint32_t bitmask = (0x1 << bitpos);
+
+	if (mmio_read_32(stn_addr) & bitmask)
+		*enable = true;
+	else
+		*enable = false;
 }
 
 void pinctrl_set_pad_pen(const uintptr_t baseaddr, uint32_t pad_num, bool enable)
@@ -71,6 +105,19 @@ void pinctrl_set_pad_pen(const uintptr_t baseaddr, uint32_t pad_num, bool enable
 		mmio_write_32(pen_addr, mmio_read_32(pen_addr) | bitmask);
 }
 
+void pinctrl_get_pad_pen(const uintptr_t baseaddr, uint32_t pad_num, bool *enable)
+{
+	uint32_t offset = (pad_num / PAD_PE_BIT_WIDTH) << BYTE_WORD_SIZE_SHIFT;
+	uintptr_t pen_addr = baseaddr + CMOS_PAD_PE0_OFFSET + offset;
+	uint32_t bitpos = pad_num % PAD_PE_BIT_WIDTH;
+	uint32_t bitmask = (0x1 << bitpos);
+
+	if (mmio_read_32(pen_addr) & bitmask)
+		*enable = true;
+	else
+		*enable = false;
+}
+
 void pinctrl_set_pad_ps(const uintptr_t baseaddr, uint32_t pad_num, adrv906x_pad_pupd_t pull)
 {
 	uint32_t offset = (pad_num / PAD_PS_BIT_WIDTH) << BYTE_WORD_SIZE_SHIFT;
@@ -82,6 +129,19 @@ void pinctrl_set_pad_ps(const uintptr_t baseaddr, uint32_t pad_num, adrv906x_pad
 		mmio_write_32(psn_addr, mmio_read_32(psn_addr) & ~bitmask);
 	else
 		mmio_write_32(psn_addr, mmio_read_32(psn_addr) | bitmask);
+}
+
+void pinctrl_get_pad_ps(const uintptr_t baseaddr, uint32_t pad_num, adrv906x_pad_pupd_t *pull)
+{
+	uint32_t offset = (pad_num / PAD_PS_BIT_WIDTH) << BYTE_WORD_SIZE_SHIFT;
+	uintptr_t psn_addr = baseaddr + CMOS_PAD_PS0_OFFSET + offset;
+	uint32_t bitpos = pad_num % PAD_PS_BIT_WIDTH;
+	uint32_t bitmask = (0x1 << bitpos);
+
+	if (mmio_read_32(psn_addr) & bitmask)
+		*pull = PULL_UP;
+	else
+		*pull = PULL_DOWN;
 }
 
 uint32_t pinctrl_get_pinmux_sel(const uintptr_t baseaddr, uint32_t pin_num)

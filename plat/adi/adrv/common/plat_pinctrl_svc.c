@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Analog Devices Incorporated. All rights reserved.
+ * Copyright (c) 2022~2024, Analog Devices Incorporated. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -22,7 +22,23 @@
 #define PINCTRL_x5_BIT_PIN_ENABLE_PU_PD U(0x2)          //Enablement of PullUP/PullDOWN
 #define PINCTRL_x5_BIT_PIN_PU_PD_SEL    U(0x4)          //When Enabled, Sets PullDOWN(0) or Pullup(1)
 
+/* SMC GET result defines*/
+#define ADI_GET_BITFIELD_1_PIN_CONFIGURED_BIT_POSITION (63U)
+#define ADI_GET_BITFIELD_1_PIN_NUM_BIT_POSITION (31U)
+#define ADI_GET_BITFIELD_1_MUX_SEL_BIT_POSITION (15U)
 
+/*
+ * Bit Mask Info for ADI's Pinctrl Word
+ */
+#define ADI_CONFIG_DRIVE_STRENGTH_MASK                        (0x0000000FU)
+#define ADI_CONFIG_DRIVE_STRENGTH_MASK_BIT_POSITION           (0U)
+#define ADI_CONFIG_SCHMITT_TRIG_ENABLE_MASK                   (0x00000010U)
+#define ADI_CONFIG_SCHMITT_TRIG_ENABLE_MASK_BIT_POSITION      (4U)
+#define ADI_CONFIG_PULL_UP_DOWN_ENABLEMENT_MASK               (0x00000020U)
+#define ADI_CONFIG_PULL_UP_DOWN_ENABLEMENT_MASK_BIT_POSITION  (5U)
+#define ADI_CONFIG_PULLUP_ENABLE_MASK                         (0x00000040U)
+#define ADI_CONFIG_PULLUP_ENABLE_MASK_BIT_POSITION            (6)
+#define ADI_CONFIG_MUX_SEL_MASK                               (0x000000FFU)
 
 typedef enum {
 	INIT	= 0,
@@ -44,6 +60,8 @@ uintptr_t plat_pinctrl_smc_handler(unsigned int smc_fid,
 {
 	func_id_t id;
 	uintptr_t base_addr;
+	plat_pinctrl_settings settings;
+	bool result;
 
 	/*
 	 * Retrieve the additional SMC parameters
@@ -60,9 +78,9 @@ uintptr_t plat_pinctrl_smc_handler(unsigned int smc_fid,
 		WARN("PINCTRL service: INIT not currently implemented\n");
 		SMC_RET1(handle, SMC_UNK);
 		break;
+
 	case SET:
 		/* PinMUX SET command received*/
-		plat_pinctrl_settings settings;
 		settings.pin_pad = x2;
 		settings.src_mux = x3;
 		settings.drive_strength = x4;
@@ -85,16 +103,33 @@ uintptr_t plat_pinctrl_smc_handler(unsigned int smc_fid,
 		else
 			settings.pullup = true;
 
-		bool result = plat_secure_pinctrl_set(settings, is_caller_secure(flags), base_addr);
-
+		result = plat_secure_pinctrl_set(settings, is_caller_secure(flags), base_addr);
 		SMC_RET2(handle, SMC_OK, result);
+		break;
 
-		break;
 	case GET:
-		/* Future location of PINCTRL Get operation. */
-		WARN("PINCTRL service: GET not currently implemented.\n");
-		SMC_RET1(handle, SMC_UNK);
+		/* PinMUX GET command received*/
+		unsigned long a2 = 0, a3 = 0;
+		settings.pin_pad = x2;
+		base_addr = (uintptr_t)x6;
+		settings.extended_options = x7;
+		result = plat_secure_pinctrl_get(&settings, is_caller_secure(flags), base_addr);
+
+		a2 = BIT(ADI_GET_BITFIELD_1_PIN_CONFIGURED_BIT_POSITION);
+		a2 |= settings.pin_pad << ADI_GET_BITFIELD_1_PIN_NUM_BIT_POSITION;
+		a2 |= settings.src_mux << ADI_GET_BITFIELD_1_MUX_SEL_BIT_POSITION;
+
+		a3 = settings.drive_strength;
+		if (settings.schmitt_trigger_enable)
+			a3 |= BIT(ADI_CONFIG_SCHMITT_TRIG_ENABLE_MASK_BIT_POSITION);
+		if (settings.pullup_pulldown_enablement)
+			a3 |= BIT(ADI_CONFIG_PULL_UP_DOWN_ENABLEMENT_MASK_BIT_POSITION);
+		if (settings.pullup)
+			a3 |= BIT(ADI_CONFIG_PULLUP_ENABLE_MASK_BIT_POSITION);
+
+		SMC_RET4(handle, SMC_OK, result, a2, a3);
 		break;
+
 	default:
 		WARN("PINCTRL service: Unexpected command\n");
 		SMC_RET1(handle, SMC_UNK);

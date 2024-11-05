@@ -30,6 +30,14 @@ typedef struct {
 bool plat_secure_pinctrl_set(const plat_pinctrl_settings settings, const bool secure_access, uintptr_t base_addr);
 
 /**
+ *	Pinmux get function, returns true if get command completes successfully, else false
+ *		all configuration parameters within the options parameter, secure_access = true
+ * 		when request originates from secure_world
+ *
+ */
+bool plat_secure_pinctrl_get(plat_pinctrl_settings *settings, const bool secure_access, uintptr_t base_addr);
+
+/**
  *	Pinmux set group function, for use by secure_world software
  *		configures groups of I/O defined by the incoming plat_pinctrl_settings array
  *		returns true upon success.  secure_access = true

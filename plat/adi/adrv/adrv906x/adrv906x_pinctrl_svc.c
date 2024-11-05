@@ -153,6 +153,113 @@ bool plat_secure_pinctrl_set(const plat_pinctrl_settings settings, const bool se
 }
 
 /**
+ *	Pinmux get function, returns true if get command completes successfully, else false
+ *		all configuration parameters within the settings parameter, secure_access = true
+ * 		when request originates from secure_world.
+ *
+ */
+bool plat_secure_pinctrl_get(plat_pinctrl_settings *settings, const bool secure_access, uintptr_t base_addr)
+{
+	adrv906x_cmos_pad_ds_t adrv906x_drive_strength;
+	adrv906x_pad_pupd_t pull_direction;
+
+	if (base_addr == SEC_PINCTRL_BASE) {
+		if (!plat_get_dual_tile_enabled()) {
+			/*Can only try to set up secondary pinctrl if secondary actually exists*/
+			WARN("PINCTRL: Secondary tile must be enabled to use secondary base address\n");
+			return false;
+		}
+	} else if (base_addr != PINCTRL_BASE) {
+		/*Base address isn't PINCTRL_BASE or SEC_PINCTRL_BASE, immediately exit*/
+		WARN("PINCTRL: Unknown base address for GPIO pinmux\n");
+		return false;
+	}
+
+	/*
+	 * Verify the pin# is in range
+	 */
+	if (settings->pin_pad >= ADRV906X_PIN_COUNT && !ADRV906X_IS_DIO_PIN(settings->pin_pad)) {
+		WARN("PINCTRL: Request Pin # = %d out of range \n", settings->pin_pad);
+		return false;
+	}
+
+	/*
+	 * Verify that non-dedicated IO have a valid src mux specified
+	 */
+	if (!ADRV906X_IS_DIO_PIN(settings->pin_pad) && settings->src_mux >= ADRV906X_PINMUX_SRC_PER_PIN) {
+		WARN("PINCTRL: Invalid source mux value: %u specified for pin# %u\n", settings->src_mux, settings->pin_pad);
+		return false;
+	}
+
+	/*
+	 * Verify the incoming pin_source is withing range
+	 */
+	if (settings->src_mux >= ADRV906X_PINMUX_SRC_PER_PIN && settings->src_mux != ADRV906X_DIO_MUX_NONE) {
+		WARN("PINCTRL: Invalid source mux value: %u \n", settings->src_mux);
+		return false;
+	}
+
+	/*
+	 * Verify that non-dedicated requested source is valid and not NO_SIGNAL
+	 */
+	if (!ADRV906X_IS_DIO_PIN(settings->pin_pad)) {
+		if ((pinmux_config[settings->pin_pad][settings->src_mux] >= ADRV906X_PINMUX_NUM_SRCS) || (pinmux_config[settings->pin_pad][settings->src_mux] == NO_SIGNAL)) {
+			WARN("PINCTRL: Invalid source %d requested \n", pinmux_config[settings->pin_pad][settings->src_mux]);
+			return false;
+		}
+	}
+
+	/*
+	 * Prohibit normal world from configuring secure IO
+	 */
+	if (!secure_access && plat_pin_is_secure(settings->pin_pad)) {
+		WARN("PINCTRL: Normal World request to configure secure Pin # = %d \n", settings->pin_pad);
+		return false;
+	}
+	/*
+	 * Perform the request
+	 * per hardware (Sonu John's email), it is preferred that we configure PAD settings prior to the pinmux configuration.
+	 */
+
+	/*
+	 * Get the drive strength
+	 */
+	pinctrl_get_pad_drv_strn(base_addr, settings->pin_pad, &adrv906x_drive_strength);
+	settings->drive_strength = adrv906x_drive_strength & ADRV906X_PINCTRL_x4_DRIVE_STRENGTH_MASK;
+
+	/*
+	 * Get the Schmitt Trigger
+	 */
+	pinctrl_get_pad_st_en(base_addr, settings->pin_pad, &settings->schmitt_trigger_enable);
+
+	/*
+	 * Get PUll enablement
+	 */
+	pinctrl_get_pad_pen(base_addr, settings->pin_pad, &settings->pullup_pulldown_enablement);
+
+	/*
+	 * If PULL enablement, set the state here
+	 */
+	if (settings->pullup_pulldown_enablement == true) {
+		pinctrl_get_pad_ps(base_addr, settings->pin_pad, &pull_direction);
+		if (pull_direction == PULL_UP)
+			settings->pullup = true;
+		else
+			settings->pullup = false;
+	} else {
+		settings->pullup = false;
+	}
+
+	/*
+	 * Get the pinmux sel / pinmux source, for non-dedicated IO
+	 */
+	if (!ADRV906X_IS_DIO_PIN(settings->pin_pad))
+		settings->src_mux = pinctrl_get_pinmux_sel(base_addr, settings->pin_pad);
+
+	return true;
+}
+
+/**
  *	Pinmux set group function, for use by secure_world software
  *		configures groups of I/O defined by the incoming plat_pinctrl_settings array
  *		returns true upon success.  secure_access = true

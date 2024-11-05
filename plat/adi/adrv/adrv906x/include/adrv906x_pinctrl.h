@@ -38,14 +38,26 @@ typedef enum {
 /* Set pad drive strength */
 void pinctrl_set_pad_drv_strn(const uintptr_t baseaddr, uint32_t pad_num, adrv906x_cmos_pad_ds_t pad_ds);
 
+/* Get pad drive strength */
+void pinctrl_get_pad_drv_strn(const uintptr_t baseaddr, uint32_t pad_num, adrv906x_cmos_pad_ds_t *pad_ds);
+
 /* Set pad schmitt trigger enablement */
 void pinctrl_set_pad_st_en(const uintptr_t baseaddr, uint32_t pad_num, bool enable);
+
+/* Get pad schmitt trigger enablement */
+void pinctrl_get_pad_st_en(const uintptr_t baseaddr, uint32_t pad_num, bool *enable);
 
 /* Set enablement of pad pull up or pull down */
 void pinctrl_set_pad_pen(const uintptr_t baseaddr, uint32_t pad_num, bool enable);
 
+/* Get enablement of pad pull up or pull down */
+void pinctrl_get_pad_pen(const uintptr_t baseaddr, uint32_t pad_num, bool *enable);
+
 /* Set pad pull up / pull down selection */
 void pinctrl_set_pad_ps(const uintptr_t baseaddr, uint32_t pad_num, adrv906x_pad_pupd_t pull);
+
+/* Get pad pull up / pull down selection */
+void pinctrl_get_pad_ps(const uintptr_t baseaddr, uint32_t pad_num, adrv906x_pad_pupd_t *pull);
 
 /* Get/Set pinmux selection */
 uint32_t pinctrl_get_pinmux_sel(const uintptr_t baseaddr, uint32_t pin_num);
