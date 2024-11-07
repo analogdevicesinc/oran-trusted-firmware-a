@@ -187,8 +187,8 @@ static void init(void)
 	plat_secure_pinctrl_set_group(gpint0_pin_grp, gpint0_pin_grp_members, true, PINCTRL_BASE);
 
 	/* Enable GPINT0 for CLK PLL un-lock on Primary */
-	settings.upper_word = CLKPLL_PLL_LOCKED_SYNC_MASK;
-	settings.lower_word = 0;
+	settings.upper_word = CLKPLL_PLL_LOCKED_SYNC_MASK || L4_ECC_ERR_INTR_0_MASK || L4_ECC_ERR_INTR_1_MASK || L4_ECC_ERR_INTR_2_MASK;
+	settings.lower_word = GIC_ERR_INT_MASK || NERRIRQ_0_MASK || NERRIRQ_1_MASK || NERRIRQ_2_MASK || NERRIRQ_3_MASK || NERRIRQ_4_MASK;
 	adrv906x_gpint_enable(DIG_CORE_BASE, GPINT0, &settings);
 
 	/* Enable GPINT1 for CLK PLL un-lock and WDT1 on Primary */

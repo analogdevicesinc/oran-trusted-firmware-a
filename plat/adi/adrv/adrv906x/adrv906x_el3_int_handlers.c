@@ -103,7 +103,7 @@ static uint64_t gpint_handler(uint32_t id, uint32_t flags, void *handle, void *c
 				if (handler == NULL)
 					ERROR("No handler for GPINT event %d\n", i);
 				else
-					ret = handler(id, flags, handle, cookie);
+					ret = handler(i + GPINT_INTS_PER_WORD, flags, handle, cookie);
 			}
 		}
 
@@ -134,7 +134,7 @@ static uint64_t gpint_handler(uint32_t id, uint32_t flags, void *handle, void *c
 				if (handler == NULL)
 					ERROR("No handler for GPINT event %d\n", i);
 				else
-					ret = handler(id, flags, handle, cookie);
+					ret = handler(i, flags, handle, cookie);
 			}
 		}
 
@@ -173,6 +173,28 @@ static uint64_t ddr_ecc_corrected_err_handler(uint32_t id, uint32_t flags, void 
 {
 	adrv906x_ddr_log_correctable_error(DDR_CTL_BASE);
 	return 0;
+}
+
+static uint64_t ddr_phy_err_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
+{
+	switch (id) {
+	case IRQ_O_DFI_INTERNAL_ERR_INTR:
+		ERROR("DFI internal error detected, resetting the board\n");
+		break;
+	case IRQ_O_DFI_PHYUPD_ERR_INTR:
+		ERROR("DFI PHY update error detected, resetting the board\n");
+		break;
+	case IRQ_O_DFI_ALERT_ERR_INTR:
+		ERROR("DFI alert error detected, resetting the board\n");
+		break;
+	case IRQ_O_DWC_DDRPHY_INT_N:
+		ERROR("DWC DDRPHY interrupt detected, resetting the board\n");
+		break;
+	}
+
+	plat_error_handler(-EIO);
+	/* We should never reach here, so if we do return bad status code so interrupt driver will report it */
+	return -1;
 }
 
 /* Handler for ECC errors, correctable and uncorrectable, in the L3 cache.
@@ -214,8 +236,7 @@ static uint64_t cache_l3_fault_handler(uint32_t id, uint32_t flags, void *handle
 }
 
 /* Handler for uncorrectable errors in the L1/L2 caches */
-static uint64_t cache_l1l2_error_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
-{
+static uint64_t __unused cache_l1l2_error_handler(uint32_t id, uint32_t flags, void *handle, void *cookie){
 	int core = 0;
 
 	/* NFAULTIRQ_0 is reserved for L3 interrupt, so IRQ_NFAULTIRQ_n is a fault in the L1/L2 cache of core [n-1] */
@@ -245,8 +266,7 @@ static uint64_t cache_l1l2_error_handler(uint32_t id, uint32_t flags, void *hand
 }
 
 /* Handler for uncorrectable ECC errors in the L3 cache */
-static uint64_t cache_l3_error_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
-{
+static uint64_t __unused cache_l3_error_handler(uint32_t id, uint32_t flags, void *handle, void *cookie){
 	ERROR("Uncorrectable error detected in L3 cache, resetting the board\n");
 
 	/* Reset the board after logging error */
@@ -290,8 +310,7 @@ static uint64_t l4_warning_handler(uint32_t id, uint32_t flags, void *handle, vo
 }
 
 /* Handler for uncorrectable errors in the L4 memory */
-static uint64_t l4_error_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
-{
+static uint64_t __unused l4_error_handler(uint32_t id, uint32_t flags, void *handle, void *cookie){
 	uintptr_t base_addr;
 
 	switch (id) {
@@ -330,12 +349,6 @@ void plat_assign_interrupt_handlers(void)
 	plat_request_intr_type_el3(IRQ_GP_INTERRUPT_SYNC_0, primary_gpint_handler);
 
 	/* Handlers for cache ECC warnings and errors */
-	plat_request_intr_type_el3(IRQ_NERRIRQ_0, cache_l3_error_handler);
-	plat_request_intr_type_el3(IRQ_NERRIRQ_1, cache_l1l2_error_handler);
-	plat_request_intr_type_el3(IRQ_NERRIRQ_2, cache_l1l2_error_handler);
-	plat_request_intr_type_el3(IRQ_NERRIRQ_3, cache_l1l2_error_handler);
-	plat_request_intr_type_el3(IRQ_NERRIRQ_4, cache_l1l2_error_handler);
-
 	plat_request_intr_type_el3(IRQ_NFAULTIRQ_0, cache_l3_fault_handler);
 	plat_request_intr_type_el3(IRQ_NFAULTIRQ_1, cache_l1l2_fault_handler);
 	plat_request_intr_type_el3(IRQ_NFAULTIRQ_2, cache_l1l2_fault_handler);
@@ -343,20 +356,22 @@ void plat_assign_interrupt_handlers(void)
 	plat_request_intr_type_el3(IRQ_NFAULTIRQ_4, cache_l1l2_fault_handler);
 
 	/* Handlers for L4 cache warnings and errors */
-	plat_request_intr_type_el3(IRQ_L4_ECC_ERR_INTR_0, l4_error_handler);
-	plat_request_intr_type_el3(IRQ_L4_ECC_ERR_INTR_1, l4_error_handler);
-	plat_request_intr_type_el3(IRQ_L4_ECC_ERR_INTR_2, l4_error_handler);
-
 	plat_request_intr_type_el3(IRQ_L4_ECC_WRN_INTR_0, l4_warning_handler);
 	plat_request_intr_type_el3(IRQ_L4_ECC_WRN_INTR_1, l4_warning_handler);
 	plat_request_intr_type_el3(IRQ_L4_ECC_WRN_INTR_2, l4_warning_handler);
 
+	/* Handlers for DDR error and warning events */
 	plat_request_intr_type_el3(IRQ_ECC_CORRECTED_ERR_INTR, ddr_ecc_corrected_err_handler);
 	plat_request_intr_type_el3(IRQ_ECC_CORRECTED_ERR_INTR_FAULT, ddr_ecc_corrected_err_handler);
 	plat_request_intr_type_el3(IRQ_O_ECC_UNCORRECTED_ERR_INTR, ddr_ecc_uncorrected_err_handler);
 	plat_request_intr_type_el3(IRQ_O_ECC_UNCORRECTED_ERR_INTR_FAULT, ddr_ecc_uncorrected_err_handler);
 	plat_request_intr_type_el3(IRQ_O_ECC_AP_ERR_INTR, ddr_ap_err_handler);
 	plat_request_intr_type_el3(IRQ_O_ECC_AP_ERR_INTR_FAULT, ddr_ap_err_handler);
+	plat_request_intr_type_el3(IRQ_O_DFI_INTERNAL_ERR_INTR, ddr_phy_err_handler);
+	plat_request_intr_type_el3(IRQ_O_DFI_PHYUPD_ERR_INTR, ddr_phy_err_handler);
+	plat_request_intr_type_el3(IRQ_O_DFI_ALERT_ERR_INTR, ddr_phy_err_handler);
+	plat_request_intr_type_el3(IRQ_O_DWC_DDRPHY_INT_N, ddr_phy_err_handler);
+
 
 	if (plat_get_dual_tile_enabled()) {
 		/* Set up handlers for GPINT0 received on the Primary from the Secondary */

@@ -623,6 +623,9 @@ ddr_error_t phy_enter_mission_mode(uintptr_t base_addr_ctrl, uintptr_t base_addr
 		if (return_val == ERROR_DDR_NO_ERROR)
 			return_val = phy_set_dfi_clock(base_addr_ctrl, base_addr_phy, base_addr_clk, last_trained);
 	}
+
+	/* Enable the RX Fifo Check interrupt for the PHY, while disabling all other PHY interrupt sources */
+	mmio_write_32(base_addr_phy + DDRPHYA_MASTER0_P0_MASTER0_P0_PHYINTERRUPTENABLE, PHY_RX_FIFO_CHECK_ENABLE_MASK);
 	return return_val;
 };
 
