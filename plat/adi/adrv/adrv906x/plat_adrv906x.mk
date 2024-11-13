@@ -7,6 +7,10 @@
 include drivers/adi/adrv906x/ddr/ddr.mk
 include plat/adi/adrv/common/plat_common.mk
 
+ifdef APP_PACK_ANTI_ROLLBACK_VERSION
+BL1_CFLAGS += -DAPP_PACK_ANTI_ROLLBACK_VERSION=${APP_PACK_ANTI_ROLLBACK_VERSION}
+endif
+
 PLAT_INCLUDES		+=	-Iplat/adi/adrv/adrv906x/include
 
 PLAT_BL_COMMON_SOURCES	+=	drivers/adi/adrv906x/debug_xbar/debug_xbar.c \

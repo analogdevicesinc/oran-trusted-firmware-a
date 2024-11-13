@@ -211,6 +211,11 @@ void bl1_platform_setup(void)
 	 */
 	plat_set_fw_config_rollback_ctr();
 
+	/* Set TE anti-rollback counter in FW_CONFIG for BL31 stage to
+	 * propagate to OP-TEE via HW_CONFIG
+	 */
+	plat_set_fw_config_te_rollback_ctr(APP_PACK_ANTI_ROLLBACK_VERSION);
+
 	/* Initialize the tiny enclave mailbox */
 	plat_enclave_mailbox_init();
 }

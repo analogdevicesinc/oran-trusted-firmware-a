@@ -124,7 +124,7 @@ static void fixup_hw_config(void)
 	uint32_t ns_dram_size = 0;
 	int root_node = -1;
 	const char *te_boot_slot;
-	uint32_t nv_ctr, app_sec_ver, cert_nv_ctr, enforcement_ctr = 0;
+	uint32_t nv_ctr, app_sec_ver, cert_nv_ctr, enforcement_ctr, te_enforcement_ctr;
 	char node_name[MAX_NODE_NAME_LENGTH];
 
 	/* Get the boot device */
@@ -142,6 +142,7 @@ static void fixup_hw_config(void)
 		nv_ctr = 0;
 		app_sec_ver = 0;
 		enforcement_ctr = 0;
+		te_enforcement_ctr = 0;
 
 		err = fdt_open_into(hw_config_dtb, hw_config_dtb, HW_CONFIG_MAX_SIZE);
 		if (err < 0) {
@@ -186,8 +187,8 @@ static void fixup_hw_config(void)
 			plat_error_handler(err);
 		}
 
-		/* Get TE OTP anti-rollback counter */
-		err = adi_enclave_get_otp_app_anti_rollback(TE_MAILBOX_BASE, &app_sec_ver);
+		/* Get TE enforcement counter from OTP */
+		err = adi_enclave_get_otp_app_anti_rollback(TE_MAILBOX_BASE, &te_enforcement_ctr);
 		if (err < 0) {
 			ERROR("Failed get TE anti-rollback counter from OTP\n");
 			plat_error_handler(err);
@@ -212,6 +213,9 @@ static void fixup_hw_config(void)
 				plat_error_handler(err);
 			}
 		}
+
+		/* Get TE anti-rollback counter from FW_CONFIG */
+		app_sec_ver = plat_get_fw_config_te_rollback_ctr();
 	}
 
 	/* Calculate the size of NS DRAM
@@ -346,6 +350,13 @@ static void fixup_hw_config(void)
 	if (node < 0) {
 		ERROR("Failed to add 'anti-rollback' subnode in HW_CONFIG %d\n", node);
 		plat_error_handler(node);
+	}
+
+	/* Add TE enforcement counter to HW_CONFIG */
+	err = fdt_setprop_u32(hw_config_dtb, node, "te-enforcement-counter", te_enforcement_ctr);
+	if (err < 0) {
+		ERROR("Failed to set te-enforcement-counter in HW_CONFIG %d\n", err);
+		plat_error_handler(err);
 	}
 
 	/* Add enforcement counter to HW_CONFIG */

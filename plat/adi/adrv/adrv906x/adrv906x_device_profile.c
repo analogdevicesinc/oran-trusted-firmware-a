@@ -927,6 +927,33 @@ void plat_set_fw_config_rollback_ctr(void)
 }
 
 /*
+ * Gets the TE rollback counter
+ */
+uint32_t plat_get_fw_config_te_rollback_ctr(void)
+{
+	uint32_t data;
+	int err = -1;
+
+	err = get_fw_config_uint32("/anti-rollback", "te-rollback-ctr", &data);
+	if (err != 0)
+		handle_fw_config_read_error("te rollback counter", err);
+
+	return data;
+}
+
+/*
+ * Sets the TE rollback counter
+ */
+void plat_set_fw_config_te_rollback_ctr(uint32_t ctr)
+{
+	int err = -1;
+
+	err = set_fw_config_uint32("/anti-rollback", "te-rollback-ctr", ctr);
+	if (err != 0)
+		handle_fw_config_write_error("te rollback counter", err);
+}
+
+/*
  * Get the anti-rollback enforcement counter from OTP
  */
 int plat_get_enforcement_counter(unsigned int *nv_ctr)
