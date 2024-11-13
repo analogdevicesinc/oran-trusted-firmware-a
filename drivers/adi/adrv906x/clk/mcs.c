@@ -81,10 +81,10 @@ enum adrv906x_tile_type {
 
 mcs_clk_dividers_config_t clk_divs_cfg[] =
 {
-	{ SETTING_CLKPLL_FREQ_7G,  SETTING_ORX_ADC_FREQ_3932M, 1, 0, 1, 3, 0, 0, 3, 0, 1, 0, 1, 0, 0, 4, 0, 0, 7, 0, 6, 0, 3, 0, 1, 3, 0, 0, 3 },
-	{ SETTING_CLKPLL_FREQ_7G,  SETTING_ORX_ADC_FREQ_7864M, 1, 0, 1, 3, 0, 0, 3, 0, 1, 0, 0, 1, 0, 4, 0, 0, 7, 0, 6, 0, 3, 0, 0, 3, 0, 0, 3 },
-	{ SETTING_CLKPLL_FREQ_11G, SETTING_ORX_ADC_FREQ_5898M, 2, 0, 1, 3, 1, 0, 3, 0, 1, 0, 0, 1, 0, 4, 0, 0, 7, 0, 6, 0, 1, 0, 0, 3, 0, 3, 0 },
-	{ SETTING_CLKPLL_FREQ_11G, SETTING_ORX_ADC_FREQ_2949M, 2, 0, 1, 3, 1, 0, 3, 0, 1, 0, 1, 0, 0, 4, 0, 0, 7, 0, 6, 0, 1, 0, 1, 3, 0, 3, 0 },
+	{ SETTING_CLKPLL_FREQ_7G,  SETTING_ORX_ADC_FREQ_3932M, 1, 0, 1, 3, 0, 0, 3, 0, 1, 0, 1, 0, 0, 7, 0, 0, 2, 0, 10, 0, 3, 0, 1, 3, 0, 0, 3 },
+	{ SETTING_CLKPLL_FREQ_7G,  SETTING_ORX_ADC_FREQ_7864M, 1, 0, 1, 3, 0, 0, 3, 0, 1, 0, 0, 1, 0, 7, 0, 0, 2, 0, 10, 0, 3, 0, 0, 3, 0, 0, 3 },
+	{ SETTING_CLKPLL_FREQ_11G, SETTING_ORX_ADC_FREQ_5898M, 2, 0, 1, 3, 1, 0, 3, 0, 1, 0, 0, 1, 0, 7, 0, 0, 2, 0, 3,	 0, 1, 0, 0, 3, 0, 3, 0 },
+	{ SETTING_CLKPLL_FREQ_11G, SETTING_ORX_ADC_FREQ_2949M, 2, 0, 1, 3, 1, 0, 3, 0, 1, 0, 1, 0, 0, 7, 0, 0, 2, 0, 3,	 0, 1, 0, 1, 3, 0, 3, 0 },
 };
 
 /*--------------------------------------------------------
@@ -311,6 +311,7 @@ static void setup_rx_clkgen(const uintptr_t adc32_analog_regs_baseaddr, const ui
 	WRITE_RX_DIG_RIN_CLK_DIVIDE_RATIO(rx_dig_baseaddr, config->rx_slice_ch_conf_9_rin_clk_divide_ratio);
 	WRITE_RX_DIG_RIN_CLK_ENABLE(rx_dig_baseaddr, 1);
 	WRITE_RX_DIG_FIR2_IN_CLK_DIVIDE_RATIO(rx_dig_baseaddr, config->rx_slice_ch_conf_8_fir2_in_clk_divide_ratio);
+	WRITE_RX_DIG_DP_FILTER_SELECT(rx_dig_baseaddr, config->rx_slice_ch_config_8_dp_filter_select);
 }
 
 static void setup_all_rx_clkgen(enum adrv906x_tile_type tile, mcs_clk_dividers_config_t *config)
