@@ -166,6 +166,14 @@ static void init(void)
 	}
 #endif
 
+	/* Report the GPINT status (which is sticky after a warm reset)
+	 * Do this here, before MCS, which triggers the clock PLL unlock
+	 * GPINT status to be set.
+	 */
+	memset(&settings, 0, sizeof(settings));
+	adrv906x_gpint_get_status(DIG_CORE_BASE, &settings);
+	NOTICE("GPINT status: U: 0x%08lx L: 0x%08lx\n", settings.upper_word, settings.lower_word);
+
 	/* Multi-Chip Sync */
 	INFO("Performing MCS.\n");
 	if (!clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), false)) {
@@ -187,8 +195,8 @@ static void init(void)
 	plat_secure_pinctrl_set_group(gpint0_pin_grp, gpint0_pin_grp_members, true, PINCTRL_BASE);
 
 	/* Enable GPINT0 for CLK PLL un-lock on Primary */
-	settings.upper_word = CLKPLL_PLL_LOCKED_SYNC_MASK || L4_ECC_ERR_INTR_0_MASK || L4_ECC_ERR_INTR_1_MASK || L4_ECC_ERR_INTR_2_MASK;
-	settings.lower_word = GIC_ERR_INT_MASK || NERRIRQ_0_MASK || NERRIRQ_1_MASK || NERRIRQ_2_MASK || NERRIRQ_3_MASK || NERRIRQ_4_MASK;
+	settings.upper_word = CLKPLL_PLL_LOCKED_SYNC_MASK | L4_ECC_ERR_INTR_0_MASK | L4_ECC_ERR_INTR_1_MASK | L4_ECC_ERR_INTR_2_MASK;
+	settings.lower_word = GIC_ERR_INT_MASK | NERRIRQ_0_MASK | NERRIRQ_1_MASK | NERRIRQ_2_MASK | NERRIRQ_3_MASK | NERRIRQ_4_MASK;
 	adrv906x_gpint_enable(DIG_CORE_BASE, GPINT0, &settings);
 
 	/* Enable GPINT1 for CLK PLL un-lock and WDT1 on Primary */
