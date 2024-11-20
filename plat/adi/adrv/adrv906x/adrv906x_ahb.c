@@ -54,18 +54,17 @@ enum adrv906x_tile_type {
 
 static abh_spi_bridge_config_t ahb_spi_bridge_config =
 {
-	/* TODO: Values need to be recommended by systems team:
-	 * AHB_reg_rd_delay
+	/* AHB_reg_rd_delay
 	 * AHB_analog_reg_wr_setup
 	 * AHB_analog_reg_wr_hold
 	 * AHB_analog_reg_rd_cycles
 	 */
-	{ 0x0FU, 0x3FU, 0x3FU, 0x3FU },         /* CLK PLLs */
-	{ 0x0FU, 0x3FU, 0x3FU, 0x3FU },         /* Core/RF PLLs */
-	{ 0x0FU, 0x3FU, 0x3FU, 0x3FU },         /* Eth PLLs */
-	{ 0x0FU, 0x3FU, 0x3FU, 0x3FU },         /* Rx slices */
-	{ 0x0FU, 0x3FU, 0x3FU, 0x3FU },         /* Tx slices */
-	{ 0x0FU, 0x3FU, 0x3FU, 0x3FU } /* ORx slices */
+	{ 0x0FU, 0x03U, 0x00U, 0x0CU },         /* CLK PLLs */
+	{ 0x0FU, 0x04U, 0x00U, 0x0BU },         /* Core/RF PLLs */
+	{ 0x04U, 0x03U, 0x00U, 0x05U },         /* Eth PLLs */
+	{ 0x04U, 0x04U, 0x00U, 0x05U },         /* Rx slices */
+	{ 0x05U, 0x04U, 0x00U, 0x07U },         /* Tx slices */
+	{ 0x04U, 0x03U, 0x00U, 0x05U } /* ORx slices */
 };
 
 const uint32_t core_base_addr[ADRV906X_TILE_TYPE_NUM] =

@@ -83,8 +83,7 @@ static void init(void)
 	/*
 	 * Init the ahb bridge.
 	 */
-	/* TODO: Enable after silicon bringup */
-	if (plat_is_sysc())
+	if (plat_is_hardware())
 		adrv906x_ahb_init(true);
 
 	/*
@@ -121,8 +120,7 @@ static void init(void)
 		/*
 		 * Init the ahb bridge.
 		 */
-		/* TODO: Enable after silicon bringup */
-		if (plat_is_sysc())
+		if (plat_is_hardware())
 			adrv906x_ahb_init(false);
 
 		/*
