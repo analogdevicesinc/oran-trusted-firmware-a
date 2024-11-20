@@ -948,6 +948,15 @@ void plat_set_fw_config_te_rollback_ctr(uint32_t ctr)
 {
 	int err = -1;
 
+/* Workaround for testing in debug mode:
+ * Use any TE anti-rollback value already defined in FW_CONFIG instead of the function parameter.
+ * This allows us to modify the TE rollback counter from the test framework.
+ */
+#if DEBUG == 1
+	uint32_t data;
+	if (get_fw_config_uint32("/anti-rollback", "te-rollback-ctr", &data) == 0) ctr = data;
+#endif
+
 	err = set_fw_config_uint32("/anti-rollback", "te-rollback-ctr", ctr);
 	if (err != 0)
 		handle_fw_config_write_error("te rollback counter", err);
