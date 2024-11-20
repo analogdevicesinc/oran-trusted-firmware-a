@@ -21,10 +21,10 @@
 #define ADRV906X_RQ_CQ_DAP_PROG_2          0x00000008
 #define ADRV906X_RQ_CQ_DAP_PROG_1          0xee00c000
 #define ADRV906X_RQ_CQ_DAP_PROG_0          0x00835d2a
-/* RQ_CQ_PMC_PROG = 112'h 4000_028c_1111_5f0a_5f0f_df16_5f2a */
+/* RQ_CQ_PMC_PROG = 112'h 4000_028c_1111_5f20_5f0f_df16_5f2a */
 #define ADRV906X_SBPI_PMC_CQ               0x4000
 #define ADRV906X_RQ_CQ_PMC_PROG_2          0x028c1111
-#define ADRV906X_RQ_CQ_PMC_PROG_1          0x5f0a5f0f
+#define ADRV906X_RQ_CQ_PMC_PROG_1          0x5f205f0f
 #define ADRV906X_RQ_CQ_PMC_PROG_0          0xdf165f2a
 
 /*
