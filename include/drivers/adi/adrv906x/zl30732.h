@@ -10,5 +10,6 @@
 bool adi_zl30732_init(uintptr_t spi_base, unsigned int clock_freq);
 bool adi_zl30732_sysref_enable(uintptr_t spi_base, uint8_t cs, bool dual_tile);
 bool adi_zl30732_sysref_disable(uintptr_t spi_base, uint8_t cs, bool dual_tile);
+uint32_t adi_zl30732_get_firmware_version(uintptr_t spi_base, uint8_t cs);
 
 #endif /* __ADI_ZL30732_H__ */

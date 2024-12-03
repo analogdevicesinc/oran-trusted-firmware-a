@@ -38,7 +38,7 @@
 #define ZL30732_SQUELCH_OUTPUT_ENABLE   (0)
 #define ZL30732_SQUELCH_OUTPUT_DISABLE  (1)
 
-static uint32_t adi_zl30732_get_firmware_version(uintptr_t spi_base, uint8_t cs)
+uint32_t adi_zl30732_get_firmware_version(uintptr_t spi_base, uint8_t cs)
 {
 	uint8_t page = ZL30732_VERSION_PAGE;
 	uint8_t offset = ZL30732_VERSION_OFFSET;

@@ -37,6 +37,7 @@ PLAT_BL_COMMON_SOURCES	+=	drivers/adi/adrv906x/debug_xbar/debug_xbar.c \
 
 BL1_SOURCES		+=	drivers/adi/adrv906x/clk/clk.c \
 				drivers/adi/adrv906x/clk/mcs.c \
+				drivers/adi/adrv906x/clk/zl30732.c \
 				drivers/adi/adrv906x/ddr/ddr_edac.c \
 				drivers/adi/adrv906x/gpio/adrv906x_gpio.c \
 				drivers/adi/i2c/adi_twi_i2c.c \

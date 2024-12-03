@@ -341,6 +341,10 @@ void plat_board_bl1_setup(void)
 
 	/* Initialize Debug Crossbar */
 	adi_adrv906x_debug_xbar_set_default_map(DEBUG_XBAR_SOURCE_CONTROL_BASE, BRINGUP_MAPPING);
+
+	/* Print out firmware version of clock chip for debugging */
+	init_sysref();
+	INFO("Clock chip firmware version: %d\n", adi_zl30732_get_firmware_version(ZL30732_SPI_BASE_ADDRESS, ZL30732_SPI_CS));
 }
 
 void plat_board_bl2_setup(void)
