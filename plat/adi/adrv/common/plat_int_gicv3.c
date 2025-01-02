@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2019, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2024, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -11,6 +11,7 @@
 #include <plat/common/platform.h>
 
 #include <platform_def.h>
+#include <plat_err.h>
 #include <plat_helpers.h>
 #include <plat_int_gicv3.h>
 
@@ -79,14 +80,14 @@ void __init plat_gic_driver_init(void)
 
 	/* (Optional) platform specific GIC lanes configuration */
 	if (plat_specific_gic_driver_init(&plat_gic_data) == -1) {
-		ERROR("Platfors specific GIC init failed");
+		plat_error_message("Platfors specific GIC init failed");
 		panic();
 	}
 
 	gicv3_driver_init((const gicv3_driver_data_t *)&plat_gic_data);
 
 	if (gicv3_rdistif_probe(gicr_base_addrs[0]) == -1) {
-		ERROR("No GICR base frame found for Primary CPU\n");
+		plat_error_message("No GICR base frame found for Primary CPU");
 		panic();
 	}
 #endif
@@ -139,7 +140,7 @@ void plat_gic_pcpu_init(void)
 	} while (*plat_gicr_frames != 0U);
 
 	if (result == -1) {
-		ERROR("No GICR base frame found for CPU 0x%lx\n", read_mpidr());
+		plat_error_message("No GICR base frame found for CPU 0x%lx", read_mpidr());
 		panic();
 	}
 	gicv3_rdistif_init(plat_my_core_pos());

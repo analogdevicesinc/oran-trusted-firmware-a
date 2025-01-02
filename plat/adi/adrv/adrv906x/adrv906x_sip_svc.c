@@ -1,12 +1,14 @@
 /*
- * Copyright (c) 2022, Analog Devices Incorporated, All Rights Reserved
+ * Copyright (c) 2024, Analog Devices Incorporated, All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <adrv906x_sip_svc.h>
 #include <common/debug.h>
 #include <common/runtime_svc.h>
+
+#include <adrv906x_sip_svc.h>
+#include <plat_err.h>
 
 uintptr_t plat_smc_handler(unsigned int smc_fid, u_register_t x1, u_register_t x2, u_register_t x3, u_register_t x4, void *cookie, void *handle, u_register_t flags)
 {
@@ -16,7 +18,7 @@ uintptr_t plat_smc_handler(unsigned int smc_fid, u_register_t x1, u_register_t x
 		SMC_RET1(handle, 0xDEADBEEF);
 
 	default:
-		WARN("Unimplemented SiP Service Call: 0x%x \n", smc_fid);
+		plat_warn_message("Unimplemented SiP Service Call: 0x%x ", smc_fid);
 		SMC_RET1(handle, SMC_UNK);
 	}
 }

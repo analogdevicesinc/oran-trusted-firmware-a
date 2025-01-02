@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Analog Devices Incorporated - All Rights Reserved
+ * Copyright (c) 2024, Analog Devices Incorporated - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -25,6 +25,7 @@
 #include <adrv906x_otp.h>
 #include <plat_boot.h>
 #include <plat_cli.h>
+#include <plat_err.h>
 #include <plat_security.h>
 #include <plat_wdt.h>
 #include <platform_def.h>
@@ -775,27 +776,27 @@ static int program_pll_command_function(uint8_t *command_buffer, bool help)
 
 		result = clk_initialize_pll_programming(secondary, eth_pll, plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting());
 		if (result) {
-			ERROR("Failed preparing pll for programming.\n");
+			plat_error_message("Failed preparing pll for programming.");
 			return result;
 		}
 		printf("Initializing LDO for pll...\n");
 		result = ldo_powerup(base_addr, pll_sel_name);
 		if (result) {
-			ERROR("Failed to initialize LDO %d\n", result);
+			plat_error_message("Failed to initialize LDO %d", result);
 			return result;
 		}
 
 		printf("Turning on PLL...\n");
 		result = pll_clk_power_init(base_addr, dig_core_base_addr, pll_freq, ref_clk, pll_sel_name);
 		if (result) {
-			ERROR("Problem powering on pll = %d\n", result);
+			plat_error_message("Problem powering on pll = %d", result);
 			return result;
 		}
 
 		printf("Programming PLL...\n");
 		result = pll_program(base_addr, pll_sel_name);
 		if (result)
-			ERROR("Problem programming pll = %d\n", result);
+			plat_error_message("Problem programming pll = %d", result);
 	}
 	return result;
 }
@@ -1112,19 +1113,19 @@ static int adrv906x_program_bootrom_in_otp(const uintptr_t mem_ctrl_base, uintpt
 
 		/* Write the buffer to OTP */
 		if (otp_write_burst(mem_ctrl_base, addr, data, length, OTP_ECC_ON) != ADI_OTP_SUCCESS) {
-			ERROR("Error programming buffer into OTP at OTP address %x.\n", addr);
+			plat_error_message("Error programming buffer into OTP at OTP address %x.", addr);
 			return -EIO;
 		}
 
 		/* Read back what we just wrote and compare */
 		if (otp_read_burst(mem_ctrl_base, addr, readback, length, OTP_ECC_ON) != ADI_OTP_SUCCESS) {
-			ERROR("Error reading back OTP memory at OTP address %x.\n", addr);
+			plat_error_message("Error reading back OTP memory at OTP address %x.", addr);
 			return -EIO;
 		}
 
 		for (i = 0; i < length; i++) {
 			if (data[i] != readback[i]) {
-				ERROR("Mismatch between written and readback data, aborting programming.\n");
+				plat_error_message("Mismatch between written and readback data, aborting programming.");
 				return -EIO;
 			}
 		}
@@ -1139,7 +1140,7 @@ static int adrv906x_program_bootrom_in_otp(const uintptr_t mem_ctrl_base, uintpt
 	otp_write(mem_ctrl_base, OTP_QRR_BIT_ADDRESS, 0x1, OTP_ECC_ON);
 	otp_read(mem_ctrl_base, OTP_QRR_BIT_ADDRESS, &readback[0], OTP_ECC_ON);
 	if (readback[0] != 0x1) {
-		ERROR("Failed to set QRR bit.\n");
+		plat_error_message("Failed to set QRR bit.");
 		return -EIO;
 	}
 

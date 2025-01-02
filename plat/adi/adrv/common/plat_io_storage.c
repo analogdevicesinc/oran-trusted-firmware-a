@@ -289,7 +289,7 @@ void plat_io_setup(bool use_bootctrl, uint32_t reset_cause, uint32_t reset_cause
 		break;
 
 	default:
-		ERROR("Unsupported boot device\n");
+		plat_error_message("Unsupported boot device");
 		/* Manage error depending on the boot stage:
 		 *  This plat_io_setup function is called from both BL1 and BL2.
 		 *  BL1 calls plat_io_setup with "use_bootctrl" enabled, and BL2 with "use_bootctrl" disabled:
@@ -341,7 +341,7 @@ void plat_io_setup(bool use_bootctrl, uint32_t reset_cause, uint32_t reset_cause
 			/* Get a handle to the bootctrl partition */
 			result = plat_get_partition_spec(ctrl_partition_id, &ctrl_spec);
 			if (result != 0) {
-				ERROR("Unable to find the %s partition\n", ctrl_partition_id);
+				plat_error_message("Unable to find the %s partition", ctrl_partition_id);
 				p_ctrl_spec = NULL;
 			} else {
 				p_ctrl_spec = &ctrl_spec;
@@ -364,7 +364,7 @@ void plat_io_setup(bool use_bootctrl, uint32_t reset_cause, uint32_t reset_cause
 		snprintf(fip_partition_id, sizeof(fip_partition_id), "%s%s", FIP_PARTITION_BASE_NAME, active_slot);
 		result = plat_get_partition_spec(fip_partition_id, &fip_spec);
 		if (result != 0) {
-			ERROR("Unable to find the %s partition\n", fip_partition_id);
+			plat_error_message("Unable to find the %s partition", fip_partition_id);
 			plat_error_handler(-ENOENT);
 		}
 	}

@@ -9,6 +9,7 @@
 #include <common/debug.h>
 #include <common/runtime_svc.h>
 
+#include <plat_err.h>
 #include <plat_pinctrl.h>
 #include <plat_pinctrl_svc.h>
 #include <plat_sip_svc.h>
@@ -75,7 +76,7 @@ uintptr_t plat_pinctrl_smc_handler(unsigned int smc_fid,
 	case INIT:
 		/* Pinmux Initialization
 		 * If anything to initialize, do it here. */
-		WARN("PINCTRL service: INIT not currently implemented\n");
+		plat_warn_message("PINCTRL service: INIT not currently implemented");
 		SMC_RET1(handle, SMC_UNK);
 		break;
 
@@ -131,11 +132,11 @@ uintptr_t plat_pinctrl_smc_handler(unsigned int smc_fid,
 		break;
 
 	default:
-		WARN("PINCTRL service: Unexpected command\n");
+		plat_warn_message("PINCTRL service: Unexpected command");
 		SMC_RET1(handle, SMC_UNK);
 		break;
 	}
 
-	WARN("PINCTRL service: Unexpected FID\n");
+	plat_warn_message("PINCTRL service: Unexpected FID");
 	SMC_RET1(handle, SMC_UNK);
 }

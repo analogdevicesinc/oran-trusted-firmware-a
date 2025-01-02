@@ -8,6 +8,7 @@
 #include <lib/mmio.h>
 
 #include <adrv906x_sram.h>
+#include <plat_err.h>
 
 void l4_warning_info(uintptr_t base_addr)
 {
@@ -33,13 +34,13 @@ void l4_warning_info(uintptr_t base_addr)
 				found = true;
 				/* Each register for the EWADDR is 32 bits, so address is base of the warning registers + 4 bytes * bank number */
 				offset = L4CTL_CFG_EWADDR0 + (0x4 * i);
-				WARN("SRAM Bank%d correctable error, addr: 0x%x\n", i, mmio_read_32(base_addr + offset));
+				plat_warn_message("SRAM Bank%d correctable error, addr: 0x%x", i, mmio_read_32(base_addr + offset));
 			}
 			mask = mask << 1;
 		}
 
 		if (!found)
-			ERROR("L4 ecc error interrupt triggered but no matching error found.\n");
+			plat_error_message("L4 ecc error interrupt triggered but no matching error found.");
 		else
 			/* Clear all of the warning status bits by writing a 1 since we've handled them all. */
 			mmio_write_32(base_addr + L4CTL_CFG_STAT, ((L4_SRAM_BANK_CLEAR_MASK) << L4CTL_CFG_STAT_ECCWRN0_SHIFT));
@@ -55,10 +56,10 @@ void l4_error_info(uintptr_t base_addr)
 	status = mmio_read_32(base_addr + L4CTL_CFG_STAT);
 
 	if (status & L4CTL_CFG_STAT_ERR0_MASK)
-		ERROR("Core channel error info:0x%x\n", mmio_read_32(base_addr + L4CTL_CFG_ET0));
+		plat_error_message("Core channel error info:0x%x", mmio_read_32(base_addr + L4CTL_CFG_ET0));
 
 	if (status & L4CTL_CFG_STAT_ERR1_MASK)
-		ERROR("System channel error info:0x%x\n", mmio_read_32(base_addr + L4CTL_CFG_ET1));
+		plat_error_message("System channel error info:0x%x", mmio_read_32(base_addr + L4CTL_CFG_ET1));
 
 	/* Shift warning status bits to be at the bottom */
 	status = status >> L4CTL_CFG_STAT_ECCERR0_SHIFT;
@@ -71,13 +72,13 @@ void l4_error_info(uintptr_t base_addr)
 				found = true;
 				/* Each register for the ERRADDR is 32 bits, so increment 4 bytes * bank number */
 				offset = L4CTL_CFG_ERRADDR0 + (0x4 * i);
-				ERROR("SRAM Bank%d uncorrectable error, addr: 0x%x\n", i, mmio_read_32(base_addr + offset));
+				plat_error_message("SRAM Bank%d uncorrectable error, addr: 0x%x", i, mmio_read_32(base_addr + offset));
 			}
 			mask = mask << 1;
 		}
 
 		if (!found)
-			ERROR("L4 ecc error interrupt triggered but no matching error found.\n");
+			plat_error_message("L4 ecc error interrupt triggered but no matching error found.");
 		else
 			/* Clear all of the error status bits by writing a 1 since we've handled them all. */
 			mmio_write_32(base_addr + L4CTL_CFG_STAT, ((L4_SRAM_BANK_CLEAR_MASK) << L4CTL_CFG_STAT_ECCERR0_SHIFT));

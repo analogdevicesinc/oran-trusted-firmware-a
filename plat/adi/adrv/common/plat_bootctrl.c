@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Analog Devices Incorporated. All rights reserved.
+ * Copyright (c) 2024, Analog Devices Incorporated. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -87,7 +87,7 @@ void plat_bootctrl_init(uintptr_t dev_handle, uintptr_t spec, uint32_t reset_cau
 		 */
 		result = set_active_slot(active_boot_slot);
 		if (result != 0)
-			ERROR("Unable to write bootctrl partition\n");
+			plat_error_message("Unable to write bootctrl partition");
 	}
 
 	/* Detect and respond to boot failure */
@@ -236,7 +236,7 @@ static int set_new_slot(char active_slot, char starting_slot)
 	 */
 	result = set_active_slot(active_slot);
 	if (result != 0)
-		ERROR("Unable to write bootctrl partition\n");
+		plat_error_message("Unable to write bootctrl partition");
 
 	/* Clear BOOT_CNT */
 	plat_wr_status_reg(BOOT_CNT, 0);
@@ -300,7 +300,7 @@ static int do_failure_detection(uint32_t reset_cause, uint32_t reset_cause_ns)
 			/* result != 0 here indicates that set_new_slot() above failed to advance to
 			 * the next slot
 			 */
-			ERROR("All boot options have been exhausted\n");
+			plat_error_message("All boot options have been exhausted");
 		}
 	}
 

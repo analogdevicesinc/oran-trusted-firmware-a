@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2024, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -15,6 +15,7 @@
 
 #include <platform_def.h>
 #include <plat_setup.h>
+#include <plat_err.h>
 
 #include <adrv906x_board.h>
 #include <adrv906x_device_profile.h>
@@ -30,7 +31,7 @@ static void clk_switch_hook(void)
 	/* Switching clocks in a running system is more extensive
 	 * and is not supported.
 	 */
-	ERROR("Clock switch cannot be performed in BL31\n");
+	plat_error_message("Clock switch cannot be performed in BL31");
 	plat_error_handler(-EPERM);
 }
 
@@ -90,7 +91,7 @@ void plat_bl31_setup(void)
 	if (plat_get_dual_tile_enabled()) {
 		err = plat_setup_secondary_mmap(true);
 		if (err != 0) {
-			ERROR("Failed to setup mmap for secondary tile %d\n", err);
+			plat_error_message("Failed to setup mmap for secondary tile %d", err);
 			plat_set_dual_tile_disabled();
 		}
 	}

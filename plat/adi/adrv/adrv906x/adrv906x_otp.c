@@ -10,6 +10,7 @@
 #include <drivers/adi/adi_otp.h>
 
 #include <adrv906x_otp.h>
+#include <plat_err.h>
 
 /*--------------------------------------------------------
  * DEFINES
@@ -137,7 +138,7 @@ static int get_rollback_counter_n(const uintptr_t mem_ctrl_base, unsigned int n,
 	uint32_t index = 0;
 
 	if (otp_read_burst(mem_ctrl_base, counter_addr, rollback_counter, ROLLBACK_COUNTER_NUM_REGS, OTP_ECC_OFF) != ADI_OTP_SUCCESS) {
-		ERROR("%s: Cannot read Rollback Counter copy %d\n", __func__, n);
+		plat_error_message("%s: Cannot read Rollback Counter copy %d", __func__, n);
 		return -EIO;
 	}
 
@@ -166,7 +167,7 @@ static int set_rollback_counter_n(const uintptr_t mem_ctrl_base, unsigned int n,
 
 	counter_addr = OTP_ROLLBACK_COUNTER_BASE + n * ROLLBACK_COUNTER_NUM_REGS;
 	if (otp_write_burst(mem_ctrl_base, counter_addr, rollback_counter, ROLLBACK_COUNTER_NUM_REGS, OTP_ECC_OFF) != ADI_OTP_SUCCESS) {
-		ERROR("%s: Cannot write Rollback Counter copy %d\n", __func__, n);
+		plat_error_message("%s: Cannot write Rollback Counter copy %d", __func__, n);
 		return -EIO;
 	}
 
@@ -214,7 +215,7 @@ static int get_mac_addr_n(const uintptr_t mem_ctrl_base, uint8_t mac_number, uin
 	const uintptr_t addr = OTP_MAC_ADDRESSES_BASE + (mac_number - 1) * MAC_ADDRESS_NUM_REGS * MAC_ADDRESS_NUM_COPIES + n * MAC_ADDRESS_NUM_REGS;
 
 	if (otp_read_burst(mem_ctrl_base, addr, mac32, MAC_ADDRESS_NUM_REGS, OTP_ECC_OFF) != ADI_OTP_SUCCESS) {
-		ERROR("%s: Cannot read MAC address %d\n", __func__, mac_number);
+		plat_error_message("%s: Cannot read MAC address %d", __func__, mac_number);
 		return -EIO;
 	}
 
@@ -237,7 +238,7 @@ static int set_mac_addr_n(const uintptr_t mem_ctrl_base, uint8_t mac_number, uin
 	mac32[0] = (mac[3] << 24) | (mac[2] << 16) | (mac[1] << 8) | mac[0];
 
 	if (otp_write_burst(mem_ctrl_base, addr, mac32, MAC_ADDRESS_NUM_REGS, OTP_ECC_OFF) != ADI_OTP_SUCCESS) {
-		ERROR("%s: Cannot write MAC address %d\n", __func__, mac_number);
+		plat_error_message("%s: Cannot write MAC address %d", __func__, mac_number);
 		return -EIO;
 	}
 
@@ -290,14 +291,14 @@ int adrv906x_otp_get_rollback_counter(const uintptr_t mem_ctrl_base, unsigned in
 		if (get_rollback_counter_n(mem_ctrl_base, i, &aux) == ADI_OTP_SUCCESS) counters[num_valid_counters++] = (uint64_t)aux;
 
 	if (num_valid_counters == 0) {
-		ERROR("%s: Rollback Counter read error. No valid counter read\n", __func__);
+		plat_error_message("%s: Rollback Counter read error. No valid counter read", __func__);
 		return -EIO;
 	}
 
 	is_unique = 0;
 	*nv_ctr = get_most_common_value(counters, num_valid_counters, &is_unique);
 	if (!is_unique) {
-		ERROR("%s: Rollback Counter read error. Counter is corrupted\n", __func__);
+		plat_error_message("%s: Rollback Counter read error. Counter is corrupted", __func__);
 		return -EIO;
 	}
 
@@ -307,7 +308,7 @@ int adrv906x_otp_get_rollback_counter(const uintptr_t mem_ctrl_base, unsigned in
 int adrv906x_otp_set_rollback_counter(const uintptr_t mem_ctrl_base, unsigned int nv_ctr)
 {
 	if (nv_ctr > ROLLBACK_COUNTER_MAX_VALUE) {
-		ERROR("%s: Rollback counter %d out of bounds (0 .. %d)\n", __func__, nv_ctr, ROLLBACK_COUNTER_MAX_VALUE);
+		plat_error_message("%s: Rollback counter %d out of bounds (0 .. %d)", __func__, nv_ctr, ROLLBACK_COUNTER_MAX_VALUE);
 		return -EINVAL;
 	}
 
@@ -322,7 +323,7 @@ int adrv906x_otp_set_rollback_counter(const uintptr_t mem_ctrl_base, unsigned in
 int adrv906x_otp_set_mac_addr(const uintptr_t mem_ctrl_base, uint8_t mac_number, uint8_t *mac)
 {
 	if (mac_number <= 0 || mac_number > NUM_MAC_ADDRESSES) {
-		ERROR("%s: MAC number %d out of bounds (1 .. %d)\n", __func__, mac_number, NUM_MAC_ADDRESSES);
+		plat_error_message("%s: MAC number %d out of bounds (1 .. %d)", __func__, mac_number, NUM_MAC_ADDRESSES);
 		return -EINVAL;
 	}
 
@@ -340,7 +341,7 @@ int adrv906x_otp_get_mac_addr(const uintptr_t mem_ctrl_base, uint8_t mac_number,
 	unsigned int num_macs = 0;
 
 	if (mac_number <= 0 || mac_number > NUM_MAC_ADDRESSES) {
-		ERROR("%s: MAC number %d out of bounds (1 .. %d)\n", __func__, mac_number, NUM_MAC_ADDRESSES);
+		plat_error_message("%s: MAC number %d out of bounds (1 .. %d)", __func__, mac_number, NUM_MAC_ADDRESSES);
 		return -EINVAL;
 	}
 
@@ -349,12 +350,12 @@ int adrv906x_otp_get_mac_addr(const uintptr_t mem_ctrl_base, uint8_t mac_number,
 		if (get_mac_addr_n(mem_ctrl_base, mac_number, i, (uint8_t *)&macs[num_macs]) == ADI_OTP_SUCCESS) num_macs++;
 
 	if (num_macs == 0) {
-		ERROR("%s: MAC %d read error. No valid MAC read\n", __func__, mac_number);
+		plat_error_message("%s: MAC %d read error. No valid MAC read", __func__, mac_number);
 		return -EIO;
 	}
 
 	if (!get_most_common_mac((uint8_t *)&macs[0], num_macs, mac)) {
-		ERROR("%s: MAC %d read error. MAC is corrupted\n", __func__, mac_number);
+		plat_error_message("%s: MAC %d read error. MAC is corrupted", __func__, mac_number);
 		return -EIO;
 	}
 

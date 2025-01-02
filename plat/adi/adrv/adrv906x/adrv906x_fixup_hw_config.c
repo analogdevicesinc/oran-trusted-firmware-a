@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Analog Devices Incorporated - All Rights Reserved
+ * Copyright (c) 2024, Analog Devices Incorporated - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -13,6 +13,7 @@
 #include <adrv906x_device_profile.h>
 #include <platform_def.h>
 #include <plat_boot.h>
+#include <plat_err.h>
 #include <plat_fixup_hw_config.h>
 
 static int plat_set_prop_okay(void *hw_config_dtb, char *node_name)
@@ -72,8 +73,11 @@ static void plat_enable_sysc_devices(void *hw_config_dtb)
 
 int plat_fixup_hw_config(void *hw_config_dtb)
 {
+	int num;
+	int property_num = -1;
 	int err = -1;
 	int node = -1;
+	int errors = -1;
 	uint64_t clk_freq = 0ULL;
 	char node_name[MAX_NODE_NAME_LENGTH];
 
@@ -134,12 +138,12 @@ int plat_fixup_hw_config(void *hw_config_dtb)
 		/* Set the dual-tile flag in the boot params */
 		parent = fdt_path_offset(hw_config_dtb, "/boot");
 		if (parent < 0) {
-			ERROR("Failed to find '/boot' node in HW_CONFIG %d\n", parent);
+			plat_error_message("Failed to find '/boot' node in HW_CONFIG %d", parent);
 			return parent;
 		}
 		err = fdt_setprop_u32(hw_config_dtb, parent, "dual-tile", 1);
 		if (err < 0) {
-			ERROR("Failed to set 'dual-tile' property in HW_CONFIG %d\n", err);
+			plat_error_message("Failed to set 'dual-tile' property in HW_CONFIG %d", err);
 			return err;
 		}
 
@@ -147,7 +151,7 @@ int plat_fixup_hw_config(void *hw_config_dtb)
 		if (plat_get_secondary_linux_enabled()) {
 			err = fdt_setprop_u32(hw_config_dtb, parent, "secondary-linux-enabled", 1);
 			if (err < 0) {
-				ERROR("Failed to set 'secondary-linux-enabled' property in HW_CONFIG %d\n", err);
+				plat_error_message("Failed to set 'secondary-linux-enabled' property in HW_CONFIG %d", err);
 				return err;
 			}
 		}
@@ -179,13 +183,13 @@ int plat_fixup_hw_config(void *hw_config_dtb)
 
 		parent = fdt_path_offset(hw_config_dtb, "/");
 		if (parent < 0) {
-			ERROR("Failed to find root node in HW_CONFIG %d\n", parent);
+			plat_error_message("Failed to find root node in HW_CONFIG %d", parent);
 			return parent;
 		}
 
 		err = fdt_appendprop_addrrange(hw_config_dtb, parent, node, "reg", sec_dram_base, sec_dram_size);
 		if (err < 0) {
-			ERROR("Failed to add 'reg' prop in HW_CONFIG %d\n", err);
+			plat_error_message("Failed to add 'reg' prop in HW_CONFIG %d", err);
 			return err;
 		}
 	}
@@ -210,6 +214,45 @@ int plat_fixup_hw_config(void *hw_config_dtb)
 	/* TODO: Consider removing if/when SystemC support is removed */
 	if (plat_is_sysc() == true)
 		plat_enable_sysc_devices(hw_config_dtb);
+
+	/* Copy TF-A device tree error logs to U-boot device tree */
+	/* Get number of errors from TF-A device tree */
+	errors = plat_get_fw_config_error_num();
+	if (errors < 0) {
+		INFO("Unable to get number of errors from FW_CONFIG\n");
+	} else {
+		/* Get boot node */
+		node = fdt_path_offset(hw_config_dtb, "/boot");
+		if (node < 0)
+			return node;
+
+		/* Add error-log node under boot node in U-boot device tree */
+		snprintf(node_name, sizeof(node_name), "error-log");
+		node = fdt_add_subnode(hw_config_dtb, node, node_name);
+		if (node < 0) {
+			INFO("Error adding /boot/error-log node to HW_CONFIG\n");
+			return node;
+		}
+
+		/* Copy over each error-log property to U-boot device tree */
+		for (num = 0; num <= errors; num++) {
+			int length;
+			char *name = "";
+			const void *prop;
+
+			/* Get property from fw_config */
+			prop = get_fw_config_error_log_prop(&property_num, &name, &length);
+			if (prop == NULL) {
+				INFO("Unable to read error-log property from FW_CONFIG\n");
+				continue;
+			}
+
+			/* Add property to hw_config */
+			err = fdt_setprop(hw_config_dtb, node, name, prop, length);
+			if (err < 0)
+				INFO("Unable to copy property %s from FW_CONFIG to HW_CONFIG\n", name);
+		}
+	}
 
 	return 0;
 }

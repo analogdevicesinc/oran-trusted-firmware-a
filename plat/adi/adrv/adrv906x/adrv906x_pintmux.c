@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Analog Devices Incorporated. All rights reserved.
+ * Copyright (c) 2024, Analog Devices Incorporated. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -13,6 +13,7 @@
 #include <adrv906x_def.h>
 #include <adrv906x_device_profile.h>
 #include <plat/common/platform.h>
+#include <plat_err.h>
 #include <plat_pinctrl.h>
 #include <plat_pintmux.h>
 
@@ -32,7 +33,7 @@ static uintptr_t plat_get_pintmux_to_pinctrl_mapping(uintptr_t base_addr_pintmux
 	} else if (base_addr_pintmux == SEC_PINTMUX_BASE) {
 		if (!plat_get_dual_tile_enabled()) {
 			/*Can only try to set up secondary pinctrl if secondary actually exists*/
-			WARN("PINTMUX: Secondary tile must be enabled to use secondary base \n");
+			plat_warn_message("PINTMUX: Secondary tile must be enabled to use secondary base ");
 			return PINTMUX_MAPPING_BAD_ADDRESS;
 		}
 		return SEC_PINCTRL_BASE;
@@ -65,7 +66,7 @@ static int plat_pintmux_map_update(unsigned int lane, uint32_t val, bool pos_mas
 	if (base_addr == SEC_PINTMUX_BASE) {
 		if (!plat_get_dual_tile_enabled()) {
 			/*Can only try to set up secondary pinctrl if secondary actually exists*/
-			WARN("PINTMUX: Secondary tile must be enabled to use secondary base address\n");
+			plat_warn_message("PINTMUX: Secondary tile must be enabled to use secondary base address");
 			return ERR_LOOKUP_FAIL;
 		}
 		transmuter_addr = SEC_INTERRUPT_TRANSMUTER_BASE;
@@ -74,7 +75,7 @@ static int plat_pintmux_map_update(unsigned int lane, uint32_t val, bool pos_mas
 		transmuter_addr = INTERRUPT_TRANSMUTER_BASE;
 	} else {
 		/*Base address isn't PINCTRL_BASE or SEC_PINCTRL_BASE, immediately exit*/
-		WARN("PINTMUX: Unknown base address for GPIO pinmux\n");
+		plat_warn_message("PINTMUX: Unknown base address for GPIO pinmux");
 		return ERR_LOOKUP_FAIL;
 	}
 
@@ -82,13 +83,13 @@ static int plat_pintmux_map_update(unsigned int lane, uint32_t val, bool pos_mas
 		if (pos_mask) {
 			transmute_status = transmuter_change_bit(transmuter_addr, plat_pintmux_lane_to_transmute_signal(lane), SET_POS_MASK);
 			if (transmute_status < 0) {
-				ERROR("Transmuter action failed, action id:%d\n", SET_POS_MASK);
+				plat_error_message("Transmuter action failed, action id:%d", SET_POS_MASK);
 				return ERR_MAP_FAIL;
 			}
 		} else {
 			transmute_status = transmuter_change_bit(transmuter_addr, plat_pintmux_lane_to_transmute_signal(lane), SET_NEG_MASK);
 			if (transmute_status < 0) {
-				ERROR("Transmuter action failed, action id:%d\n", SET_NEG_MASK);
+				plat_error_message("Transmuter action failed, action id:%d", SET_NEG_MASK);
 				return ERR_MAP_FAIL;
 			}
 		}
@@ -96,7 +97,7 @@ static int plat_pintmux_map_update(unsigned int lane, uint32_t val, bool pos_mas
 		/*Enable the interrupt in the transmuter once everything has been set up*/
 		transmute_status = transmuter_change_bit(transmuter_addr, plat_pintmux_lane_to_transmute_signal(lane), SET_ENABLE_MASK);
 		if (transmute_status < 0) {
-			ERROR("Transmuter action failed, action id:%d\n", SET_ENABLE_MASK);
+			plat_error_message("Transmuter action failed, action id:%d", SET_ENABLE_MASK);
 			return ERR_MAP_FAIL;
 		}
 	}
@@ -112,14 +113,14 @@ static int plat_pintmux_map_update(unsigned int lane, uint32_t val, bool pos_mas
 		/*Disable the interrupt in the transmuter*/
 		transmute_status = transmuter_change_bit(transmuter_addr, plat_pintmux_lane_to_transmute_signal(lane), CLEAR_ENABLE_MASK);
 		if (transmute_status < 0) {
-			ERROR("Transmuter action failed, action id:%d\n", CLEAR_ENABLE_MASK);
+			plat_error_message("Transmuter action failed, action id:%d", CLEAR_ENABLE_MASK);
 			return ERR_MAP_FAIL;
 		}
 
 		/* Set the mask back to the default*/
 		transmute_status = transmuter_change_bit(transmuter_addr, plat_pintmux_lane_to_transmute_signal(lane), SET_POS_MASK);
 		if (transmute_status < 0) {
-			ERROR("Transmuter action failed, action id:%d\n", SET_POS_MASK);
+			plat_error_message("Transmuter action failed, action id:%d", SET_POS_MASK);
 			return ERR_MAP_FAIL;
 		}
 	}
@@ -217,7 +218,7 @@ static bool plat_pin_is_secure(uint32_t pad_pin_num)
 	if (pad_pin_num < len)
 		return pin_list[pad_pin_num];
 
-	WARN("PINTMUX service: Pin number %d does not exist", pad_pin_num);
+	plat_warn_message("PINTMUX service: Pin number %d does not exist", pad_pin_num);
 
 	return false;
 }
@@ -247,18 +248,18 @@ int plat_secure_pintmux_map(unsigned int gpio, bool is_secure, bool pos_mask, ui
 
 	pinctrl_addr = plat_get_pintmux_to_pinctrl_mapping(base_addr);
 	if (pinctrl_addr == PINTMUX_MAPPING_BAD_ADDRESS) {
-		WARN("PINTMUX: Bad base address for GPIO pinmux\n");
+		plat_warn_message("PINTMUX: Bad base address for GPIO pinmux");
 		return ERR_LOOKUP_FAIL;
 	}
 
 	pin = plat_pinctrl_gpio_to_pin(gpio, is_secure, pinctrl_addr);
 	if (pin < 0) {
-		WARN("PINTMUX service: Pin %u does not exist or is not configured as GPIO_%s_%u.\n", gpio, is_secure ? "S" : "NS", gpio);
+		plat_warn_message("PINTMUX service: Pin %u does not exist or is not configured as GPIO_%s_%u.", gpio, is_secure ? "S" : "NS", gpio);
 		return ERR_LOOKUP_FAIL;
 	}
 
 	if (!is_secure && plat_pin_is_secure(pin)) {
-		WARN("PINTMUX service: Request rejected (request coming from non-secure world for a secure pin (%d)\n", gpio);
+		plat_warn_message("PINTMUX service: Request rejected (request coming from non-secure world for a secure pin (%d)", gpio);
 		return ERR_LOOKUP_FAIL;
 	}
 
@@ -270,7 +271,7 @@ int plat_secure_pintmux_map(unsigned int gpio, bool is_secure, bool pos_mask, ui
 			continue;
 		map_status = plat_pintmux_map_update(lane, pin, pos_mask, base_addr);
 		if (map_status < 0) {
-			ERROR("PINTMUX service: Failed to map GPIO_%s_%u - already mapped or no lanes available.\n", is_secure ? "S" : "NS", gpio);
+			plat_error_message("PINTMUX service: Failed to map GPIO_%s_%u - already mapped or no lanes available.", is_secure ? "S" : "NS", gpio);
 			return map_status;
 		}
 		return lane;
@@ -293,22 +294,22 @@ int plat_secure_pintmux_unmap(unsigned int gpio, bool is_secure, uintptr_t base_
 
 	pinctrl_addr = plat_get_pintmux_to_pinctrl_mapping(base_addr);
 	if (pinctrl_addr == PINTMUX_MAPPING_BAD_ADDRESS) {
-		WARN("PINTMUX: Bad base address for GPIO pinmux\n");
+		plat_warn_message("PINTMUX: Bad base address for GPIO pinmux");
 		return ERR_LOOKUP_FAIL;
 	}
 
 	pin = plat_pinctrl_gpio_to_pin(gpio, is_secure, pinctrl_addr);
 	if (pin < 0) {
-		WARN("PINTMUX service: Pin %u does not exist or is not configured as GPIO_%s_%u.\n", gpio, is_secure ? "S" : "NS", gpio);
+		plat_warn_message("PINTMUX service: Pin %u does not exist or is not configured as GPIO_%s_%u.", gpio, is_secure ? "S" : "NS", gpio);
 		return ERR_LOOKUP_FAIL;
 	}
 	lane = plat_pintmux_get_lane(pin, base_addr);
 	if (lane < 0) {
-		WARN("PINTMUX service: GPIO_%s_%u (Pin %u) is not mapped.\n", is_secure ? "S" : "NS", gpio, pin);
+		plat_warn_message("PINTMUX service: GPIO_%s_%u (Pin %u) is not mapped.", is_secure ? "S" : "NS", gpio, pin);
 		return ERR_NOT_MAPPED;
 	}
 	if (plat_pintmux_is_lane_secure((unsigned int)lane, base_addr) != is_secure) {
-		WARN("PINTMUX service: GPIO_%s_%u (Pin %u) security state mis-match.\n", is_secure ? "S" : "NS", gpio, pin);
+		plat_warn_message("PINTMUX service: GPIO_%s_%u (Pin %u) security state mis-match.", is_secure ? "S" : "NS", gpio, pin);
 		return ERR_SECURITY;
 	}
 	if (!plat_pintmux_is_lane_mapped(lane, base_addr))
@@ -316,7 +317,7 @@ int plat_secure_pintmux_unmap(unsigned int gpio, bool is_secure, uintptr_t base_
 
 	map_status = plat_pintmux_map_update(lane, PINTMUX_LANE_DISABLED, true, base_addr);
 	if (map_status < 0) {
-		ERROR("PINTMUX service: Failed to un-map GPIO_%s_%u.\n", is_secure ? "S" : "NS", gpio);
+		plat_error_message("PINTMUX service: Failed to un-map GPIO_%s_%u.", is_secure ? "S" : "NS", gpio);
 		return map_status;
 	}
 	return lane;

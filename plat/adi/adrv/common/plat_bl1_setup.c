@@ -98,7 +98,7 @@ static void plat_load_fw_config(void)
 	VERBOSE("Loading FW_CONFIG\n");
 	err = load_auth_image(FW_CONFIG_ID, &config_image_info);
 	if (err != 0) {
-		ERROR("Loading of FW_CONFIG failed %d\n", err);
+		plat_error_message("Loading of FW_CONFIG failed %d", err);
 		plat_error_handler(err);
 	}
 

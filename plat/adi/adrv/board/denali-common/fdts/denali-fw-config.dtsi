@@ -36,6 +36,10 @@
 		               3 - 2949 MHz (11GHz / 4) */
 	};
 
+	error-log {
+		errors = <0>;
+	};
+
 	secure-partitioning {
 		/* Fill in the list with peripherals that should only be accessed from secure world.
 		   Note: that applies only to peripherals exposed in adrv906x_device_profile header file

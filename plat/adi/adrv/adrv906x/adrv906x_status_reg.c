@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Analog Devices Incorporated - All Rights Reserved
+ * Copyright (c) 2024, Analog Devices Incorporated - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -11,6 +11,7 @@
 
 #include <adrv906x_def.h>
 #include <adrv906x_status_reg.h>
+#include <plat_err.h>
 #include <plat_status_reg.h>
 
 /* These values MUST MATCH the implementation in the following repos
@@ -45,7 +46,7 @@ uint32_t plat_rd_status_reg(plat_status_reg_id_t reg)
 		return mmio_read_32(A55_SYS_CFG + SCRATCH + LAST_SLOT_OFFSET);
 
 	default:
-		WARN("Not a valid status register\n");
+		plat_warn_message("Not a valid status register");
 		return 0;
 	}
 }
@@ -75,7 +76,7 @@ bool plat_wr_status_reg(plat_status_reg_id_t reg, uint32_t value)
 		break;
 
 	default:
-		WARN("Not a valid status register\n");
+		plat_warn_message("Not a valid status register");
 		return false;
 	}
 	return true;

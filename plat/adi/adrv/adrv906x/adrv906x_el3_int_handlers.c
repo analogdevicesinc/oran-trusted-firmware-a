@@ -13,6 +13,7 @@
 #include <plat/common/platform.h>
 #include <lib/extensions/ras.h>
 
+#include <plat_err.h>
 #include <plat_errno.h>
 #include <plat_interrupts.h>
 
@@ -31,19 +32,19 @@ static interrupt_type_handler_t secondary_gpint_interrupt_table[TOTAL_GPINTS] = 
 static void __unused plat_request_gpint_intr(uint32_t id, interrupt_type_handler_t handler, bool secondary){
 	/* Validate 'handler' and 'id' parameters */
 	if (id >= TOTAL_GPINTS) {
-		WARN("Requested GPINT event handler number outside allowed range.");
+		plat_warn_message("Requested GPINT event handler number outside allowed range.");
 		return;
 	}
 
 	if (!handler) {
-		WARN("No handler given.");
+		plat_warn_message("No handler given.");
 		return;
 	}
 
 	if (secondary) {
 		/* Check if a handler has already been registered */
 		if (secondary_gpint_interrupt_table[id]) {
-			WARN("Handler already exists for this secondary GPINT event.");
+			plat_warn_message("Handler already exists for this secondary GPINT event.");
 			return;
 		}
 
@@ -51,7 +52,7 @@ static void __unused plat_request_gpint_intr(uint32_t id, interrupt_type_handler
 	} else {
 		/* Check if a handler has already been registered */
 		if (primary_gpint_interrupt_table[id]) {
-			WARN("Handler already exists for this primary GPINT event.");
+			plat_warn_message("Handler already exists for this primary GPINT event.");
 			return;
 		}
 
@@ -87,13 +88,13 @@ static uint64_t gpint_handler(uint32_t id, uint32_t flags, void *handle, void *c
 
 				if (status != 0) {
 					if (gpint_addr == DIG_CORE_BASE)
-						ERROR("sdei_dispatch_event for event %d returned %d\n", GPINT_DEFAULT_SDEI_EVENT + i + GPINT_INTS_PER_WORD, status);
+						plat_error_message("sdei_dispatch_event for event %d returned %d", GPINT_DEFAULT_SDEI_EVENT + i + GPINT_INTS_PER_WORD, status);
 					else
-						ERROR("sdei_dispatch_event for event %d returned %d\n", SEC_GPINT_DEFAULT_SDEI_EVENT + i + GPINT_INTS_PER_WORD, status);
+						plat_error_message("sdei_dispatch_event for event %d returned %d", SEC_GPINT_DEFAULT_SDEI_EVENT + i + GPINT_INTS_PER_WORD, status);
 					ret = 1;
 				}
 #else
-				ERROR("Unhandled GPINT interrupt: %d\n", i);
+				plat_error_message("Unhandled GPINT interrupt: %d", i);
 #endif
 			} else {
 				if (gpint_addr == DIG_CORE_BASE)
@@ -101,7 +102,7 @@ static uint64_t gpint_handler(uint32_t id, uint32_t flags, void *handle, void *c
 				else
 					handler = secondary_gpint_interrupt_table[i + GPINT_INTS_PER_WORD];
 				if (handler == NULL)
-					ERROR("No handler for GPINT event %d\n", i);
+					plat_error_message("No handler for GPINT event %d", i);
 				else
 					ret = handler(i + GPINT_INTS_PER_WORD, flags, handle, cookie);
 			}
@@ -117,13 +118,13 @@ static uint64_t gpint_handler(uint32_t id, uint32_t flags, void *handle, void *c
 
 				if (status != 0) {
 					if (gpint_addr == DIG_CORE_BASE)
-						ERROR("sdei_dispatch_event for event %d returned %d\n", GPINT_DEFAULT_SDEI_EVENT + i, status);
+						plat_error_message("sdei_dispatch_event for event %d returned %d", GPINT_DEFAULT_SDEI_EVENT + i, status);
 					else
-						ERROR("sdei_dispatch_event for event %d returned %d\n", SEC_GPINT_DEFAULT_SDEI_EVENT + i, status);
+						plat_error_message("sdei_dispatch_event for event %d returned %d", SEC_GPINT_DEFAULT_SDEI_EVENT + i, status);
 					ret = 1;
 				}
 #else
-				ERROR("Unhandled GPINT interrupt: %d\n", i);
+				plat_error_message("Unhandled GPINT interrupt: %d", i);
 #endif
 			} else {
 				if (gpint_addr == DIG_CORE_BASE)
@@ -132,7 +133,7 @@ static uint64_t gpint_handler(uint32_t id, uint32_t flags, void *handle, void *c
 					handler = secondary_gpint_interrupt_table[i];
 
 				if (handler == NULL)
-					ERROR("No handler for GPINT event %d\n", i);
+					plat_error_message("No handler for GPINT event %d", i);
 				else
 					ret = handler(i, flags, handle, cookie);
 			}
@@ -164,7 +165,7 @@ static uint64_t ddr_ecc_uncorrected_err_handler(uint32_t id, uint32_t flags, voi
 
 static uint64_t ddr_ap_err_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
 {
-	WARN("DDR Address Protection errors have exceeded threshold\n");
+	plat_warn_message("DDR Address Protection errors have exceeded threshold");
 	adrv906x_ddr_clear_ap_error(DDR_CTL_BASE);
 	return 0;
 }
@@ -179,16 +180,16 @@ static uint64_t ddr_phy_err_handler(uint32_t id, uint32_t flags, void *handle, v
 {
 	switch (id) {
 	case IRQ_O_DFI_INTERNAL_ERR_INTR:
-		ERROR("DFI internal error detected, resetting the board\n");
+		plat_error_message("DFI internal error detected, resetting the board");
 		break;
 	case IRQ_O_DFI_PHYUPD_ERR_INTR:
-		ERROR("DFI PHY update error detected, resetting the board\n");
+		plat_error_message("DFI PHY update error detected, resetting the board");
 		break;
 	case IRQ_O_DFI_ALERT_ERR_INTR:
-		ERROR("DFI alert error detected, resetting the board\n");
+		plat_error_message("DFI alert error detected, resetting the board");
 		break;
 	case IRQ_O_DWC_DDRPHY_INT_N:
-		ERROR("DWC DDRPHY interrupt detected, resetting the board\n");
+		plat_error_message("DWC DDRPHY interrupt detected, resetting the board");
 		break;
 	}
 
@@ -217,11 +218,11 @@ static uint64_t cache_l1l2_fault_handler(uint32_t id, uint32_t flags, void *hand
 		core = 3;
 		break;
 	default:
-		ERROR("Invalid int id for handler.\n");
+		plat_error_message("Invalid int id for handler.");
 		return -1;
 	}
 
-	WARN("ECC error detected in L1/L2 cache on core %d.\n", core);
+	plat_warn_message("ECC error detected in L1/L2 cache on core %d.", core);
 
 	return 0;
 }
@@ -254,10 +255,10 @@ static uint64_t __unused cache_l1l2_error_handler(uint32_t id, uint32_t flags, v
 		core = 3;
 		break;
 	default:
-		ERROR("Invalid int id for handler.\n");
+		plat_error_message("Invalid int id for handler.");
 		return -1;
 	}
-	ERROR("Uncorrectable error detected in L1/L2 cache on core %d, resetting the board\n", core);
+	plat_error_message("Uncorrectable error detected in L1/L2 cache on core %d, resetting the board", core);
 
 	/* Reset the board after logging error */
 	plat_error_handler(-ECECC);
@@ -267,7 +268,7 @@ static uint64_t __unused cache_l1l2_error_handler(uint32_t id, uint32_t flags, v
 
 /* Handler for uncorrectable ECC errors in the L3 cache */
 static uint64_t __unused cache_l3_error_handler(uint32_t id, uint32_t flags, void *handle, void *cookie){
-	ERROR("Uncorrectable error detected in L3 cache, resetting the board\n");
+	plat_error_message("Uncorrectable error detected in L3 cache, resetting the board");
 
 	/* Reset the board after logging error */
 	plat_error_handler(-ECECC);
@@ -300,7 +301,7 @@ static uint64_t l4_warning_handler(uint32_t id, uint32_t flags, void *handle, vo
 		base_addr = SEC_L4CTL_CFG2_BASE;
 		break;
 	default:
-		ERROR("Can't match int id to L4 base address.\n");
+		plat_error_message("Can't match int id to L4 base address.");
 		return -1;
 	}
 
@@ -333,7 +334,7 @@ static uint64_t __unused l4_error_handler(uint32_t id, uint32_t flags, void *han
 		base_addr = SEC_L4CTL_CFG2_BASE;
 		break;
 	default:
-		ERROR("Can't match int id to L4 base address.\n");
+		plat_error_message("Can't match int id to L4 base address.");
 		return -1;
 	}
 

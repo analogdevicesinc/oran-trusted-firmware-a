@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2024, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -11,6 +11,7 @@
 #include <adrv906x_ddr.h>
 #include <adrv906x_device_profile.h>
 #include <adrv906x_nic_def.h>
+#include <plat_err.h>
 
 #define ATE_FW_ADDR 0x00100000
 #define ATE_FW_SIZE 0x7FFF
@@ -55,8 +56,8 @@ bool adrv906x_ddr_log_correctable_error(uintptr_t base_addr_ctrl)
 
 	status = ddr_get_ecc_error_info(base_addr_ctrl, true, &data);
 	if (status)
-		ERROR("DDR Correctable Error: Rank: %d, Row: %d, Bank Group: %d, Bank: %d, Block: %d, Corrected bit num: %d, Error Count:%d\n",
-		      data.rank, data.row, data.bank_group, data.bank, data.block, data.corrected_bit_num, data.error_count);
+		plat_error_message("DDR Correctable Error: Rank: %d, Row: %d, Bank Group: %d, Bank: %d, Block: %d, Corrected bit num: %d, Error Count:%d",
+				   data.rank, data.row, data.bank_group, data.bank, data.block, data.corrected_bit_num, data.error_count);
 	else
 		INFO("No DDR ECC correctable error.\n");
 
@@ -70,8 +71,8 @@ bool adrv906x_ddr_log_uncorrectable_error(uintptr_t base_addr_ctrl)
 
 	status = ddr_get_ecc_error_info(base_addr_ctrl, false, &data);
 	if (status)
-		ERROR("DDR Uncorrectable Error: Rank: %d, Row: %d, Bank Group: %d, Bank: %d, Block: %d, Error Count:%d\n",
-		      data.rank, data.row, data.bank_group, data.bank, data.block, data.error_count);
+		plat_error_message("DDR Uncorrectable Error: Rank: %d, Row: %d, Bank Group: %d, Bank: %d, Block: %d, Error Count:%d",
+				   data.rank, data.row, data.bank_group, data.bank, data.block, data.error_count);
 	else
 		INFO("No DDR uncorrectable ECC error found.\n");
 
@@ -140,7 +141,7 @@ int adrv906x_ddr_init(void)
 	ecc = plat_is_primary_ecc_enabled();
 	err = ddr_init(DDR_CTL_BASE, DDR_PHY_BASE, DDR_ADI_INTERFACE_BASE, CLK_CTL, DRAM_BASE, plat_get_dram_physical_size(), plat_get_primary_ddr_remap_window_size(), ddr_dfi_pad_sequence, ddr_phy_pad_sequence, DDR_INIT_FULL, DDR_PRIMARY_CONFIGURATION, ecc);
 	if (err) {
-		ERROR("Failed to initialize primary DDR %d\n", err);
+		plat_error_message("Failed to initialize primary DDR %d", err);
 		return err;
 	}
 
@@ -150,7 +151,7 @@ int adrv906x_ddr_init(void)
 			ecc = plat_is_secondary_ecc_enabled();
 			err = ddr_init(SEC_DDR_CTL_BASE, SEC_DDR_PHY_BASE, SEC_DDR_ADI_INTERFACE_BASE, SEC_CLK_CTL, plat_get_secondary_dram_base(), plat_get_secondary_dram_physical_size(), plat_get_secondary_ddr_remap_window_size(), ddr_dfi_pad_sequence, ddr_phy_pad_sequence, DDR_INIT_FULL, DDR_SECONDARY_CONFIGURATION, ecc);
 			if (err) {
-				ERROR("Failed to initialize secondary DDR %d\n", err);
+				plat_error_message("Failed to initialize secondary DDR %d", err);
 				plat_set_dual_tile_disabled();
 				return err;
 			}
@@ -213,32 +214,32 @@ void adrv906x_ddr_set_custom_parameters(ddr_custom_values_t *values)
 void adrv906x_ddr_mux_set_output(uintptr_t base_addr_phy, uintptr_t base_addr_adi_interface, uintptr_t base_addr_clk, uint8_t group, uint8_t instance, uint8_t source)
 {
 	if (group > 2) {
-		ERROR("Invalid group, expected value 0-2\n");
+		plat_error_message("Invalid group, expected value 0-2");
 		return;
 	}
 
 	switch (group) {
 	case DDR_MASTER0:
 		if (instance != 0) {
-			ERROR("Invalid instance. Acceptable values: 0");
+			plat_error_message("Invalid instance. Acceptable values: 0");
 			return;
 		}
 		break;
 	case DDR_ANIB:
 		if (instance > 11) {
-			ERROR("Invalid instance. Acceptable values: 0-11");
+			plat_error_message("Invalid instance. Acceptable values: 0-11");
 			return;
 		}
 		break;
 	case DDR_DBYTE:
 		if (instance > 1) {
-			ERROR("Invalid instance. Acceptable values: 0-1");
+			plat_error_message("Invalid instance. Acceptable values: 0-1");
 			return;
 		}
 		break;
 	default:
 		/* The invalid group should already be caught above, but just incase we'll check again */
-		ERROR("Invalid group specified, try again\n");
+		plat_error_message("Invalid group specified, try again");
 		return;
 	}
 

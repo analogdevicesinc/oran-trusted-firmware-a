@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Analog Devices Incorporated. All rights reserved.
+ * Copyright (c) 2024, Analog Devices Incorporated. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -154,7 +154,7 @@ static void init_sysref(void)
 
 		/* Init zl30732 chip */
 		if (!adi_zl30732_init(ZL30732_SPI_BASE_ADDRESS, clk_get_freq(CLK_CTL, CLK_ID_SYSCLK))) {
-			ERROR("Cannot init ZL30732 SPI.\n");
+			plat_error_message("Cannot init ZL30732 SPI.");
 			plat_error_handler(-ENXIO);
 		}
 		init_done = true;
@@ -378,7 +378,7 @@ static void __dead2 plat_board_psci_system_off(void)
 	mdelay(55);
 	gpio_set_value(A55_GPIO_S_102_PIN, GPIO_LEVEL_LOW);
 	mdelay(1000);
-	ERROR("System Off failed");
+	plat_error_message("System Off failed");
 	panic();
 }
 
@@ -391,7 +391,7 @@ void __dead2 plat_board_system_reset(void)
 	plat_secure_wdt_ping(); /* Make sure WDT doesn't expire while delaying below */
 	gpio_set_value(A55_GPIO_S_102_PIN, GPIO_LEVEL_HIGH);
 	mdelay(1050);
-	ERROR("System Reset failed\n");
+	plat_error_message("System Reset failed");
 	panic();
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Analog Devices Incorporated - All Rights Reserved
+ * Copyright (c) 2024, Analog Devices Incorporated - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -14,6 +14,7 @@
 #include <adrv906x_device_profile.h>
 #include <adrv906x_pinctrl.h>
 #include <adrv906x_pin_def.h>
+#include <plat_err.h>
 #include <plat_pinctrl.h>
 #include <plat_pinctrl_svc.h>
 #include <platform_def.h>
@@ -39,7 +40,7 @@ static bool plat_pin_is_secure(uint32_t pad_pin_num)
 	if (pad_pin_num < len)
 		return pin_list[pad_pin_num];
 
-	WARN("PINCTRL: Pin number %d does not exist", pad_pin_num);
+	plat_warn_message("PINCTRL: Pin number %d does not exist", pad_pin_num);
 
 	return false;
 }
@@ -62,12 +63,12 @@ bool plat_secure_pinctrl_set(const plat_pinctrl_settings settings, const bool se
 	if (base_addr == SEC_PINCTRL_BASE) {
 		if (!plat_get_dual_tile_enabled()) {
 			/*Can only try to set up secondary pinctrl if secondary actually exists*/
-			WARN("PINCTRL: Secondary tile must be enabled to use secondary base address");
+			plat_warn_message("PINCTRL: Secondary tile must be enabled to use secondary base address");
 			return false;
 		}
 	} else if (base_addr != PINCTRL_BASE) {
 		/*Base address isn't PINCTRL_BASE or SEC_PINCTRL_BASE, immediately exit*/
-		WARN("PINCTRL: Unknown base address for GPIO pinmux");
+		plat_warn_message("PINCTRL: Unknown base address for GPIO pinmux");
 		return false;
 	}
 
@@ -80,7 +81,7 @@ bool plat_secure_pinctrl_set(const plat_pinctrl_settings settings, const bool se
 	 * Verify the pin# is in range
 	 */
 	if (settings.pin_pad >= ADRV906X_PIN_COUNT && !ADRV906X_IS_DIO_PIN(settings.pin_pad)) {
-		WARN("PINCTRL: Request Pin # = %d out of range \n", settings.pin_pad);
+		plat_warn_message("PINCTRL: Request Pin # = %d out of range ", settings.pin_pad);
 		return false;
 	}
 
@@ -88,7 +89,7 @@ bool plat_secure_pinctrl_set(const plat_pinctrl_settings settings, const bool se
 	 * Verify that non-dedicated IO have a valid src mux specified
 	 */
 	if (!ADRV906X_IS_DIO_PIN(settings.pin_pad) && settings.src_mux >= ADRV906X_PINMUX_SRC_PER_PIN) {
-		WARN("PINCTRL: Invalid source mux value: %u specified for pin# %u\n", settings.src_mux, settings.pin_pad);
+		plat_warn_message("PINCTRL: Invalid source mux value: %u specified for pin# %u", settings.src_mux, settings.pin_pad);
 		return false;
 	}
 
@@ -96,7 +97,7 @@ bool plat_secure_pinctrl_set(const plat_pinctrl_settings settings, const bool se
 	 * Verify the incoming pin_source is withing range
 	 */
 	if (settings.src_mux >= ADRV906X_PINMUX_SRC_PER_PIN && settings.src_mux != ADRV906X_DIO_MUX_NONE) {
-		WARN("PINCTRL: Invalid source mux value: %u \n", settings.src_mux);
+		plat_warn_message("PINCTRL: Invalid source mux value: %u ", settings.src_mux);
 		return false;
 	}
 
@@ -105,7 +106,7 @@ bool plat_secure_pinctrl_set(const plat_pinctrl_settings settings, const bool se
 	 */
 	if (!ADRV906X_IS_DIO_PIN(settings.pin_pad)) {
 		if ((pinmux_config[settings.pin_pad][settings.src_mux] >= ADRV906X_PINMUX_NUM_SRCS) || (pinmux_config[settings.pin_pad][settings.src_mux] == NO_SIGNAL)) {
-			WARN("PINCTRL: Invalid source %d requested \n", pinmux_config[settings.pin_pad][settings.src_mux]);
+			plat_warn_message("PINCTRL: Invalid source %d requested ", pinmux_config[settings.pin_pad][settings.src_mux]);
 			return false;
 		}
 	}
@@ -114,7 +115,7 @@ bool plat_secure_pinctrl_set(const plat_pinctrl_settings settings, const bool se
 	 * Prohibit normal world from configuring secure IO
 	 */
 	if (!secure_access && plat_pin_is_secure(settings.pin_pad)) {
-		WARN("PINCTRL: Normal World request to configure secure Pin # = %d \n", settings.pin_pad);
+		plat_warn_message("PINCTRL: Normal World request to configure secure Pin # = %d ", settings.pin_pad);
 		return false;
 	}
 	/*
@@ -166,12 +167,12 @@ bool plat_secure_pinctrl_get(plat_pinctrl_settings *settings, const bool secure_
 	if (base_addr == SEC_PINCTRL_BASE) {
 		if (!plat_get_dual_tile_enabled()) {
 			/*Can only try to set up secondary pinctrl if secondary actually exists*/
-			WARN("PINCTRL: Secondary tile must be enabled to use secondary base address\n");
+			plat_warn_message("PINCTRL: Secondary tile must be enabled to use secondary base address");
 			return false;
 		}
 	} else if (base_addr != PINCTRL_BASE) {
 		/*Base address isn't PINCTRL_BASE or SEC_PINCTRL_BASE, immediately exit*/
-		WARN("PINCTRL: Unknown base address for GPIO pinmux\n");
+		plat_warn_message("PINCTRL: Unknown base address for GPIO pinmux");
 		return false;
 	}
 
@@ -179,7 +180,7 @@ bool plat_secure_pinctrl_get(plat_pinctrl_settings *settings, const bool secure_
 	 * Verify the pin# is in range
 	 */
 	if (settings->pin_pad >= ADRV906X_PIN_COUNT && !ADRV906X_IS_DIO_PIN(settings->pin_pad)) {
-		WARN("PINCTRL: Request Pin # = %d out of range \n", settings->pin_pad);
+		plat_warn_message("PINCTRL: Request Pin # = %d out of range ", settings->pin_pad);
 		return false;
 	}
 
@@ -187,7 +188,7 @@ bool plat_secure_pinctrl_get(plat_pinctrl_settings *settings, const bool secure_
 	 * Verify that non-dedicated IO have a valid src mux specified
 	 */
 	if (!ADRV906X_IS_DIO_PIN(settings->pin_pad) && settings->src_mux >= ADRV906X_PINMUX_SRC_PER_PIN) {
-		WARN("PINCTRL: Invalid source mux value: %u specified for pin# %u\n", settings->src_mux, settings->pin_pad);
+		plat_warn_message("PINCTRL: Invalid source mux value: %u specified for pin# %u", settings->src_mux, settings->pin_pad);
 		return false;
 	}
 
@@ -195,7 +196,7 @@ bool plat_secure_pinctrl_get(plat_pinctrl_settings *settings, const bool secure_
 	 * Verify the incoming pin_source is withing range
 	 */
 	if (settings->src_mux >= ADRV906X_PINMUX_SRC_PER_PIN && settings->src_mux != ADRV906X_DIO_MUX_NONE) {
-		WARN("PINCTRL: Invalid source mux value: %u \n", settings->src_mux);
+		plat_warn_message("PINCTRL: Invalid source mux value: %u ", settings->src_mux);
 		return false;
 	}
 
@@ -204,7 +205,7 @@ bool plat_secure_pinctrl_get(plat_pinctrl_settings *settings, const bool secure_
 	 */
 	if (!ADRV906X_IS_DIO_PIN(settings->pin_pad)) {
 		if ((pinmux_config[settings->pin_pad][settings->src_mux] >= ADRV906X_PINMUX_NUM_SRCS) || (pinmux_config[settings->pin_pad][settings->src_mux] == NO_SIGNAL)) {
-			WARN("PINCTRL: Invalid source %d requested \n", pinmux_config[settings->pin_pad][settings->src_mux]);
+			plat_warn_message("PINCTRL: Invalid source %d requested ", pinmux_config[settings->pin_pad][settings->src_mux]);
 			return false;
 		}
 	}
@@ -213,7 +214,7 @@ bool plat_secure_pinctrl_get(plat_pinctrl_settings *settings, const bool secure_
 	 * Prohibit normal world from configuring secure IO
 	 */
 	if (!secure_access && plat_pin_is_secure(settings->pin_pad)) {
-		WARN("PINCTRL: Normal World request to configure secure Pin # = %d \n", settings->pin_pad);
+		plat_warn_message("PINCTRL: Normal World request to configure secure Pin # = %d ", settings->pin_pad);
 		return false;
 	}
 	/*
@@ -275,7 +276,7 @@ bool plat_secure_pinctrl_set_group(const plat_pinctrl_settings pin_group_setting
 
 	for (group_member = 0U; group_member < pin_grp_members; group_member++) {
 		if (!plat_secure_pinctrl_set(pin_group_settings[group_member], secure_access, base_addr)) {
-			WARN("<<Error>> plat_secure_pinctrl_set_group: plat_secure_pinctrl_set returned error\n");
+			plat_warn_message("<<Error>> plat_secure_pinctrl_set_group: plat_secure_pinctrl_set returned error");
 			return false;
 		}
 	}

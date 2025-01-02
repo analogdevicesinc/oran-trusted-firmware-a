@@ -20,6 +20,7 @@
 #include <plat_bootctrl.h>
 #include <plat_console.h>
 #include <plat_device_profile.h>
+#include <plat_err.h>
 #include <plat_io_storage.h>
 #include <plat_mmap.h>
 #include <plat_security.h>
@@ -110,7 +111,7 @@ void bl2_platform_setup(void)
 	/* Confirm DRAM size is sufficient before continuing */
 	dram_size = plat_get_dram_size();
 	if (dram_size < DRAM_SIZE_MIN) {
-		ERROR("DRAM size 0x%lx is too small. Must be at least 0x%lx bytes.\n", dram_size, DRAM_SIZE_MIN);
+		plat_error_message("DRAM size 0x%lx is too small. Must be at least 0x%lx bytes.", dram_size, DRAM_SIZE_MIN);
 		plat_error_handler(-ENOMEM);
 	}
 

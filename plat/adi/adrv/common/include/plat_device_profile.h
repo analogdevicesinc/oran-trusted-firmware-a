@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2021, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2024, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -11,6 +11,7 @@
 #define ETH_LEN                           6     // Bytes
 
 #define MAX_NODE_NAME_LENGTH             30
+#define MAX_NODE_STRING_LENGTH             200
 
 /* Declared in platform.h, but mentioned here for consistency.
  * unsigned int plat_get_syscnt_freq2(void);
@@ -29,5 +30,11 @@ bool plat_is_sysc(void);
 bool plat_is_bootrom_bypass_enabled(void);
 
 size_t plat_get_dram_size(void);
+
+/* Device tree error logging functions */
+void plat_set_fw_config_error_log(char *input);
+uint32_t plat_get_fw_config_error_num(void);
+int get_fw_config_num_node_properties(const char *node_name);
+const void *get_fw_config_error_log_prop(int *property_offset, char **name, int *length);
 
 #endif /* PLAT_DEVICE_PROFILE_H */

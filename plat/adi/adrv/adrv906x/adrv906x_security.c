@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Analog Devices Incorporated, All Rights Reserved
+ * Copyright (c) 2024, Analog Devices Incorporated, All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -13,6 +13,7 @@
 #include <adrv906x_spu_def.h>
 #include <plat_common_def.h>
 #include <plat_boot.h>
+#include <plat_err.h>
 #include <plat_security.h>
 
 /* Each Adrv906x L4 TZC only covers a 2MB window of the total 6MB L4 SRAM:
@@ -238,7 +239,7 @@ static void adrv906x_override_secure_spi_spu(uint32_t index)
 
 	/* Sanity check */
 	if (index > (FW_CONFIG_PERIPH_SPI5 - FW_CONFIG_PERIPH_SPI0)) {
-		ERROR("SPI entry too large");
+		plat_error_message("SPI entry too large");
 		return;
 	}
 
@@ -284,13 +285,13 @@ static void adrv906x_customer_override_spu(void)
 
 	/* Sanity check */
 	if (FW_CONFIG_PERIPH_NUM_MAX != sizeof(spu_slave_periph_map) / sizeof(enum spu_a55mmr_peripheral_ids)) {
-		ERROR("sou_periph_map list size is not correct");
+		plat_error_message("sou_periph_map list size is not correct");
 		return;
 	}
 
 	secure_peripherals = plat_get_secure_peripherals(&len);
 	if (secure_peripherals == NULL) {
-		ERROR("Invalid pointer to the secure_peripheral list");
+		plat_error_message("Invalid pointer to the secure_peripheral list");
 		return;
 	}
 

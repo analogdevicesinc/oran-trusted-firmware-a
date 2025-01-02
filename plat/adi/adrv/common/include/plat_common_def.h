@@ -123,7 +123,7 @@
  * BL2 specific defines.
  */
 #ifndef BL2_MAX_SIZE
-#define BL2_MAX_SIZE                    UL(0x71000)                             /* 452 KB max for BL2 */
+#define BL2_MAX_SIZE                    UL(0x72000)                             /* 456 KB max for BL2 */
 #endif
 #define BL2_BASE                        (BL1_RW_BASE - BL2_MAX_SIZE)            /* Place BL2 directly before BL1 RW */
 #define BL2_LIMIT                       (BL2_BASE + BL2_MAX_SIZE)
@@ -142,7 +142,7 @@
 #define BL31_LIMIT                      (BL31_BASE + BL1_RW_MAX_SIZE + BL2_MAX_SIZE)
 #else
 #ifndef BL31_MAX_SIZE
-#define BL31_MAX_SIZE                   UL(0x31000)                               /* 196 KB max for BL31 */
+#define BL31_MAX_SIZE                   UL(0x33000)                               /* 204 KB max for BL31 */
 #endif
 #define BL31_BASE                       (BL2_BASE - BL31_MAX_SIZE)
 #define BL31_LIMIT                      (BL31_BASE + BL31_MAX_SIZE)

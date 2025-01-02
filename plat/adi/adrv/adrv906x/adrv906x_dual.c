@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Analog Devices Incorporated - All Rights Reserved
+ * Copyright (c) 2024, Analog Devices Incorporated - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -19,6 +19,7 @@
 #include <adrv906x_dual.h>
 #include <adrv906x_mmap.h>
 #include <adrv906x_secondary_image.h>
+#include <plat_err.h>
 #include <platform_def.h>
 
 /* training setup parameters */
@@ -147,7 +148,7 @@ int adrv906x_enable_secondary_tile(void)
 	timeout = timeout_init_us(SECONDARY_TE_HOST_BOOT_TIMEOUT_US);
 	while (!adi_enclave_is_host_boot_ready(SEC_TE_MAILBOX_BASE)) {
 		if (timeout_elapsed(timeout)) {
-			WARN("Timed out waiting for secondary TE to be ready.\n");
+			plat_warn_message("Timed out waiting for secondary TE to be ready.");
 			return -ETIMEDOUT;
 		}
 	}

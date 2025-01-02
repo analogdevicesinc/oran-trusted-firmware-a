@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Analog Devices Incorporated. All rights reserved.
+ * Copyright (c) 2024, Analog Devices Incorporated. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -13,6 +13,7 @@
 #include <plat_io_storage.h>
 #include <platform_def.h>
 #include <plat_bootcfg.h>
+#include <plat_err.h>
 
 #define PLAT_BOOTCFG_VERSION 0x00000001
 #define DT_BLOCK_SIZE   4
@@ -54,7 +55,7 @@ int plat_bootcfg_init(void)
 
 	result = plat_get_partition_spec(cfg_partition_id, &cfg_spec);
 	if (result != 0) {
-		ERROR("Unable to find the %s partition\n", cfg_partition_id);
+		plat_error_message("Unable to find the %s partition", cfg_partition_id);
 		return -1;
 	} else {
 		spec = &cfg_spec;
@@ -81,7 +82,7 @@ int plat_bootcfg_init(void)
 		}
 	}
 	if (result != 0) {
-		ERROR("Unable to read bootcfg partition\n");
+		plat_error_message("Unable to read bootcfg partition");
 		return -1;
 	}
 	if (bootcfg.dtb_size == 0 || bootcfg.dtb_size == 0xFFFFFFFF) {
@@ -89,15 +90,15 @@ int plat_bootcfg_init(void)
 		return -1;
 	}
 	if (bootcfg.dtb_size > BOOTCFG_MAX_SIZE) {
-		ERROR("Bootcfg size is too big\n");
+		plat_error_message("Bootcfg size is too big");
 		return -1;
 	}
 	if (bootcfg.dtb_size % DT_BLOCK_SIZE != 0) {
-		ERROR("Invalid dtb size\n");
+		plat_error_message("Invalid dtb size");
 		return -1;
 	}
 	if (length_read != (bootcfg.dtb_size)) {
-		ERROR("Incorrect bootcfg dtb size read\n");
+		plat_error_message("Incorrect bootcfg dtb size read");
 		return -1;
 	}
 
@@ -119,20 +120,20 @@ int plat_bootcfg_init(void)
 
 	/* Verify bootcfg crc */
 	if (bootcfg.crc32 != crc) {
-		ERROR("Corrupt bootcfg\n");
+		plat_error_message("Corrupt bootcfg");
 		return -1;
 	}
 
 	/* Verify bootcfg version */
 	if (bootcfg.version != PLAT_BOOTCFG_VERSION) {
-		ERROR("Bootcfg version does not match\n");
+		plat_error_message("Bootcfg version does not match");
 		return -1;
 	}
 
 	/* Verify bootcfg device tree format is valid */
 	err = fdt_check_header(bootcfg_dtb);
 	if (err < 0) {
-		ERROR("Bootcfg device tree format is invalid\n");
+		plat_error_message("Bootcfg device tree format is invalid");
 		return -1;
 	}
 
@@ -141,7 +142,7 @@ int plat_bootcfg_init(void)
 	if (node >= 0) {
 		err = fdt_read_uint32(bootcfg_dtb, node, "status", &factory_reset);
 		if (err < 0)
-			WARN("Unable to read param '%s' from node '%s' in bootcfg\n", "status", "/factory-reset");
+			plat_warn_message("Unable to read param `status` from node `/factory-reset` in bootcfg");
 	}
 
 	/* If factory reset is enabled, 1, clear the bootcfg partition */
@@ -152,7 +153,7 @@ int plat_bootcfg_init(void)
 		if (result == 0) {
 			result = io_write(handle, (uintptr_t)&zero, sizeof(bootcfg), &length);
 			if (result != 0) {
-				ERROR("Failure to clear bootcfg partition\n");
+				plat_error_message("Failure to clear bootcfg partition");
 				io_close(handle);
 				return -1;
 			}
@@ -160,7 +161,7 @@ int plat_bootcfg_init(void)
 
 			NOTICE("Bootcfg partition cleared\n");
 		} else {
-			ERROR("Failure to clear bootcfg partition\n");
+			plat_error_message("Failure to clear bootcfg partition");
 			return -1;
 		}
 		return -1;

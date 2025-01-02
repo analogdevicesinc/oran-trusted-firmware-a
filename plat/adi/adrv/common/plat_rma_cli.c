@@ -8,6 +8,7 @@
 
 #include <drivers/adi/adi_te_interface.h>
 #include <plat_cli.h>
+#include <plat_err.h>
 #include <platform_def.h>
 
 static int plat_end_function(uint8_t *command_buffer, bool help)
@@ -56,7 +57,7 @@ static int common_challenge_request_function(uint8_t *command_buffer, bool help)
 			chal = ADI_ENCLAVE_CHAL_SET_ADI_RMA;
 			break;
 		default:
-			ERROR("Invalid challenge type: %ld\n", type);
+			plat_error_message("Invalid challenge type: %ld", type);
 			return -1;
 		}
 
@@ -86,7 +87,7 @@ static int common_secure_debug_access_function(uint8_t *command_buffer, bool hel
 		/* Get signed response buffer */
 		for (int i = 0; i < 64; i++) {
 			if (command_buffer == NULL) {
-				ERROR("Missing signed response\n");
+				plat_error_message("Missing signed response");
 				return -1;
 			}
 			command_buffer = parse_next_param(16, command_buffer, &data);
@@ -117,7 +118,7 @@ static int common_rma_function(uint8_t *command_buffer, bool help)
 		for (int i = 0; i < 64; i++) {
 			command_buffer = parse_next_param(16, command_buffer, &data);
 			if (command_buffer == NULL) {
-				ERROR("Missing signed response\n");
+				plat_error_message("Missing signed response");
 				return -1;
 			}
 			response_buf[i] = (uint8_t)data;

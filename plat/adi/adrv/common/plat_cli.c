@@ -385,7 +385,7 @@ uint8_t *parse_next_param(uint32_t base, uint8_t *buffer, uint64_t *data)
 
 	/* Check for invalid string */
 	if (buffer == NULL) {
-		ERROR("Invalid Input Param\n");
+		plat_error_message("Invalid Input Param");
 		str = 0u;
 	} else {
 		str = (uint8_t *)strchr((char const *)buffer, ' ');
@@ -394,21 +394,21 @@ uint8_t *parse_next_param(uint32_t base, uint8_t *buffer, uint64_t *data)
 			if (base == 10u) {
 				status = atoi(str, data);
 				if (!status) {
-					ERROR("Failed to interpret parameter, check command input\n");
+					plat_error_message("Failed to interpret parameter, check command input");
 					return NULL;
 				}
 			} else if (base == 16u) {
 				status = atoh(str, data);
 				if (!status) {
-					ERROR("Failed to interpret parameter, check command input\n");
+					plat_error_message("Failed to interpret parameter, check command input");
 					return NULL;
 				}
 			} else {
-				ERROR("Invalid Base for Param: %s\n", str);
+				plat_error_message("Invalid Base for Param: %s", str);
 				return NULL;
 			}
 		} else {
-			WARN("Input parameter was empty\n");
+			plat_warn_message("Input parameter was empty");
 		}
 	}
 	return str;

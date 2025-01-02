@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2019, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2024, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -22,6 +22,7 @@
 #include <plat_boot.h>
 #include <plat_console.h>
 #include <plat_device_profile.h>
+#include <plat_err.h>
 #include <plat_interrupts.h>
 #include <plat_fixup_hw_config.h>
 #include <plat_int_gicv3.h>
@@ -146,19 +147,19 @@ static void fixup_hw_config(void)
 
 		err = fdt_open_into(hw_config_dtb, hw_config_dtb, HW_CONFIG_MAX_SIZE);
 		if (err < 0) {
-			ERROR("Failed to open HW_CONFIG %d\n", err);
+			plat_error_message("Failed to open HW_CONFIG %d", err);
 			plat_error_handler(err);
 		}
 
 		node = fdt_path_offset(hw_config_dtb, "/boot");
 		if (node < 0) {
-			ERROR("Failed to find '/boot' node in HW_CONFIG %d\n", node);
+			plat_error_message("Failed to find '/boot' node in HW_CONFIG %d", node);
 			plat_error_handler(node);
 		}
 
 		err = fdt_setprop_empty(hw_config_dtb, node, "bootrom_bypass");
 		if (err != 0) {
-			ERROR("Failed to set bootrom_bypass property in boot node\n");
+			plat_error_message("Failed to set bootrom_bypass property in boot node");
 			plat_error_handler(err);
 		}
 	} else {
@@ -173,7 +174,7 @@ static void fixup_hw_config(void)
 		/* Populate the KASLR seed with a value from TE's RNG */
 		err = adi_enclave_random_bytes(TE_MAILBOX_BASE, (void *)&kaslr_seed, sizeof(kaslr_seed));
 		if (err != 0) {
-			WARN("Failed to set KASLR seed. TE error %d.\n", err);
+			plat_warn_message("Failed to set KASLR seed. TE error %d.", err);
 			kaslr_valid = false;
 		} else {
 			kaslr_valid = true;
@@ -183,14 +184,14 @@ static void fixup_hw_config(void)
 		 * Get enforcement counter from OTP */
 		err = plat_get_enforcement_counter(&enforcement_ctr);
 		if (err < 0) {
-			ERROR("Failed to get anti-rollback enforcement counter\n");
+			plat_error_message("Failed to get anti-rollback enforcement counter");
 			plat_error_handler(err);
 		}
 
 		/* Get TE enforcement counter from OTP */
 		err = adi_enclave_get_otp_app_anti_rollback(TE_MAILBOX_BASE, &te_enforcement_ctr);
 		if (err < 0) {
-			ERROR("Failed get TE anti-rollback counter from OTP\n");
+			plat_error_message("Failed get TE anti-rollback counter from OTP");
 			plat_error_handler(err);
 		}
 
@@ -209,7 +210,7 @@ static void fixup_hw_config(void)
 		} else {
 			err = plat_get_enforcement_counter(&nv_ctr);
 			if (err < 0) {
-				ERROR("Failed to get anti-rollback enforcement counter\n");
+				plat_error_message("Failed to get anti-rollback enforcement counter");
 				plat_error_handler(err);
 			}
 		}
@@ -239,31 +240,31 @@ static void fixup_hw_config(void)
 
 	err = fdt_open_into(hw_config_dtb, hw_config_dtb, HW_CONFIG_MAX_SIZE);
 	if (err < 0) {
-		ERROR("Failed to open HW_CONFIG %d\n", err);
+		plat_error_message("Failed to open HW_CONFIG %d", err);
 		plat_error_handler(err);
 	}
 
 	root_node = fdt_path_offset(hw_config_dtb, "/");
 	if (root_node < 0) {
-		ERROR("Failed to find root node in HW_CONFIG %d\n", root_node);
+		plat_error_message("Failed to find root node in HW_CONFIG %d", root_node);
 		plat_error_handler(root_node);
 	}
 
 	node = fdt_path_offset(hw_config_dtb, "/memory");
 	if (node < 0) {
-		ERROR("Failed to find 'memory' node in HW_CONFIG %d\n", node);
+		plat_error_message("Failed to find 'memory' node in HW_CONFIG %d", node);
 		plat_error_handler(node);
 	}
 
 	err = fdt_delprop(hw_config_dtb, node, "reg");
 	if (err < 0) {
-		ERROR("Failed to delete 'reg' prop in HW_CONFIG %d\n", err);
+		plat_error_message("Failed to delete 'reg' prop in HW_CONFIG %d", err);
 		plat_error_handler(err);
 	}
 
 	err = fdt_appendprop_addrrange(hw_config_dtb, root_node, node, "reg", NS_DRAM_BASE, ns_dram_size);
 	if (err < 0) {
-		ERROR("Failed to add 'reg' prop in HW_CONFIG %d\n", err);
+		plat_error_message("Failed to add 'reg' prop in HW_CONFIG %d", err);
 		plat_error_handler(err);
 	}
 
@@ -271,43 +272,43 @@ static void fixup_hw_config(void)
 
 	node = fdt_path_offset(hw_config_dtb, "/boot");
 	if (node < 0) {
-		ERROR("Failed to find 'boot' node in HW_CONFIG %d\n", node);
+		plat_error_message("Failed to find 'boot' node in HW_CONFIG %d", node);
 		plat_error_handler(node);
 	}
 
 	err = fdt_setprop_string(hw_config_dtb, node, "slot", boot_slot);
 	if (err < 0) {
-		ERROR("Failed to set 'slot' property in HW_CONFIG %d\n", err);
+		plat_error_message("Failed to set 'slot' property in HW_CONFIG %d", err);
 		plat_error_handler(err);
 	}
 
 	err = fdt_setprop_string(hw_config_dtb, node, "device", boot_device);
 	if (err < 0) {
-		ERROR("Failed to set 'device' property in HW_CONFIG %d\n", err);
+		plat_error_message("Failed to set 'device' property in HW_CONFIG %d", err);
 		plat_error_handler(err);
 	}
 
 	err = fdt_setprop_string(hw_config_dtb, node, "te-slot", te_boot_slot);
 	if (err < 0) {
-		ERROR("Failed to set 'te-slot' property in HW_CONFIG %d\n", err);
+		plat_error_message("Failed to set 'te-slot' property in HW_CONFIG %d", err);
 		plat_error_handler(err);
 	}
 
 	node = fdt_path_offset(hw_config_dtb, "/boot/lifecycle-state");
 	if (node < 0) {
-		ERROR("Failed to find '/boot/lifecycle-state' node in HW_CONFIG %d\n", node);
+		plat_error_message("Failed to find '/boot/lifecycle-state' node in HW_CONFIG %d", node);
 		plat_error_handler(node);
 	}
 
 	err = fdt_setprop_string(hw_config_dtb, node, "description", lifecycle_state_str);
 	if (err < 0) {
-		ERROR("Failed to set 'description' property in HW_CONFIG %d\n", err);
+		plat_error_message("Failed to set 'description' property in HW_CONFIG %d", err);
 		plat_error_handler(err);
 	}
 
 	err = fdt_setprop_u32(hw_config_dtb, node, "deployed", is_deployed);
 	if (err < 0) {
-		ERROR("Failed to set 'deployed' property in HW_CONFIG %d\n", err);
+		plat_error_message("Failed to set 'deployed' property in HW_CONFIG %d", err);
 		plat_error_handler(err);
 	}
 
@@ -315,32 +316,32 @@ static void fixup_hw_config(void)
 	if (kaslr_valid) {
 		node = fdt_path_offset(hw_config_dtb, "/boot");
 		if (node < 0) {
-			ERROR("Failed to find '/boot' node in HW_CONFIG %d\n", node);
+			plat_error_message("Failed to find '/boot' node in HW_CONFIG %d", node);
 			plat_error_handler(node);
 		}
 		err = fdt_appendprop_u64(hw_config_dtb, node, "kaslr-seed", kaslr_seed);
 		if (err < 0) {
-			ERROR("Failed to set 'kaslr-seed' property in HW_CONFIG %d\n", err);
+			plat_error_message("Failed to set 'kaslr-seed' property in HW_CONFIG %d", err);
 			plat_error_handler(err);
 		}
 	}
 
 	err = plat_eth_fixup(hw_config_dtb);
 	if (err < 0) {
-		ERROR("Failed to fixup eth MACs in HW_CONFIG %d\n", err);
+		plat_error_message("Failed to fixup eth MACs in HW_CONFIG %d", err);
 		plat_error_handler(err);
 	}
 
 	/* plat specific hw config fixup */
 	err = plat_fixup_hw_config(hw_config_dtb);
 	if (err < 0) {
-		ERROR("Failed to fixup plat HW_CONFIG %d\n", err);
+		plat_error_message("Failed to fixup plat HW_CONFIG %d", err);
 		plat_error_handler(err);
 	}
 
 	node = fdt_path_offset(hw_config_dtb, "/boot");
 	if (node < 0) {
-		ERROR("Failed to find '/boot' node in HW_CONFIG %d\n", node);
+		plat_error_message("Failed to find '/boot' node in HW_CONFIG %d", node);
 		plat_error_handler(node);
 	}
 
@@ -348,41 +349,41 @@ static void fixup_hw_config(void)
 	snprintf(node_name, sizeof(node_name), "anti-rollback");
 	node = fdt_add_subnode(hw_config_dtb, node, node_name);
 	if (node < 0) {
-		ERROR("Failed to add 'anti-rollback' subnode in HW_CONFIG %d\n", node);
+		plat_error_message("Failed to add 'anti-rollback' subnode in HW_CONFIG %d", node);
 		plat_error_handler(node);
 	}
 
 	/* Add TE enforcement counter to HW_CONFIG */
 	err = fdt_setprop_u32(hw_config_dtb, node, "te-enforcement-counter", te_enforcement_ctr);
 	if (err < 0) {
-		ERROR("Failed to set te-enforcement-counter in HW_CONFIG %d\n", err);
+		plat_error_message("Failed to set te-enforcement-counter in HW_CONFIG %d", err);
 		plat_error_handler(err);
 	}
 
 	/* Add enforcement counter to HW_CONFIG */
 	err = fdt_setprop_u32(hw_config_dtb, node, "enforcement-counter", enforcement_ctr);
 	if (err < 0) {
-		ERROR("Failed to set enforcement-counter in HW_CONFIG %d\n", err);
+		plat_error_message("Failed to set enforcement-counter in HW_CONFIG %d", err);
 		plat_error_handler(err);
 	}
 
 	/* Add TE OTP anti-rollback counter to HW_CONFIG */
 	err = fdt_setprop_u32(hw_config_dtb, node, "te-anti-rollback-counter", app_sec_ver);
 	if (err < 0) {
-		ERROR("Failed to set te-anti-rollback-counter in HW_CONFIG %d\n", err);
+		plat_error_message("Failed to set te-anti-rollback-counter in HW_CONFIG %d", err);
 		plat_error_handler(err);
 	}
 
 	/* Add FIP anti-rollback counter to HW_CONFIG */
 	err = fdt_setprop_u32(hw_config_dtb, node, "anti-rollback-counter", nv_ctr);
 	if (err < 0) {
-		ERROR("Failed to set anti-rollback-counter in HW_CONFIG %d\n", err);
+		plat_error_message("Failed to set anti-rollback-counter in HW_CONFIG %d", err);
 		plat_error_handler(err);
 	}
 
 	err = fdt_pack(hw_config_dtb);
 	if (err < 0) {
-		ERROR("Failed to pack HW_CONFIG %d\n", err);
+		plat_error_message("Failed to pack HW_CONFIG %d", err);
 		plat_error_handler(err);
 	}
 

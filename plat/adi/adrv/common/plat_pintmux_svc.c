@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Analog Devices Incorporated. All rights reserved.
+ * Copyright (c) 2024, Analog Devices Incorporated. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -8,6 +8,7 @@
 #include <common/runtime_svc.h>
 #include <lib/smccc.h>
 
+#include <plat_err.h>
 #include <plat_pintmux.h>
 #include <plat_pintmux_svc.h>
 #include <plat_pinctrl.h>
@@ -47,12 +48,12 @@ static int plat_pintmux_smc_map(unsigned int gpio, bool is_secure, bool pos_mask
 
 	lane = plat_secure_pintmux_map(gpio, is_secure, pos_mask, base_addr);
 	if (lane < 0) {
-		ERROR("PINTMUX service: Failed to map GPIO_%s_%u - already mapped or no lanes available.\n", is_secure ? "S" : "NS", gpio);
+		plat_error_message("PINTMUX service: Failed to map GPIO_%s_%u - already mapped or no lanes available.", is_secure ? "S" : "NS", gpio);
 		return lane;
 	}
 	irq = plat_pintmux_lane_to_irq(lane, base_addr);
 	if (irq == 0) {
-		ERROR("PINTMUX service: Failed to translate GPIO_%s_%u to IRQ.\n", is_secure ? "S" : "NS", gpio);
+		plat_error_message("PINTMUX service: Failed to translate GPIO_%s_%u to IRQ.", is_secure ? "S" : "NS", gpio);
 		return irq;
 	}
 
@@ -68,12 +69,12 @@ static int plat_pintmux_smc_unmap(unsigned int gpio, bool is_secure, uintptr_t b
 
 	lane = plat_secure_pintmux_unmap(gpio, is_secure, base_addr);
 	if (lane < 0) {
-		ERROR("PINTMUX service: Failed to map GPIO_%s_%u - already mapped or no lanes available.\n", is_secure ? "S" : "NS", gpio);
+		plat_error_message("PINTMUX service: Failed to map GPIO_%s_%u - already mapped or no lanes available.", is_secure ? "S" : "NS", gpio);
 		return lane;
 	}
 	irq = plat_pintmux_lane_to_irq(lane, base_addr);
 	if (irq == 0) {
-		ERROR("PINTMUX service: Failed to translate GPIO_%s_%u to IRQ.\n", is_secure ? "S" : "NS", gpio);
+		plat_error_message("PINTMUX service: Failed to translate GPIO_%s_%u to IRQ.", is_secure ? "S" : "NS", gpio);
 		return irq;
 	}
 
@@ -104,6 +105,6 @@ uintptr_t plat_pintmux_smc_handler(unsigned int smc_fid, u_register_t x1, u_regi
 	default:
 		break;
 	}
-	WARN("PINTMUX service: Unexpected FID %d\n", fid);
+	plat_warn_message("PINTMUX service: Unexpected FID %d", fid);
 	SMC_RET1(handle, SMC_UNK);
 }

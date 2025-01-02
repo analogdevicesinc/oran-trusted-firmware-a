@@ -10,9 +10,10 @@
 #include <lib/utils.h>
 #include <plat/common/platform.h>
 
-#include <platform_def.h>
-#include <plat_int_gicv3.h>
 #include <adrv906x_device_profile.h>
+#include <plat_err.h>
+#include <plat_int_gicv3.h>
+#include <platform_def.h>
 
 static interrupt_prop_t adrv906x_interrupt_props[] = {
 	PLAT_IRQ_PROPS                          // Common configuration
@@ -59,12 +60,12 @@ int plat_specific_gic_driver_init(gicv3_driver_data_t *plat_gic_data)
 
 	/* Sanity checks */
 	if (secure_peripherals == NULL) {
-		ERROR("Invalid pointer to the secure_peripheral list");
+		plat_error_message("Invalid pointer to the secure_peripheral list");
 		return -1;
 	}
 
 	if (len != ARRAY_SIZE(periph_gic_num)) {
-		ERROR("Missmatch in secure periherpal list size");
+		plat_error_message("Missmatch in secure periherpal list size");
 		return -1;
 	}
 
@@ -75,7 +76,7 @@ int plat_specific_gic_driver_init(gicv3_driver_data_t *plat_gic_data)
 			for (uint32_t j = 0; j < ARRAY_SIZE(periph_gic_num[0]); j++) {
 				if (periph_gic_num[i][j] != 0) {
 					if (props_size > ARRAY_SIZE(adrv906x_interrupt_props)) {
-						ERROR("Too many interrupts. User GIC configuration ignored\n");
+						plat_error_message("Too many interrupts. User GIC configuration ignored");
 						return -1;
 					}
 

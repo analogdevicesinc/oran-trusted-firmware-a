@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2024, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -32,6 +32,7 @@
 #include <platform_def.h>
 #include <plat_boot.h>
 #include <plat_cli.h>
+#include <plat_err.h>
 #include <plat_pinctrl.h>
 #include <plat_setup.h>
 #include <plat_wdt.h>
@@ -69,11 +70,11 @@ static void init(void)
 			if (err == 0) {
 				NOTICE("Secondary tile is enabled.\n");
 			} else {
-				ERROR("Failed to enable secondary tile %d\n", err);
+				plat_error_message("Failed to enable secondary tile %d", err);
 				plat_set_dual_tile_disabled();
 			}
 		} else {
-			ERROR("Failed to setup mmap for secondary tile %d\n", err);
+			plat_error_message("Failed to setup mmap for secondary tile %d", err);
 			plat_set_dual_tile_disabled();
 		}
 	} else {
@@ -97,7 +98,7 @@ static void init(void)
 	 */
 	err = mbias_init(DIG_CORE_BASE);
 	if (err) {
-		ERROR("Failed to initialize MBias %d\n", err);
+		plat_error_message("Failed to initialize MBias %d", err);
 		plat_error_handler(-ENXIO);
 	}
 
@@ -106,7 +107,7 @@ static void init(void)
 	 */
 	err = ldo_powerup(CLKPLL_BASE, PLL_CLKGEN_PLL);
 	if (err) {
-		ERROR("Failed to initialize LDO %d\n", err);
+		plat_error_message("Failed to initialize LDO %d", err);
 		plat_error_handler(-ENXIO);
 	}
 
@@ -128,7 +129,7 @@ static void init(void)
 		 */
 		err = mbias_init(SEC_DIG_CORE_BASE);
 		if (err) {
-			ERROR("Failed to initialize secondary MBias %d\n", err);
+			plat_error_message("Failed to initialize secondary MBias %d", err);
 			plat_set_dual_tile_disabled();
 		}
 
@@ -138,7 +139,7 @@ static void init(void)
 		if (err == 0) {
 			err = ldo_powerup(SEC_CLKPLL_BASE, PLL_SEC_CLKGEN_PLL);
 			if (err) {
-				ERROR("Failed to initialize secondary LDO %d\n", err);
+				plat_error_message("Failed to initialize secondary LDO %d", err);
 				plat_set_dual_tile_disabled();
 			}
 		}
@@ -180,7 +181,7 @@ static void init(void)
 			plat_secure_wdt_stop();
 			while (1);
 		} else {
-			ERROR("MCS failed.\n");
+			plat_error_message("MCS failed.");
 			plat_error_handler(-ENXIO);
 		}
 	}
@@ -241,7 +242,7 @@ static void init(void)
 	if (plat_get_dual_tile_enabled()) {
 		INFO("Beginning training to enable C2C hi-speed AXI bridge.\n");
 		if (!adrv906x_c2c_enable_high_speed()) {
-			ERROR("Failed to enable C2C hi-speed AXI bridge.\n");
+			plat_error_message("Failed to enable C2C hi-speed AXI bridge.");
 			/* TODO: Training is expected to fail on SystemC for now. */
 			if (!plat_is_sysc())
 				plat_set_dual_tile_disabled();
@@ -259,14 +260,14 @@ static void init(void)
 			pll_freq = CLK_10G_VCO_HZ;
 		err = clk_initialize_pll_programming(false, true, plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting());
 		if (err) {
-			ERROR("Failed preparing eth pll for programming.\n");
+			plat_error_message("Failed preparing eth pll for programming.");
 			plat_error_handler(-ENXIO);
 		}
 
 		if (!err) {
 			err = ldo_powerup(ETH_PLL_BASE, PLL_ETHERNET_PLL);
 			if (err) {
-				ERROR("Failed to initialize Ethernet LDO %d\n", err);
+				plat_error_message("Failed to initialize Ethernet LDO %d", err);
 				plat_error_handler(-ENXIO);
 			}
 		}
@@ -274,7 +275,7 @@ static void init(void)
 		if (!err) {
 			err = pll_clk_power_init(ETH_PLL_BASE, DIG_CORE_BASE, pll_freq, ETH_REF_CLK_DFLT, PLL_ETHERNET_PLL);
 			if (err) {
-				ERROR("Problem powering on Ethernet pll = %d\n", err);
+				plat_error_message("Problem powering on Ethernet pll = %d", err);
 				plat_error_handler(-ENXIO);
 			}
 		}
@@ -282,21 +283,21 @@ static void init(void)
 		if (!err) {
 			err = pll_program(ETH_PLL_BASE, PLL_ETHERNET_PLL);
 			if (err) {
-				ERROR("Problem programming Ethernet pll = %d\n", err);
+				plat_error_message("Problem programming Ethernet pll = %d", err);
 				plat_error_handler(-ENXIO);
 			}
 		}
 	}
 
 	if (plat_check_ddr_size()) {
-		ERROR("Total DRAM size too large, max %lx\n", MAX_DDR_SIZE);
+		plat_error_message("Total DRAM size too large, max %lx", MAX_DDR_SIZE);
 		plat_error_handler(-ENXIO);
 	}
 
 	NOTICE("Initializing DDR.\n");
 	err = adrv906x_ddr_init();
 	if (err != 0) {
-		ERROR("Failed to enable DDR %d\n", err);
+		plat_error_message("Failed to enable DDR %d", err);
 		plat_error_handler(-ENXIO);
 	}
 
@@ -317,11 +318,11 @@ static void init(void)
 			if (err == 0) {
 				NOTICE("Secondary image load complete.\n");
 			} else {
-				ERROR("Failed to load secondary image %d\n", err);
+				plat_error_message("Failed to load secondary image %d", err);
 				plat_set_dual_tile_disabled();
 			}
 		} else {
-			ERROR("Secondary DRAM size 0x%lx is too small. Must be at least 0x%lx bytes.\n", dram_size, SEC_DRAM_SIZE_MIN);
+			plat_error_message("Secondary DRAM size 0x%lx is too small. Must be at least 0x%lx bytes.", dram_size, SEC_DRAM_SIZE_MIN);
 			plat_set_dual_tile_disabled();
 		}
 	}

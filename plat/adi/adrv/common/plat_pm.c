@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2020, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2024, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -134,7 +134,7 @@ plat_psci_ops_t *plat_adrv_psci_override_pm_ops(plat_psci_ops_t *ops)
 #pragma weak plat_board_system_reset
 void __dead2 plat_board_system_reset(void)
 {
-	ERROR("TODO implement System Reset\n");
+	plat_error_message("TODO implement System Reset");
 	console_flush();
 	panic();
 }
