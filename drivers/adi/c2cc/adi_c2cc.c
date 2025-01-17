@@ -11,44 +11,6 @@
 #include <lib/mmio.h>
 #include "adi_c2cc.h"
 
-#define ADI_C2CC_TRAINSTAT3_DUMMY_VALUES { \
-		{ \
-			0x00040400, 0x00040400, 0x00040400, 0x00000000, \
-			0x00000000, 0x00000000, 0x00000000, 0x00000000, \
-			0x00000000, 0x00000000, 0x00000000, 0x00000000, \
-			0x00000000, 0x00000000, 0x00000000, 0x00000000, \
-			0x00000000, 0x00000000, 0x00000000, 0x00000000, \
-			0x00000000, 0x00000020, 0x20000020, 0x20000020, \
-			0x20000020, 0x20202020, 0x20202020, 0x20282040, \
-			0xc0282040, 0xc0282040, 0xc0282040, 0xc8c84040, \
-			0xc8c84000, 0x88c84000, 0x88c84000, 0x88c84000, \
-			0x88884000, 0x88880000, 0x88880000, 0x88880000, \
-			0x88880000, 0x88880000, 0x88880000, 0x88880000, \
-			0x88880000, 0x88880000, 0x88880000, 0x88880000, \
-			0x88880000, 0x88880000, 0x88880000, 0x88880000, \
-			0x88880000, 0x88880000, 0x88880000, 0x8a880002, \
-			0x8a880002, 0x8a880002, 0x8a880002, 0x8a8a0202, \
-			0x02028a84, 0x04020a84, 0x04020a84, 0x04020a84, \
-		}, { \
-			0x04000404, 0x04000400, 0x00000400, 0x00000000, \
-			0x00000000, 0x00000000, 0x00000000, 0x00000000, \
-			0x00000000, 0x00000000, 0x00000000, 0x00000000, \
-			0x00000000, 0x00000000, 0x00000000, 0x00000000, \
-			0x00000000, 0x00000000, 0x00000000, 0x00000000, \
-			0x00000000, 0x00200000, 0x00200000, 0x00200000, \
-			0x20200020, 0x20202020, 0x28402020, 0x28402020, \
-			0x28402020, 0x28482040, 0xc8482040, 0xc8c84040, \
-			0xc8884040, 0xc8884040, 0xc8884040, 0xc8884000, \
-			0x88884000, 0x88880000, 0x88880000, 0x88880000, \
-			0x88880000, 0x88880000, 0x88880000, 0x88880000, \
-			0x88880000, 0x88880000, 0x88880000, 0x88880000, \
-			0x88880000, 0x88880000, 0x88880000, 0x88880000, \
-			0x88880000, 0x88880000, 0x888a0000, 0x888a0000, \
-			0x888a0000, 0x888a0002, 0x8a8a0002, 0x8a8a0202, \
-			0x8a8c0a02, 0x8a8c0a02, 0x8a8c0a02, 0x04040284, \
-		} \
-}
-
 #define ADI_C2C_LANE_COUNT 4
 #define ADI_C2C_TRIM_MAX 64
 #define ADI_C2C_TRIM_DELAY_MAX 16
@@ -77,22 +39,6 @@ static void adi_c2cc_write_bf32(uintptr_t addr, uint8_t position, uint32_t mask,
 
 	mmio_write_32(addr, reg | ((val << position) & mask));
 }
-
-#ifdef ADI_C2CC_TRAINSTAT3_DUMMY_VALUES
-static uint32_t adi_c2cc_trainstat3_dummy_values[2][ADI_C2C_TRIM_MAX] = ADI_C2CC_TRAINSTAT3_DUMMY_VALUES;
-
-static uint32_t adi_c2cc_ts3dummy(uintptr_t base)
-{
-	const uintptr_t pri_base = 0x20219000;
-	unsigned int phase = (base == pri_base ? 1 : 0);
-	uint32_t trim = ADI_C2CC_READ_RXCLK_DELAY_TRAIN(base);
-
-	return adi_c2cc_trainstat3_dummy_values[phase][trim];
-}
-
-#undef ADI_C2CC_READ_TRAINSTAT3_RAW
-#define ADI_C2CC_READ_TRAINSTAT3_RAW adi_c2cc_ts3dummy
-#endif /* ADI_C2CC_TRAINSTAT3_DUMMY_VALUES */
 
 static bool adi_c2cc_wait_transactions(uintptr_t addr_base)
 {
@@ -575,15 +521,15 @@ bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params)
 	adi_c2cc_configure_delay(sec_base, pri_base, &params->s2p_delay);       /* secondary-to-primary */
 
 	/* disable bridged interrupts */
-	adi_c2cc_intr_control(sec_base, false);
-	adi_c2cc_intr_control(pri_base, false);
+	ADI_C2CC_WRITE_INT_EN(sec_base, 0);
+	ADI_C2CC_WRITE_INT_EN(pri_base, 0);
 
 	VERBOSE("%s: C2CC gathering primary (Tx) to secondary (Rx) statistics.\n", __func__);
 	for (trim = 0; trim < ADI_C2C_TRIM_MAX; trim++) {
 		if (!adi_c2cc_p2s_gather_statistics(pri_base, sec_base, trim, &p2s_stats[trim])) {
 			ERROR("%s: C2CC timeout while gathering statistics (p2s,trim=%u).\n", __func__, trim);
-			adi_c2cc_intr_control(pri_base, true);
-			adi_c2cc_intr_control(sec_base, true);
+			ADI_C2CC_WRITE_INT_EN(pri_base, 1);
+			ADI_C2CC_WRITE_INT_EN(sec_base, 1);
 			return false;
 		}
 	}
@@ -592,14 +538,14 @@ bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params)
 	for (trim = 0; trim < ADI_C2C_TRIM_MAX; trim++)
 		if (!adi_c2cc_s2p_gather_statistics(sec_base, pri_base, trim, &s2p_stats[trim])) {
 			ERROR("%s: C2CC timeout while gathering statistics (s2p,trim=%u).\n", __func__, trim);
-			adi_c2cc_intr_control(pri_base, true);
-			adi_c2cc_intr_control(sec_base, true);
+			ADI_C2CC_WRITE_INT_EN(pri_base, 1);
+			ADI_C2CC_WRITE_INT_EN(sec_base, 1);
 			return false;
 		}
 
 	/* re-enable bridged interrupts */
-	adi_c2cc_intr_control(pri_base, true);
-	adi_c2cc_intr_control(sec_base, true);
+	ADI_C2CC_WRITE_INT_EN(pri_base, 1);
+	ADI_C2CC_WRITE_INT_EN(sec_base, 1);
 
 	p2s_trim = adi_c2cc_find_optimal_trim(p2s_stats, p2s_trim_delays);
 	if (p2s_trim == ADI_C2C_TRIM_MAX) {
