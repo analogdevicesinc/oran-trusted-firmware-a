@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019,2021, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2016-2019,2021,2025, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -13,6 +13,7 @@
 #include <plat_err.h>
 #include <plat_pinctrl_svc.h>
 #include <plat_pintmux_svc.h>
+#include <plat_runtime_log_svc.h>
 #include <plat_sip_svc.h>
 #include <plat_wdt_svc.h>
 
@@ -62,8 +63,11 @@ static uintptr_t sip_handler(unsigned int smc_fid,
 	case PLAT_SIP_SVC_PINTMUX:
 		SMC_RET0(plat_pintmux_smc_handler(smc_fid, x1, x2, x3, x4, cookie, handle, flags));
 
+	case PLAT_SIP_SVC_LOG:
+		SMC_RET0(plat_runtime_log_smc_handler(smc_fid, x1, x2, x3, x4, cookie, handle, flags));
+
 	default:
-		plat_warn_message("Unimplemented SiP Service Call: 0x%x ", smc_fid);
+		plat_runtime_warn_message("Unimplemented SiP Service Call: 0x%x ", smc_fid);
 		SMC_RET1(handle, SMC_UNK);
 	}
 }

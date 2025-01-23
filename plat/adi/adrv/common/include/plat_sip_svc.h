@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019,2021, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2016-2019,2021,2025, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -27,6 +27,7 @@
 /* For more info: https://developer.arm.com/documentation/den0028/latest */
 #define PLAT_SIP_SVC_PINCTRL            U(0xC2000001)
 #define PLAT_SIP_SVC_PINTMUX            U(0xC2000002)
+#define PLAT_SIP_SVC_LOG                U(0xC2000003)
 
 /* Max function ID used by the common service.
  * IDs beyond this number, up to the SMCCC reserved

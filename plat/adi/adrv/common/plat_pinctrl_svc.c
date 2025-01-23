@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022~2024, Analog Devices Incorporated. All rights reserved.
+ * Copyright (c) 2022~2025, Analog Devices Incorporated. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -76,7 +76,7 @@ uintptr_t plat_pinctrl_smc_handler(unsigned int smc_fid,
 	case INIT:
 		/* Pinmux Initialization
 		 * If anything to initialize, do it here. */
-		plat_warn_message("PINCTRL service: INIT not currently implemented");
+		plat_runtime_warn_message("PINCTRL service: INIT not currently implemented");
 		SMC_RET1(handle, SMC_UNK);
 		break;
 
@@ -132,11 +132,11 @@ uintptr_t plat_pinctrl_smc_handler(unsigned int smc_fid,
 		break;
 
 	default:
-		plat_warn_message("PINCTRL service: Unexpected command");
+		plat_runtime_warn_message("PINCTRL service: Unexpected command");
 		SMC_RET1(handle, SMC_UNK);
 		break;
 	}
 
-	plat_warn_message("PINCTRL service: Unexpected FID");
+	plat_runtime_warn_message("PINCTRL service: Unexpected FID");
 	SMC_RET1(handle, SMC_UNK);
 }

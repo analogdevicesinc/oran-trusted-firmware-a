@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Analog Devices Incorporated. All rights reserved.
+ * Copyright (c) 2025, Analog Devices Incorporated. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -53,7 +53,7 @@ uintptr_t plat_wdt_smc_handler(unsigned int smc_fid,
 				plat_secure_wdt_refresh(x2);
 				SMC_RET1(handle, SMC_OK);
 			} else {
-				plat_warn_message("WDT service: Timeout value is outside of the min/max range");
+				plat_runtime_warn_message("WDT service: Timeout value is outside of the min/max range");
 				SMC_RET1(handle, SMC_UNK);
 			}
 			break;
@@ -61,7 +61,7 @@ uintptr_t plat_wdt_smc_handler(unsigned int smc_fid,
 			/* Ignore enable and disable commands.
 			 * Assume BL1 already enabled the WDT, and we don't want
 			 * non-secure software to disable the WDT. */
-			plat_warn_message("WDT service: ENABLE/DISABLE not supported. WDT is enabled at boot and cannot be disabled.");
+			plat_runtime_warn_message("WDT service: ENABLE/DISABLE not supported. WDT is enabled at boot and cannot be disabled.");
 			SMC_RET1(handle, SMC_OK);
 			break;
 		case PET:
@@ -71,16 +71,16 @@ uintptr_t plat_wdt_smc_handler(unsigned int smc_fid,
 			break;
 		case GET_TIMELEFT:
 			/* GET_TIMELEFT support is optional and not supported here */
-			plat_warn_message("WDT service: GET_TIMELEFT not supported");
+			plat_runtime_warn_message("WDT service: GET_TIMELEFT not supported");
 			SMC_RET1(handle, SMC_UNK);
 			break;
 		default:
-			plat_warn_message("WDT service: Unexpected command");
+			plat_runtime_warn_message("WDT service: Unexpected command");
 			SMC_RET1(handle, SMC_UNK);
 			break;
 		}
 	}
 
-	plat_warn_message("WDT service: Unexpected FID");
+	plat_runtime_warn_message("WDT service: Unexpected FID");
 	SMC_RET1(handle, SMC_UNK);
 }

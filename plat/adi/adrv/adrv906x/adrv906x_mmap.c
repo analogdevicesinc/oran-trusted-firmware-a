@@ -77,6 +77,7 @@ const mmap_region_t plat_mmap[] = {
 	MAP_DEVICE1,
 	MAP_DEVICE2,
 	MAP_HW_CONFIG,
+	MAP_SEC_DRAM,
 	{ 0 }
 };
 #endif
