@@ -1023,7 +1023,15 @@ void plat_set_fw_config_te_rollback_ctr(uint32_t ctr)
  */
 #if DEBUG == 1
 	uint32_t data;
-	if (get_fw_config_uint32("/anti-rollback", "te-rollback-ctr", &data, true) == 0) ctr = data;
+	bool found = false;
+	if (fw_config_prop_exists("/anti-rollback", "te-rollback-ctr", &found) == 0) {
+		if (found) {
+			if (get_fw_config_uint32("/anti-rollback", "te-rollback-ctr", &data, false) == 0) {
+				plat_warn_message("TEST_SUPPORT: Using simulated TE anti-rollback counter %d\n", data);
+				ctr = data;
+			}
+		}
+	}
 #endif
 
 	err = set_fw_config_uint32("/anti-rollback", "te-rollback-ctr", ctr, true);
@@ -1036,6 +1044,24 @@ void plat_set_fw_config_te_rollback_ctr(uint32_t ctr)
  */
 int plat_get_enforcement_counter(unsigned int *nv_ctr)
 {
+/* Workaround for testing in debug mode:
+ * Use any enforcement value already defined in FW_CONFIG instead of the function parameter.
+ * This allows us to modify the enforcement counter from the test framework.
+ */
+#if DEBUG == 1
+	uint32_t value;
+	bool found = false;
+	if (fw_config_prop_exists("/anti-rollback", "simulated-enforcement-counter", &found) == 0) {
+		if (found) {
+			if (get_fw_config_uint32("/anti-rollback", "simulated-enforcement-counter", &value, false) == 0) {
+				plat_warn_message("TEST_SUPPORT: Using simulated enforcement counter %d\n", value);
+				*nv_ctr = value;
+				return 0;
+			}
+		}
+	}
+#endif
+
 	return adrv906x_otp_get_rollback_counter(OTP_BASE, nv_ctr);
 }
 
