@@ -287,6 +287,38 @@ static void init(void)
 				plat_error_handler(-ENXIO);
 			}
 		}
+
+		if (plat_get_dual_tile_enabled()) {
+			err = clk_initialize_pll_programming(true, true, plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting());
+			if (err) {
+				plat_error_message("Failed preparing eth pll for programming.");
+				plat_error_handler(-ENXIO);
+			}
+
+			if (!err) {
+				err = ldo_powerup(SEC_ETH_PLL_BASE, PLL_ETHERNET_PLL);
+				if (err) {
+					plat_error_message("Failed to initialize Ethernet LDO %d", err);
+					plat_error_handler(-ENXIO);
+				}
+			}
+
+			if (!err) {
+				err = pll_clk_power_init(SEC_ETH_PLL_BASE, DIG_CORE_BASE, pll_freq, ETH_REF_CLK_DFLT, PLL_ETHERNET_PLL);
+				if (err) {
+					plat_error_message("Problem powering on Ethernet pll = %d", err);
+					plat_error_handler(-ENXIO);
+				}
+			}
+
+			if (!err) {
+				err = pll_program(SEC_ETH_PLL_BASE, PLL_ETHERNET_PLL);
+				if (err) {
+					plat_error_message("Problem programming Ethernet pll = %d", err);
+					plat_error_handler(-ENXIO);
+				}
+			}
+		}
 	}
 
 	if (plat_check_ddr_size()) {
