@@ -148,10 +148,7 @@ static void init(void)
 #if DEBUG == 1
 	/* CLI only enabled for debug builds */
 	/* On debug builds, can only enter the CLI in the right lifecycle state and if test_enable=1 and test_control=8 */
-	if (plat_is_bootrom_bypass_enabled())
-		lifecycle = ADI_LIFECYCLE_UNTESTED;
-	else
-		lifecycle = adi_enclave_get_lifecycle_state(TE_MAILBOX_BASE);
+	lifecycle = adi_enclave_get_lifecycle_state(TE_MAILBOX_BASE);
 
 	if (lifecycle == ADI_LIFECYCLE_UNTESTED || lifecycle == ADI_LIFECYCLE_OPEN_SAMPLE \
 	    || lifecycle == ADI_LIFECYCLE_TESTED || lifecycle == ADI_LIFECYCLE_ADI_PROV_ENC \
