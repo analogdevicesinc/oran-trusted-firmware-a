@@ -268,10 +268,13 @@ static int do_failure_detection(uint32_t reset_cause, uint32_t reset_cause_ns)
 
 	/* If RESET_CAUSE is set, perform failure detection/recovery */
 	if ((reset_cause != RESET_VALUE) || (reset_cause_ns != RESET_VALUE)) {
-		if (reset_cause != RESET_VALUE)
-			NOTICE("Boot failure detected. Reset cause %d.\n", reset_cause);
-		else
-			NOTICE("Boot failure detected. Reset cause %d.\n", reset_cause_ns);
+		if (reset_cause != RESET_VALUE) {
+			NOTICE("Boot failure detected. Reset cause: %s.\n", plat_get_reset_cause_str(reset_cause));
+			plat_record_boot_log(RESET_CAUSE_MESSAGE, "Boot failure detected. Reset cause: %s.", plat_get_reset_cause_str(reset_cause));
+		} else {
+			NOTICE("Boot failure detected. Reset cause: %s.\n", plat_get_reset_cause_str(reset_cause_ns));
+			plat_record_boot_log(RESET_CAUSE_MESSAGE, "Boot failure detected. Reset cause: %s.", plat_get_reset_cause_str(reset_cause_ns));
+		}
 
 		/* Calculate current boot count and save it */
 		boot_cnt = plat_rd_status_reg(BOOT_CNT) + 1;
@@ -281,11 +284,13 @@ static int do_failure_detection(uint32_t reset_cause, uint32_t reset_cause_ns)
 		result = 0;
 		if ((reset_cause == IMG_VERIFY_FAIL) || (reset_cause_ns == IMG_VERIFY_FAIL)) {
 			NOTICE("Image verification failure detected. Switching boot slot.\n");
+			plat_record_boot_log(BOOT_COUNT_MESSAGE, "Image verification failure detected. Switching boot slot.");
 			result = set_new_slot(active_slot, starting_slot);
 		} else {
 			/* If BOOT_CNT greater than threshold, setup for new boot slot */
 			if (boot_cnt >= BOOTCTRL_BOOT_CNT_THRESHOLD) {
 				NOTICE("Boot count threshold exceeded. Switching boot slot.\n");
+				plat_record_boot_log(BOOT_COUNT_MESSAGE, "Boot count threshold exceeded. Switching boot slot.");
 				result = set_new_slot(active_slot, starting_slot);
 			}
 		}
@@ -300,7 +305,8 @@ static int do_failure_detection(uint32_t reset_cause, uint32_t reset_cause_ns)
 			/* result != 0 here indicates that set_new_slot() above failed to advance to
 			 * the next slot
 			 */
-			plat_error_message("All boot options have been exhausted");
+			ERROR("All boot options have been exhausted\n");
+			plat_record_boot_log(BOOT_EXHAUSTION_MESSAGE, "All boot options have been exhausted");
 		}
 	}
 

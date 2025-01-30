@@ -206,6 +206,9 @@ void bl1_platform_setup(void)
 	active_boot_slot[0] = plat_bootctrl_get_active_slot();
 	plat_set_boot_slot(active_boot_slot);
 
+	/* Log previous reset cause and boot failure messages to device tree */
+	plat_log_dt_boot_messages();
+
 	/* Set nv counter in FW_CONFIG for BL31 stage to propagate to
 	 * OP-TEE via HW_CONFIG
 	 */

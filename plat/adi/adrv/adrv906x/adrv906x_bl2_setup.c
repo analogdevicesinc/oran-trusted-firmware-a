@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2024, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2025, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -99,7 +99,7 @@ static void init(void)
 	err = mbias_init(DIG_CORE_BASE);
 	if (err) {
 		plat_error_message("Failed to initialize MBias %d", err);
-		plat_error_handler(-ENXIO);
+		plat_error_handler(-EMBCAL);
 	}
 
 	/*
@@ -168,7 +168,7 @@ static void init(void)
 	 */
 	memset(&settings, 0, sizeof(settings));
 	adrv906x_gpint_get_status(DIG_CORE_BASE, &settings);
-	NOTICE("GPINT status: U: 0x%08lx L: 0x%08lx\n", settings.upper_word, settings.lower_word);
+	adrv906x_gpint_print_status(&settings);
 
 	/* Multi-Chip Sync */
 	INFO("Performing MCS.\n");
@@ -179,7 +179,7 @@ static void init(void)
 			while (1);
 		} else {
 			plat_error_message("MCS failed.");
-			plat_error_handler(-ENXIO);
+			plat_error_handler(-EMCS);
 		}
 	}
 	INFO("MCS complete.\n");
@@ -320,14 +320,14 @@ static void init(void)
 
 	if (plat_check_ddr_size()) {
 		plat_error_message("Total DRAM size too large, max %lx", MAX_DDR_SIZE);
-		plat_error_handler(-ENXIO);
+		plat_error_handler(-EDINIT);
 	}
 
 	NOTICE("Initializing DDR.\n");
 	err = adrv906x_ddr_init();
 	if (err != 0) {
 		plat_error_message("Failed to enable DDR %d", err);
-		plat_error_handler(-ENXIO);
+		plat_error_handler(-EDINIT);
 	}
 
 	/* Skip printing clock info on Protium and Palladium since it is time consuming */

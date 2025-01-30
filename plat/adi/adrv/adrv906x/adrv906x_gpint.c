@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Analog Devices Incorporated - All Rights Reserved
+ * Copyright (c) 2025, Analog Devices Incorporated - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -18,7 +18,106 @@
 #define BYTE_SIZE       (8)
 #define BYTE_MASK       (0xFF)
 
-static struct gpint_settings gp_settings; /*Define routing for each bit of the GPINT. 1=Route through SDEI to NS world, 0= handle here in Bl31*/
+static struct gpint_settings gp_settings; /* Define routing for each bit of the GPINT. 1=Route through SDEI to NS world, 0= handle here in Bl31 */
+
+typedef struct {
+	uint64_t mask;
+	const char *name;
+} gpint_status_t;
+
+gpint_status_t gpint_status_lower[] = {
+	{ WATCHDOG_A55_TIMEOUT_PIPED_0_MASK,	     "WATCHDOG_A55_TIMEOUT_PIPED_0"	    },
+	{ WATCHDOG_A55_TIMEOUT_PIPED_1_MASK,	     "WATCHDOG_A55_TIMEOUT_PIPED_1"	    },
+	{ WATCHDOG_A55_TIMEOUT_PIPED_2_MASK,	     "WATCHDOG_A55_TIMEOUT_PIPED_2"	    },
+	{ WATCHDOG_A55_TIMEOUT_PIPED_3_MASK,	     "WATCHDOG_A55_TIMEOUT_PIPED_3"	    },
+	{ XCORR_ECC_ERROR_IRQ_PIPED_MASK,	     "XCORR_ECC_ERROR_IRQ_PIPED"	    },
+	{ XCORR_ECC_ERROR_WARNING_PIPED_MASK,	     "XCORR_ECC_ERROR_WARNING_PIPED"	    },
+	{ GIC_FAULT_INT_MASK,			     "GIC_FAULT_INT"			    },
+	{ GIC_ERR_INT_MASK,			     "GIC_ERR_INT"			    },
+	{ O_DFI_INTERNAL_ERR_INTR_MASK,		     "O_DFI_INTERNAL_ERR_INTR"		    },
+	{ O_DFI_PHYUPD_ERR_INTR_MASK,		     "O_DFI_PHYUPD_ERR_INTR"		    },
+	{ O_DFI_ALERT_ERR_INTR_MASK,		     "O_DFI_ALERT_ERR_INTR"		    },
+	{ O_ECC_AP_ERR_INTR_MASK,		     "O_ECC_AP_ERR_INTR"		    },
+	{ O_ECC_AP_ERR_INTR_FAULT_MASK,		     "O_ECC_AP_ERR_INTR_FAULT"		    },
+	{ O_ECC_UNCORRECTED_ERR_INTR_MASK,	     "O_ECC_UNCORRECTED_ERR_INTR"	    },
+	{ O_ECC_UNCORRECTED_ERR_INTR_FAULT_MASK,     "O_ECC_UNCORRECTED_ERR_INTR_FAULT"	    },
+	{ O_DWC_DDRPHY_INT_N_MASK,		     "O_DWC_DDRPHY_INT_N"		    },
+	{ NFAULTIRQ_0_MASK,			     "NFAULTIRQ_0"			    },
+	{ NFAULTIRQ_1_MASK,			     "NFAULTIRQ_1"			    },
+	{ NFAULTIRQ_2_MASK,			     "NFAULTIRQ_2"			    },
+	{ NFAULTIRQ_3_MASK,			     "NFAULTIRQ_3"			    },
+	{ NFAULTIRQ_4_MASK,			     "NFAULTIRQ_4"			    },
+	{ NERRIRQ_0_MASK,			     "NERRIRQ_0"			    },
+	{ NERRIRQ_1_MASK,			     "NERRIRQ_1"			    },
+	{ NERRIRQ_2_MASK,			     "NERRIRQ_2"			    },
+	{ NERRIRQ_3_MASK,			     "NERRIRQ_3"			    },
+	{ NERRIRQ_4_MASK,			     "NERRIRQ_4"			    },
+	{ GPINT_INTERRUPT_SECONDARY_TO_PRIMARY_MASK, "GPINT_INTERRUPT_SECONDARY_TO_PRIMARY" },
+	{ C2C_PINT_OUT_MASK,			     "C2C_PINT_OUT"			    },
+	{ TX3_NPD_ARM_IRQ_PIPED_8_MASK,		     "TX3_NPD_ARM_IRQ_PIPED_8"		    },
+	{ TX2_NPD_ARM_IRQ_PIPED_8_MASK,		     "TX2_NPD_ARM_IRQ_PIPED_8"		    },
+	{ TX1_NPD_ARM_IRQ_PIPED_8_MASK,		     "TX1_NPD_ARM_IRQ_PIPED_8"		    },
+	{ TX0_NPD_ARM_IRQ_PIPED_8_MASK,		     "TX0_NPD_ARM_IRQ_PIPED_8"		    },
+	{ O_STREAM_PROC_ERROR_MASK,		     "O_STREAM_PROC_ERROR"		    },
+	{ ORX0_ARM_IRQ_PIPED_8_MASK,		     "ORX0_ARM_IRQ_PIPED_8"		    },
+	{ TX3_ARM_IRQ_PIPED_8_MASK,		     "TX3_ARM_IRQ_PIPED_8"		    },
+	{ TX2_ARM_IRQ_PIPED_8_MASK,		     "TX2_ARM_IRQ_PIPED_8"		    },
+	{ TX1_ARM_IRQ_PIPED_8_MASK,		     "TX1_ARM_IRQ_PIPED_8"		    },
+	{ TX0_ARM_IRQ_PIPED_8_MASK,		     "TX0_ARM_IRQ_PIPED_8"		    },
+	{ RX3_ARM_IRQ_PIPED_8_MASK,		     "RX3_ARM_IRQ_PIPED_8"		    },
+	{ RX2_ARM_IRQ_PIPED_8_MASK,		     "RX2_ARM_IRQ_PIPED_8"		    },
+	{ RX1_ARM_IRQ_PIPED_8_MASK,		     "RX1_ARM_IRQ_PIPED_8"		    },
+	{ RX0_ARM_IRQ_PIPED_8_MASK,		     "RX0_ARM_IRQ_PIPED_8"		    }
+};
+
+gpint_status_t gpint_status_upper[] = {
+	{ L4_ECC_WRN_INTR_0_MASK,		  "L4_ECC_WRN_INTR_0"		      },
+	{ L4_ECC_ERR_INTR_0_MASK,		  "L4_ECC_ERR_INTR_0"		      },
+	{ L4_ECC_WRN_INTR_1_MASK,		  "L4_ECC_WRN_INTR_1"		      },
+	{ L4_ECC_ERR_INTR_1_MASK,		  "L4_ECC_ERR_INTR_1"		      },
+	{ L4_ECC_WRN_INTR_2_MASK,		  "L4_ECC_WRN_INTR_2"		      },
+	{ L4_ECC_ERR_INTR_2_MASK,		  "L4_ECC_ERR_INTR_2"		      },
+	{ EAST_RFPLL_PLL_LOCKED_SYNC_MASK,	  "EAST_RFPLL_PLL_LOCKED_SYNC"	      },
+	{ WEST_RFPLL_PLL_LOCKED_SYNC_MASK,	  "WEST_RFPLL_PLL_LOCKED_SYNC"	      },
+	{ CLKPLL_PLL_LOCKED_SYNC_MASK,		  "CLKPLL_PLL_LOCKED_SYNC"	      },
+	{ TE_FAULT_GP_INTR_PIPED_MASK,		  "TE_FAULT_GP_INTR_PIPED"	      },
+	{ CLK_PLL_CP_OVER_RANGE_MASK,		  "CLK_PLL_CP_OVER_RANGE"	      },
+	{ ETHPLL_LOCKED_SYNC_MASK,		  "ETHPLL_LOCKED_SYNC"		      },
+	{ ARM0_MEMORY_ECC_ERROR_MASK,		  "ARM0_MEMORY_ECC_ERROR"	      },
+	{ ARM1_MEMORY_ECC_ERROR_MASK,		  "ARM1_MEMORY_ECC_ERROR"	      },
+	{ NVMB_ERR_FLAG_BOOT_MASK,		  "NVMB_ERR_FLAG_BOOT"		      },
+	{ NVMB_ERR_FLAG_TIMEOUT_MASK,		  "NVMB_ERR_FLAG_TIMEOUT"	      },
+	{ ERROR_SPI0_PAGING_MASK,		  "ERROR_SPI0_PAGING"		      },
+	{ SOURCE_REDUCER_ERROR_INDICATION_0_MASK, "SOURCE_REDUCER_ERROR_INDICATION_0" },
+	{ EAST_RFPLL_CP_OVER_RANGE_MASK,	  "EAST_RFPLL_CP_OVER_RANGE"	      },
+	{ WEST_RFPLL_CP_OVER_RANGE_MASK,	  "WEST_RFPLL_CP_OVER_RANGE"	      },
+	{ SPI0_ABORT_MASK,			  "SPI0_ABORT"			      },
+	{ SCAN_MUXED_I_TX3_GP_INTERRUPT_0_MASK,	  "SCAN_MUXED_I_TX3_GP_INTERRUPT_0"   },
+	{ SCAN_MUXED_I_TX3_GP_INTERRUPT_1_MASK,	  "SCAN_MUXED_I_TX3_GP_INTERRUPT_1"   },
+	{ SCAN_MUXED_I_TX2_GP_INTERRUPT_0_MASK,	  "SCAN_MUXED_I_TX2_GP_INTERRUPT_0"   },
+	{ SCAN_MUXED_I_TX2_GP_INTERRUPT_1_MASK,	  "SCAN_MUXED_I_TX2_GP_INTERRUPT_1"   },
+	{ SCAN_MUXED_I_TX1_GP_INTERRUPT_0_MASK,	  "SCAN_MUXED_I_TX1_GP_INTERRUPT_0"   },
+	{ SCAN_MUXED_I_TX1_GP_INTERRUPT_1_MASK,	  "SCAN_MUXED_I_TX1_GP_INTERRUPT_1"   },
+	{ SCAN_MUXED_I_TX0_GP_INTERRUPT_0_MASK,	  "SCAN_MUXED_I_TX0_GP_INTERRUPT_0"   },
+	{ SCAN_MUXED_I_TX0_GP_INTERRUPT_1_MASK,	  "SCAN_MUXED_I_TX0_GP_INTERRUPT_1"   },
+	{ SPI_REG_ARM0_FORCE_GP_INTERRUPT_MASK,	  "SPI_REG_ARM0_FORCE_GP_INTERRUPT"   },
+	{ SPI_REG_ARM0_ERROR_MASK,		  "SPI_REG_ARM0_ERROR"		      },
+	{ SPI_REG_ARM0_CALIBRATION_ERROR_MASK,	  "SPI_REG_ARM0_CALIBRATION_ERROR"    },
+	{ SPI_REG_ARM0_SYSTEM_ERROR_MASK,	  "SPI_REG_ARM0_SYSTEM_ERROR"	      },
+	{ SPI_REG_ARM1_FORCE_GP_INTERRUPT_MASK,	  "SPI_REG_ARM1_FORCE_GP_INTERRUPT"   },
+	{ SPI_REG_ARM1_ERROR_MASK,		  "SPI_REG_ARM1_ERROR"		      },
+	{ SPI_REG_ARM1_CALIBRATION_ERROR_MASK,	  "SPI_REG_ARM1_CALIBRATION_ERROR"    },
+	{ SPI_REG_ARM1_SYSTEM_ERROR_MASK,	  "SPI_REG_ARM1_SYSTEM_ERROR"	      },
+	{ RADIO_SQR_ERROR_MASK,			  "RADIO_SQR_ERROR"		      },
+	{ SW_PINT_0_MASK,			  "SW_PINT_0"			      },
+	{ SW_PINT_1_MASK,			  "SW_PINT_1"			      },
+	{ SW_PINT_2_MASK,			  "SW_PINT_2"			      },
+	{ SW_PINT_3_MASK,			  "SW_PINT_3"			      },
+	{ SW_PINT_4_MASK,			  "SW_PINT_4"			      },
+	{ SW_PINT_5_MASK,			  "SW_PINT_5"			      },
+	{ SW_PINT_6_MASK,			  "SW_PINT_6"			      },
+	{ SW_PINT_7_MASK,			  "SW_PINT_7"			      }
+};
 
 /* Register offsets for GPINT0 and GPINT1 mask bits */
 static uintptr_t gpint_mask_offset[GPINT_BYTES][GPINT_NUM] = {
@@ -228,4 +327,15 @@ void adrv906x_gpint_set_routing(struct gpint_settings *settings)
 {
 	gp_settings.upper_word_route_nonsecure = settings->upper_word_route_nonsecure;
 	gp_settings.lower_word_route_nonsecure = settings->lower_word_route_nonsecure;
+}
+
+/* Print out which pin interrupts were detected */
+void adrv906x_gpint_print_status(const struct gpint_settings *settings)
+{
+	for (int i = 0; i < sizeof(gpint_status_lower) / sizeof(gpint_status_lower[0]); i++)
+		if (settings->lower_word & gpint_status_lower[i].mask)
+			NOTICE("Pin Interrupt Detected: %s\n", gpint_status_lower[i].name);
+	for (int i = 0; i < sizeof(gpint_status_upper) / sizeof(gpint_status_upper[0]); i++)
+		if (settings->upper_word & gpint_status_upper[i].mask)
+			NOTICE("Pin Interrupt Detected: %s\n", gpint_status_upper[i].name);
 }

@@ -81,3 +81,30 @@ bool plat_wr_status_reg(plat_status_reg_id_t reg, uint32_t value)
 	}
 	return true;
 }
+
+/* Get the reset cause string */
+const char *plat_get_reset_cause_str(reset_cause_t cause)
+{
+	switch (cause) {
+	case RESET_VALUE:
+		return "RESET VALUE";
+	case IMG_VERIFY_FAIL:
+		return "IMG VERIFY FAIL";
+	case WATCHDOG_RESET:
+		return "WATCHDOG RESET";
+	case CACHE_ECC_ERROR:
+		return "CACHE ECC ERROR";
+	case DRAM_ECC_ERROR:
+		return "DRAM ECC ERROR";
+	case DRAM_INIT_ERROR:
+		return "DRAM INIT ERROR";
+	case MCS_FAIL:
+		return "MCS FAIL";
+	case MBIAS_CAL_FAIL:
+		return "MBIAS CAL FAIL";
+	case OTHER_RESET_CAUSE:
+		return "OTHER";
+	default:
+		return "UNKNOWN";
+	}
+}

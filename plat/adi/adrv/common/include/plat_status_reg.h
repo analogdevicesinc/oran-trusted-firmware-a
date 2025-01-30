@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Analog Devices Incorporated, All Rights Reserved
+ * Copyright (c) 2025, Analog Devices Incorporated, All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -21,6 +21,9 @@ typedef enum {
 	WATCHDOG_RESET,
 	CACHE_ECC_ERROR,
 	DRAM_ECC_ERROR,
+	DRAM_INIT_ERROR,
+	MCS_FAIL,
+	MBIAS_CAL_FAIL,
 	OTHER_RESET_CAUSE,
 } reset_cause_t;
 
@@ -38,7 +41,7 @@ typedef enum {
 } plat_status_reg_id_t;
 
 uint32_t plat_rd_status_reg(plat_status_reg_id_t reg);
-
 bool plat_wr_status_reg(plat_status_reg_id_t reg, uint32_t value);
+const char *plat_get_reset_cause_str(reset_cause_t cause);
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2025, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -32,6 +32,6 @@ void adrv906x_gpint_disable(uintptr_t gpint_base_addr, uint32_t gpint, struct gp
 void adrv906x_gpint_warm_reset_enable(void);
 bool adrv906x_gpint_is_nonsecure(bool upper_word, uint64_t mask);
 void adrv906x_gpint_set_routing(struct gpint_settings *settings);
-
+void adrv906x_gpint_print_status(const struct gpint_settings *settings);
 
 #endif /* ADRV906X_GPINT_H */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Analog Devices Incorporated, All Rights Reserved
+ * Copyright (c) 2025, Analog Devices Incorporated, All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -13,5 +13,8 @@
 
 #define ECECC ADI_ERRNO(1)      /* Cache ECC Error */
 #define EDECC ADI_ERRNO(2)      /* DRAM ECC Error */
+#define EDINIT ADI_ERRNO(3)     /* DRAM Init Error */
+#define EMCS ADI_ERRNO(4)       /* MCS Failure */
+#define EMBCAL ADI_ERRNO(5)     /* MBias Cal Failure */
 
 #endif
