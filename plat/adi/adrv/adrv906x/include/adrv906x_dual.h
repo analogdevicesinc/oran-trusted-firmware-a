@@ -15,5 +15,6 @@ int adrv906x_enable_secondary_tile(void);
 void adrv906x_release_secondary_reset(void);
 void adrv906x_activate_secondary_reset(void);
 int adrv906x_load_secondary_image(void);
+struct adi_c2cc_training_settings *adrv906x_c2cc_get_training_settings(void);
 
 #endif /* __ADRV906X_DUAL_H__ */

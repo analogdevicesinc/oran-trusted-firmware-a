@@ -10,6 +10,20 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define ADI_C2C_LANE_COUNT 4
+#define ADI_C2C_TRIM_MAX 64
+#define ADI_C2C_TRIM_DELAY_MAX 16
+#define ADI_C2C_MIN_WINDOW_SIZE 5
+#define ADI_C2C_MAX_AXI_WAIT 50
+#define ADI_C2C_MAX_TRAIN_WAIT 500
+
+#define ADI_C2C_GET_COMBINED_STAT(stats, trim)       (stats)[trim]
+#define ADI_C2C_GET_LANE_STAT(stats, trim, lane)     (0xFF & (ADI_C2C_GET_COMBINED_STAT(stats, trim) >> (8 * (lane))))
+#define ADI_C2C_GET_LANE_STATS(stats, trim)          { \
+		ADI_C2C_GET_LANE_STAT(stats, trim, 0), ADI_C2C_GET_LANE_STAT(stats, trim, 1), \
+		ADI_C2C_GET_LANE_STAT(stats, trim, 2), ADI_C2C_GET_LANE_STAT(stats, trim, 3), \
+}
+
 struct adi_c2cc_training_clock_settings {
 	uint8_t rosc_div;
 	uint8_t devclk_div;
@@ -46,5 +60,8 @@ struct adi_c2cc_training_settings {
 void adi_c2cc_init(uintptr_t pri_base, uintptr_t sec_base);
 bool adi_c2cc_enable(void);
 bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params);
+bool adi_c2cc_setup_train(struct adi_c2cc_training_settings *params);
+bool adi_c2cc_run_train(uint32_t *p2s_stats, uint32_t *s2p_stats);
+bool adi_c2cc_process_train_data_and_apply(size_t min_size, uint32_t *p2s_stats, uint32_t *s2p_stats, struct adi_c2cc_training_clock_settings *tx_clk);
 
 #endif /* ADI_C2CC_H */

@@ -9,6 +9,7 @@
 #include <lib/mmio.h>
 
 #include <drivers/adi/adrv906x/clk.h>
+#include <drivers/adi/adi_c2cc.h>
 #include <drivers/adi/adi_otp.h>
 #include <drivers/adi/adi_twi_i2c.h>
 #include <drivers/adi/adrv906x/ldo.h>
@@ -20,6 +21,7 @@
 
 #include <adrv906x_ddr.h>
 #include <adrv906x_device_profile.h>
+#include <adrv906x_dual.h>
 #include <adrv906x_emac_common_def.h>
 #include <adrv906x_mmap.h>
 #include <adrv906x_otp.h>
@@ -45,6 +47,15 @@
 #define OTP_QRR_BIT_ADDRESS 0x1
 #define LAST_SAMANA_OTP_ADDRESS 0x3DFF
 #define BYTES_PER_OTP_WRITE 4
+
+/* C2C */
+#define C2C_NOT_CONFIGURED 0x00
+#define C2C_CONFIGURED 0x1
+#define C2C_TRAINED 0x2
+
+uint32_t p2s_stats[ADI_C2C_TRIM_MAX];
+uint32_t s2p_stats[ADI_C2C_TRIM_MAX];
+int c2c_train_state = C2C_NOT_CONFIGURED;
 
 static int adrv906x_dump_otp_memory(const uintptr_t start_addr, const int size);
 static int adrv906x_program_bootrom_in_otp(const uintptr_t mem_ctrl_base, uintptr_t base_addr_image, int num_bytes);
@@ -1031,10 +1042,119 @@ static int i2c_write_command_function(uint8_t *command_buffer, bool help)
 	return result;
 }
 
+static void c2c_train_dump_stats(void)
+{
+	int i, j, k;
+	uint32_t *all_stats[2] = { p2s_stats, s2p_stats };
+	uint32_t *stats;
+
+	for (i = 0; i < 2; i++) {
+		stats = all_stats[i];
+		printf("\n%s statistics\n--------------\n", i ? "S2P" : "P2S");
+		printf("RAW data:\n");
+		for (j = 0; j < 8; j++) {
+			for (k = 0; k < (ADI_C2C_TRIM_MAX / 8); k++)
+				printf("%08x ", stats[j * 8 + k]);
+			printf("\n");
+		}
+		printf("Per-lane and combined:\n");
+		for (j = 0; j < ADI_C2C_LANE_COUNT; j++) {
+			printf("Lane %d:   ", j);
+			for (k = 0; k < ADI_C2C_TRIM_MAX; k++)
+				printf("%d", ADI_C2C_GET_LANE_STAT(stats, k, j) != 0);
+			printf("\n");
+		}
+		printf("Combined: ");
+		for (k = 0; k < ADI_C2C_TRIM_MAX; k++)
+			printf("%d", ADI_C2C_GET_COMBINED_STAT(stats, k) != 0);
+		printf("\n");
+	}
+}
+
+static int c2c_setup_command_function(uint8_t *command_buffer, bool help)
+{
+	if (help) {
+		printf("c2csetup                                   ");
+		printf("Configures C2C training\n");
+		printf("Note: run C2C commands in this order: ccsetup -> c2ctrain -> c2cactivate\n");
+	} else {
+		/* Set DEV_CLK */
+		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
+
+		/* Perform MCS */
+		if (!clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true))
+			return -1;
+
+		/* Setup C2C training phase */
+		if (!adi_c2cc_setup_train(adrv906x_c2cc_get_training_settings()))
+			return -1;
+
+		plat_secure_wdt_stop();
+
+		c2c_train_state = C2C_CONFIGURED;
+	}
+	return 0;
+}
+
+static int c2c_train_command_function(uint8_t *command_buffer, bool help)
+{
+	if (help) {
+		printf("c2ctrain                                   ");
+		printf("Performs C2C training using PRBS\n");
+	} else {
+		/* c2csetup must be run first */
+		if (c2c_train_state < C2C_CONFIGURED) {
+			printf("Please run c2csetup first\n");
+			return -1;
+		}
+
+		/* Run calibration */
+		if (!adi_c2cc_run_train(p2s_stats, s2p_stats))
+			return -1;
+
+		/* Dump training combined statistics */
+		c2c_train_dump_stats();
+
+		c2c_train_state = C2C_TRAINED;
+	}
+	return 0;
+}
+
+static int c2c_activate_command_function(uint8_t *command_buffer, bool help)
+{
+	uint64_t min_eye_width = 5;
+	struct adi_c2cc_training_settings *params = adrv906x_c2cc_get_training_settings();
+
+	if (help) {
+		printf("c2cactivate [<eye_width>]                  ");
+		printf("Analyzes training and enables high speed mode.\n");
+		printf("<eye width> parameter is optional (default is 5). Value: 3,5,7,..,63 (odd number)\n");
+	} else {
+		/* Optional parameter to set eye width (default is 5) */
+		command_buffer = parse_next_param(10, command_buffer, &min_eye_width);
+
+		/* c2cstrain must be run first */
+		if (c2c_train_state < C2C_TRAINED) {
+			printf("Please run c2ctrain first\n");
+			return -1;
+		}
+
+		if (((min_eye_width % 2) == 0) || (min_eye_width < 3))
+			return -1;
+
+		if (!adi_c2cc_process_train_data_and_apply(min_eye_width, p2s_stats, s2p_stats, &(params->tx_clk)))
+			return -1;
+	}
+	return 0;
+}
+
 cli_command_t plat_command_list[] = {
 	{ "atetest",	   ate_test_command_function			  },
 	{ "ateddr",	   ate_ddr_command_function			  },
 	{ "bootrominotp",  bootrom_in_otp_command_function		  },
+	{ "c2csetup",	   c2c_setup_command_function			  },
+	{ "c2ctrain",	   c2c_train_command_function			  },
+	{ "c2cactivate",   c2c_activate_command_function		  },
 	{ "ddrinit",	   ddr_init_command_function			  },
 	{ "ddrextmemtest", ddr_extensive_mem_test_command_function	  },
 	{ "ddrmemtest",	   ddr_mem_test_command_function		  },

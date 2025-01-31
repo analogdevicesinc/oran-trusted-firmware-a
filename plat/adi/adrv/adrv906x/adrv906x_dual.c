@@ -178,3 +178,8 @@ int adrv906x_load_secondary_image(void)
 
 	return 0;
 }
+
+struct adi_c2cc_training_settings *adrv906x_c2cc_get_training_settings(void)
+{
+	return &adrv906x_c2c_training_params;
+}

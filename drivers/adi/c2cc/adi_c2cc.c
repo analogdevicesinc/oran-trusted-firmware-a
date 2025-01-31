@@ -11,20 +11,6 @@
 #include <lib/mmio.h>
 #include "adi_c2cc.h"
 
-#define ADI_C2C_LANE_COUNT 4
-#define ADI_C2C_TRIM_MAX 64
-#define ADI_C2C_TRIM_DELAY_MAX 16
-#define ADI_C2C_MIN_WINDOW_SIZE 5
-#define ADI_C2C_MAX_AXI_WAIT 50
-#define ADI_C2C_MAX_TRAIN_WAIT 500
-
-#define ADI_C2C_GET_COMBINED_STAT(stats, trim)       (stats)[trim]
-#define ADI_C2C_GET_LANE_STAT(stats, trim, lane)     (0xFF & (ADI_C2C_GET_COMBINED_STAT(stats, trim) >> (8 * (lane))))
-#define ADI_C2C_GET_LANE_STATS(stats, trim)          { \
-		ADI_C2C_GET_LANE_STAT(stats, trim, 0), ADI_C2C_GET_LANE_STAT(stats, trim, 1), \
-		ADI_C2C_GET_LANE_STAT(stats, trim, 2), ADI_C2C_GET_LANE_STAT(stats, trim, 3), \
-}
-
 static uintptr_t adi_c2cc_primary_addr_base = 0;
 static uintptr_t adi_c2cc_secondary_addr_base = 0;
 
@@ -416,11 +402,13 @@ static bool adi_c2cc_find_window_group(uint32_t *stats, size_t max_spread, size_
  * do not overlap enough, then we need to apply a delay to some lanes in order
  * to bring everything back into alignment.
  * @param[in] stats - the array of training statistics.
+ * @param[in] min_size - minimum valid window size
  * @param[out] trim_delays - the chosen trim delay values (this is an array of
  *                           size ADI_C2C_LANE_COUNT).
+ * @param[out] eye_width - the window size for the chosen trim value
  * @return the chosen trim value, or ADI_C2C_TRIM_MAX if no window was found.
  */
-static uint8_t adi_c2cc_find_optimal_trim(uint32_t *stats, uint8_t *trim_delays)
+static uint8_t adi_c2cc_find_optimal_trim(uint32_t *stats, size_t min_size, uint8_t *trim_delays, size_t *eye_width)
 {
 	size_t target_offset = 0;
 	size_t target_size = 0;
@@ -429,15 +417,17 @@ static uint8_t adi_c2cc_find_optimal_trim(uint32_t *stats, uint8_t *trim_delays)
 	size_t i = 0;
 
 	target_size = adi_c2cc_find_largest_combined_window(stats, &target_offset);
-	if (target_size >= ADI_C2C_MIN_WINDOW_SIZE) {
+	if (target_size >= min_size) {
 		if (trim_delays)
 			for (i = 0; i < ADI_C2C_LANE_COUNT; i++)
 				trim_delays[i] = 0;
+		if (eye_width)
+			*eye_width = target_size;
 		return target_offset + (target_size / 2);
 	}
 	WARN("%s: C2CC failed to find suitable trim window. Re-attempting with delay to account for skew.\n", __func__);
 
-	if (!adi_c2cc_find_window_group(stats, ADI_C2C_TRIM_DELAY_MAX, ADI_C2C_MIN_WINDOW_SIZE, offsets, sizes, &target_offset, &target_size)) {
+	if (!adi_c2cc_find_window_group(stats, ADI_C2C_TRIM_DELAY_MAX, min_size, offsets, sizes, &target_offset, &target_size)) {
 		WARN("%s: C2CC failed to find suitable trim window (with delay).\n", __func__);
 		return ADI_C2C_TRIM_MAX;
 	}
@@ -445,6 +435,8 @@ static uint8_t adi_c2cc_find_optimal_trim(uint32_t *stats, uint8_t *trim_delays)
 	if (trim_delays)
 		for (i = 0; i < ADI_C2C_LANE_COUNT; i++)
 			trim_delays[i] = target_offset - offsets[i];
+	if (eye_width)
+		*eye_width = target_size;
 
 	return target_offset + (target_size / 2);
 }
@@ -490,15 +482,25 @@ static bool adi_c2cc_apply_training(
 
 bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params)
 {
-	uintptr_t pri_base = adi_c2cc_primary_addr_base;
-	uintptr_t sec_base = adi_c2cc_secondary_addr_base;
-	uint8_t trim = 0;
-	uint8_t p2s_trim = ADI_C2C_TRIM_MAX;
-	uint8_t p2s_trim_delays[ADI_C2C_LANE_COUNT] = { 0 };
-	uint8_t s2p_trim = ADI_C2C_TRIM_MAX;
-	uint8_t s2p_trim_delays[ADI_C2C_LANE_COUNT] = { 0 };
 	uint32_t p2s_stats[ADI_C2C_TRIM_MAX];
 	uint32_t s2p_stats[ADI_C2C_TRIM_MAX];
+
+	if (!adi_c2cc_setup_train(params))
+		return false;
+
+	if (!adi_c2cc_run_train(p2s_stats, s2p_stats))
+		return false;
+
+	if (!adi_c2cc_process_train_data_and_apply(ADI_C2C_MIN_WINDOW_SIZE, p2s_stats, s2p_stats, &(params->tx_clk)))
+		return false;
+
+	return true;
+}
+
+bool adi_c2cc_setup_train(struct adi_c2cc_training_settings *params)
+{
+	uintptr_t pri_base = adi_c2cc_primary_addr_base;
+	uintptr_t sec_base = adi_c2cc_secondary_addr_base;
 
 	if (pri_base == 0 || sec_base == 0) {
 		ERROR("%s: C2CC must be initialized first.\n", __func__);
@@ -519,6 +521,20 @@ bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params)
 	adi_c2cc_configure_generator(pri_base, sec_base, &params->generator);   /* polynomial and seed */
 	adi_c2cc_configure_delay(pri_base, sec_base, &params->p2s_delay);       /* primary-to-secondary */
 	adi_c2cc_configure_delay(sec_base, pri_base, &params->s2p_delay);       /* secondary-to-primary */
+
+	return true;
+}
+
+bool adi_c2cc_run_train(uint32_t *p2s_stats, uint32_t *s2p_stats)
+{
+	uintptr_t pri_base = adi_c2cc_primary_addr_base;
+	uintptr_t sec_base = adi_c2cc_secondary_addr_base;
+	uint8_t trim = 0;
+
+	if ((p2s_stats == NULL) || (s2p_stats == NULL)) {
+		ERROR("%s: C2CC invalid statistics parameters.\n", __func__);
+		return false;
+	}
 
 	/* disable bridged interrupts */
 	ADI_C2CC_WRITE_INT_EN(sec_base, 0);
@@ -547,31 +563,52 @@ bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params)
 	ADI_C2CC_WRITE_INT_EN(pri_base, 1);
 	ADI_C2CC_WRITE_INT_EN(sec_base, 1);
 
-	p2s_trim = adi_c2cc_find_optimal_trim(p2s_stats, p2s_trim_delays);
+	return true;
+}
+
+bool adi_c2cc_process_train_data_and_apply(
+	size_t min_size,
+	uint32_t *p2s_stats, uint32_t *s2p_stats,
+	struct adi_c2cc_training_clock_settings *tx_clk)
+{
+	uintptr_t pri_base = adi_c2cc_primary_addr_base;
+	uintptr_t sec_base = adi_c2cc_secondary_addr_base;
+	uint8_t p2s_trim = ADI_C2C_TRIM_MAX;
+	uint8_t p2s_trim_delays[ADI_C2C_LANE_COUNT] = { 0 };
+	uint8_t s2p_trim = ADI_C2C_TRIM_MAX;
+	uint8_t s2p_trim_delays[ADI_C2C_LANE_COUNT] = { 0 };
+	size_t eye_width;
+
+	/* re-enable bridged interrupts */
+	ADI_C2CC_WRITE_INT_EN(pri_base, 1);
+	ADI_C2CC_WRITE_INT_EN(sec_base, 1);
+
+	p2s_trim = adi_c2cc_find_optimal_trim(p2s_stats, min_size, p2s_trim_delays, &eye_width);
 	if (p2s_trim == ADI_C2C_TRIM_MAX) {
 		WARN("%s: C2CC failed to find optimal p2s trim.\n", __func__);
 		return false;
 	}
 	INFO(
-		"%s: C2CC selected primary-to-secondary trim %u (delays=%u,%u,%u,%u)\n",
-		__func__, p2s_trim, p2s_trim_delays[0], p2s_trim_delays[1], p2s_trim_delays[2], p2s_trim_delays[3]
+		"%s: C2CC selected primary-to-secondary trim %u eye_width %lu (delays=%u,%u,%u,%u)\n",
+		__func__, p2s_trim, eye_width, p2s_trim_delays[0], p2s_trim_delays[1], p2s_trim_delays[2], p2s_trim_delays[3]
 		);
-	s2p_trim = adi_c2cc_find_optimal_trim(s2p_stats, s2p_trim_delays);
+	s2p_trim = adi_c2cc_find_optimal_trim(s2p_stats, min_size, s2p_trim_delays, &eye_width);
 	if (s2p_trim == ADI_C2C_TRIM_MAX) {
 		WARN("%s: C2CC failed to find optimal s2p trim.\n", __func__);
 		return false;
 	}
 	INFO(
-		"%s: C2CC selected secondary-to-primary trim %u (delays=%u,%u,%u,%u)\n",
-		__func__, s2p_trim, s2p_trim_delays[0], s2p_trim_delays[1], s2p_trim_delays[2], s2p_trim_delays[3]
+		"%s: C2CC selected secondary-to-primary trim %u eye_width %lu (delays=%u,%u,%u,%u)\n",
+		__func__, s2p_trim, eye_width, s2p_trim_delays[0], s2p_trim_delays[1], s2p_trim_delays[2], s2p_trim_delays[3]
 		);
 
-	if (!adi_c2cc_apply_training(pri_base, sec_base, p2s_trim, p2s_trim_delays, s2p_trim, s2p_trim_delays, &params->tx_clk)) {
+	if (!adi_c2cc_apply_training(pri_base, sec_base, p2s_trim, p2s_trim_delays, s2p_trim, s2p_trim_delays, tx_clk)) {
 		ERROR("%s: C2CC timeout while applying training.\n", __func__);
 		return false;
 	}
 
 	INFO("%s: C2CC phy training complete.\n", __func__);
+
 	return true;
 }
 
