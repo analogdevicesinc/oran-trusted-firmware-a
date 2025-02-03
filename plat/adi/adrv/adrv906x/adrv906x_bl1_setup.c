@@ -69,13 +69,17 @@ void plat_bl1_early_setup(void)
 		plat_clkdev_init();
 
 	if (plat_is_devclk_available() == false) {
-		/* Expected to be booting from external device clock, but hardware
-		 * has detected that the device clock signal is not present.
-		 * This is unrecoverable. Halt the boot.
-		 */
-		plat_console_boot_init();
-		plat_error_message("No device clock signal present.");
-		plat_board_system_reset();
+		/* TODO: Remove additional clock init for bootrom bypass after bringup */
+		clk_init_devclk(CLK_CTL, DIG_CORE_BASE);
+		if (plat_is_devclk_available() == false) {
+			/* Expected to be booting from external device clock, but hardware
+			 * has detected that the device clock signal is not present.
+			 * This is unrecoverable. Halt the boot.
+			 */
+			plat_console_boot_init();
+			plat_error_message("No device clock signal present.");
+			plat_board_system_reset();
+		}
 	}
 
 	/* Ensure the current clock source is devclk.
@@ -114,6 +118,7 @@ void plat_enclave_mailbox_init(void)
 {
 	plat_dprof_init();
 
-	/* Initialize TE mailbox */
-	adi_enclave_mailbox_init(TE_MAILBOX_BASE);
+	if (!plat_is_bootrom_bypass_enabled())
+		/* Initialize TE mailbox */
+		adi_enclave_mailbox_init(TE_MAILBOX_BASE);
 }

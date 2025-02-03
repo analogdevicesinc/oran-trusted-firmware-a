@@ -27,6 +27,7 @@ int plat_get_enforcement_counter(unsigned int *nv_ctr);
 int  plat_get_mac_setting(uint32_t index, uint8_t **mac);
 int plat_get_num_macs(void);
 bool plat_is_sysc(void);
+bool plat_is_bootrom_bypass_enabled(void);
 
 size_t plat_get_dram_size(void);
 
