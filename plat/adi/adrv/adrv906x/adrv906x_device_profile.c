@@ -1108,17 +1108,17 @@ void plat_set_fw_config_error_log(char *input)
 /*
  * Get current number of errors from device tree
  */
-uint32_t plat_get_fw_config_error_num(void)
+int plat_get_fw_config_error_num(void)
 {
 	int err = -1;
-	uint32_t error_num = -1;
+	uint32_t error_num;
 
 	/* Get number of errors in error-log */
 	err = get_fw_config_uint32("/error-log", "errors", &error_num, false);
 	if (err < 0)
 		return err;
 
-	return error_num;
+	return (int)error_num;
 }
 
 bool plat_is_bootrom_bypass_enabled(void)

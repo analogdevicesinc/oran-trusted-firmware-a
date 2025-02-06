@@ -88,7 +88,8 @@ ifeq (${TEST_FRAMEWORK}, 1)
 PLAT_BL_COMMON_SOURCES	+=	drivers/adi/test/test_framework.c
 endif
 
-BL1_SOURCES		+=	plat/adi/adrv/common/plat_bl1_setup.c
+BL1_SOURCES		+=	plat/adi/adrv/common/plat_bl1_setup.c \
+				plat/adi/adrv/common/plat_runtime_log.c
 
 ifeq (${RMA_CLI}, 1)
 BL1_SOURCES		+=	plat/adi/adrv/common/plat_cli.c
@@ -104,6 +105,7 @@ BL2_SOURCES		+=	common/desc_image_load.c \
 				plat/adi/adrv/common/aarch64/plat_bl2_mem_params_desc.c \
 				plat/adi/adrv/common/plat_bl2_setup.c \
 				plat/adi/adrv/common/plat_image_load.c \
+				plat/adi/adrv/common/plat_runtime_log.c \
 				plat/adi/adrv/common/plat_security.c
 ifeq (${DEBUG},1)
 BL2_SOURCES		+=	plat/adi/adrv/common/plat_cli.c

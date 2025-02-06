@@ -33,7 +33,7 @@ size_t plat_get_dram_size(void);
 
 /* Device tree error logging functions */
 void plat_set_fw_config_error_log(char *input);
-uint32_t plat_get_fw_config_error_num(void);
+int plat_get_fw_config_error_num(void);
 int get_fw_config_num_node_properties(const char *node_name);
 const void *get_fw_config_error_log_prop(int *property_offset, char **name, int *length);
 

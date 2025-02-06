@@ -68,8 +68,14 @@ void plat_error_handler(int err)
 static void plat_log_dt_message(char *label, char *message)
 {
 	char log[MAX_NODE_STRING_LENGTH + 7];
+	int fw_config_error_num = plat_get_fw_config_error_num();
 
-	if (plat_get_fw_config_error_num() >= DT_LOG_MESSAGE_MAX) {
+	if (fw_config_error_num < 0) {
+		INFO("Unable to log message to device tree, error number invalid\n");
+		return;
+	}
+
+	if (fw_config_error_num >= DT_LOG_MESSAGE_MAX) {
 		INFO("Unable to log message to device tree, maximum exceeded\n");
 		return;
 	}
