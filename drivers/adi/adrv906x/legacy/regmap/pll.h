@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Analog Devices Incorporated, All Rights Reserved
+ * Copyright (c) 2025, Analog Devices Incorporated, All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -7,6 +7,7 @@
 #define __ADI_ADRV906X_PLL_INTERNAL_H__
 
 #include "../hardware_if/hardware_if.h"
+
 
 /* register definitions */
 #define IDX_CORE_MASTER_BIAS_CTRL_MBIAS_IGEN_RTRIM_RB0  0x00001658U
