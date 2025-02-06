@@ -94,7 +94,7 @@ static uint64_t gpint_handler(uint32_t id, uint32_t flags, void *handle, void *c
 					ret = 1;
 				}
 #else
-				plat_error_message("Unhandled GPINT interrupt: %d", i);
+				plat_error_message("Unhandled upper word GPINT interrupt: %d", i);
 #endif
 			} else {
 				if (gpint_addr == DIG_CORE_BASE)
@@ -102,7 +102,7 @@ static uint64_t gpint_handler(uint32_t id, uint32_t flags, void *handle, void *c
 				else
 					handler = secondary_gpint_interrupt_table[i + GPINT_INTS_PER_WORD];
 				if (handler == NULL)
-					plat_error_message("No handler for GPINT event %d", i);
+					plat_error_message("No handler for upper word GPINT event %d", i);
 				else
 					ret = handler(i + GPINT_INTS_PER_WORD, flags, handle, cookie);
 			}
@@ -124,7 +124,7 @@ static uint64_t gpint_handler(uint32_t id, uint32_t flags, void *handle, void *c
 					ret = 1;
 				}
 #else
-				plat_error_message("Unhandled GPINT interrupt: %d", i);
+				plat_error_message("Unhandled lower word GPINT interrupt: %d", i);
 #endif
 			} else {
 				if (gpint_addr == DIG_CORE_BASE)
@@ -133,7 +133,7 @@ static uint64_t gpint_handler(uint32_t id, uint32_t flags, void *handle, void *c
 					handler = secondary_gpint_interrupt_table[i];
 
 				if (handler == NULL)
-					plat_error_message("No handler for GPINT event %d", i);
+					plat_error_message("No handler for lower word GPINT event %d", i);
 				else
 					ret = handler(i, flags, handle, cookie);
 			}
