@@ -24,6 +24,12 @@
 		ADI_C2C_GET_LANE_STAT(stats, trim, 2), ADI_C2C_GET_LANE_STAT(stats, trim, 3), \
 }
 
+typedef enum {
+	C2C_MODE_NORMAL,                /* Normal dual-tile operation */
+	C2C_MODE_EXTERNAL_LOOPBACK,     /* External loopback mode */
+	C2C_MODE_PHYDIG_LOOPBACK        /* Internal phydig loopback mode */
+} c2c_mode_t;
+
 struct adi_c2cc_training_clock_settings {
 	uint8_t rosc_div;
 	uint8_t devclk_div;
@@ -57,11 +63,19 @@ struct adi_c2cc_training_settings {
 	struct adi_c2cc_training_delay_settings s2p_delay;      /* secondary-to-primary */
 };
 
-void adi_c2cc_init(uintptr_t pri_base, uintptr_t sec_base);
+struct adi_c2cc_trim_settings {
+	uint8_t p2s_trim;
+	uint8_t p2s_trim_delays[ADI_C2C_LANE_COUNT];
+	uint8_t s2p_trim;
+	uint8_t s2p_trim_delays[ADI_C2C_LANE_COUNT];
+};
+
+void adi_c2cc_init(uintptr_t pri_base, uintptr_t sec_base, c2c_mode_t mode);
 bool adi_c2cc_enable(void);
 bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params);
 bool adi_c2cc_setup_train(struct adi_c2cc_training_settings *params);
 bool adi_c2cc_run_train(uint32_t *p2s_stats, uint32_t *s2p_stats);
-bool adi_c2cc_process_train_data_and_apply(size_t min_size, uint32_t *p2s_stats, uint32_t *s2p_stats, struct adi_c2cc_training_clock_settings *tx_clk);
+bool adi_c2cc_process_train_data_and_apply(size_t min_size, struct adi_c2cc_trim_settings *forced_trim, uint32_t *p2s_stats, uint32_t *s2p_stats, struct adi_c2cc_training_clock_settings *tx_clk);
+bool adi_c2cc_run_loopback_test();
 
 #endif /* ADI_C2CC_H */

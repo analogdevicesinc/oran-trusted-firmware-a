@@ -49,13 +49,17 @@
 #define BYTES_PER_OTP_WRITE 4
 
 /* C2C */
-#define C2C_NOT_CONFIGURED 0x00
-#define C2C_CONFIGURED 0x1
-#define C2C_TRAINED 0x2
+typedef enum {
+	C2C_STATE_NOT_CONFIGURED,
+	C2C_STATE_CONFIGURED,
+	C2C_STATE_TRAINED,
+	C2C_STATE_CALIBRATED,
+} c2c_state_t;
 
-uint32_t p2s_stats[ADI_C2C_TRIM_MAX];
-uint32_t s2p_stats[ADI_C2C_TRIM_MAX];
-int c2c_train_state = C2C_NOT_CONFIGURED;
+uint32_t p2s_stats[ADI_C2C_TRIM_MAX] = { 0 };
+uint32_t s2p_stats[ADI_C2C_TRIM_MAX] = { 0 };
+c2c_state_t c2c_train_state = C2C_STATE_NOT_CONFIGURED;
+c2c_mode_t c2c_mode = C2C_MODE_NORMAL;
 
 static int adrv906x_dump_otp_memory(const uintptr_t start_addr, const int size);
 static int adrv906x_program_bootrom_in_otp(const uintptr_t mem_ctrl_base, uintptr_t base_addr_image, int num_bytes);
@@ -1068,16 +1072,46 @@ static void c2c_train_dump_stats(void)
 		for (k = 0; k < ADI_C2C_TRIM_MAX; k++)
 			printf("%d", ADI_C2C_GET_COMBINED_STAT(stats, k) != 0);
 		printf("\n");
+
+		/* Dump only p2s stats */
+		if (c2c_mode != C2C_MODE_NORMAL)
+			break;
 	}
 }
 
 static int c2c_setup_command_function(uint8_t *command_buffer, bool help)
 {
+	uint64_t mode = 0;
+
 	if (help) {
-		printf("c2csetup                                   ");
+		printf("c2csetup [<mode>]                  ");
 		printf("Configures C2C training\n");
-		printf("Note: run C2C commands in this order: ccsetup -> c2ctrain -> c2cactivate\n");
+		printf("                                   ");
+		printf("<mode> values: 0=NORMAL, 1=EXTERNAL_LOOPBACK, 2=PHYDIG_LOOPBACK\n");
+		printf("                                   ");
+		printf("Sequence: c2csetup -> c2ctrain -> c2cactivate --(loopback mode)--> c2ctest \n");
 	} else {
+		/* Optional parameter to set c2c mode (default is 0) */
+		command_buffer = parse_next_param(10, command_buffer, &mode);
+
+		if ((mode < C2C_MODE_NORMAL) || (mode > C2C_MODE_PHYDIG_LOOPBACK)) {
+			printf("Invalid mode selected\n");
+			return -1;
+		}
+
+		if ((mode != C2C_MODE_NORMAL) && (plat_get_dual_tile_enabled())) {
+			printf("Loopback mode is intended for single tile build\n");
+			return -1;
+		}
+
+		if ((mode == C2C_MODE_NORMAL) && (!plat_get_dual_tile_enabled())) {
+			printf("Normal mode is intended for dual tile build\n");
+			return -1;
+		}
+
+		/* Store C2C mode */
+		c2c_mode = mode;
+
 		/* Set DEV_CLK */
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
 
@@ -1085,13 +1119,17 @@ static int c2c_setup_command_function(uint8_t *command_buffer, bool help)
 		if (!clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true))
 			return -1;
 
+		/* Init C2C (low speed) */
+		adi_c2cc_init(C2CC_BASE, SEC_C2CC_BASE, c2c_mode);
+		adi_c2cc_enable();
+
 		/* Setup C2C training phase */
 		if (!adi_c2cc_setup_train(adrv906x_c2cc_get_training_settings()))
 			return -1;
 
 		plat_secure_wdt_stop();
 
-		c2c_train_state = C2C_CONFIGURED;
+		c2c_train_state = C2C_STATE_CONFIGURED;
 	}
 	return 0;
 }
@@ -1099,11 +1137,11 @@ static int c2c_setup_command_function(uint8_t *command_buffer, bool help)
 static int c2c_train_command_function(uint8_t *command_buffer, bool help)
 {
 	if (help) {
-		printf("c2ctrain                                   ");
-		printf("Performs C2C training using PRBS\n");
+		printf("c2ctrain                           ");
+		printf("Performs C2C training (LFSR)\n");
 	} else {
-		/* c2csetup must be run first */
-		if (c2c_train_state < C2C_CONFIGURED) {
+		/* c2csetup must be run first. If calibration was already applied, c2csetup must be re-run again */
+		if ((c2c_train_state < C2C_STATE_CONFIGURED) || (c2c_train_state > C2C_STATE_TRAINED)) {
 			printf("Please run c2csetup first\n");
 			return -1;
 		}
@@ -1115,7 +1153,7 @@ static int c2c_train_command_function(uint8_t *command_buffer, bool help)
 		/* Dump training combined statistics */
 		c2c_train_dump_stats();
 
-		c2c_train_state = C2C_TRAINED;
+		c2c_train_state = C2C_STATE_TRAINED;
 	}
 	return 0;
 }
@@ -1124,17 +1162,72 @@ static int c2c_activate_command_function(uint8_t *command_buffer, bool help)
 {
 	uint64_t min_eye_width = 5;
 	struct adi_c2cc_training_settings *params = adrv906x_c2cc_get_training_settings();
+	struct adi_c2cc_trim_settings forced_trim;
+	struct adi_c2cc_trim_settings *trim = NULL;
+	uint8_t all_data[2 * (ADI_C2C_LANE_COUNT + 1)]; /* 4 data lanes + 1 rx clock, per tile */
+	uint64_t data;
+	bool forced = true;
+	int i;
 
 	if (help) {
-		printf("c2cactivate [<eye_width>]                  ");
-		printf("Analyzes training and enables high speed mode.\n");
-		printf("<eye width> parameter is optional (default is 5). Value: 3,5,7,..,63 (odd number)\n");
+		printf("c2cactivate [<eye_width> [<p2s_rx> <p2s_l0> <p2s_l1> <p2s_l2> <p2s_l3> <s2p_rx> <s2p_l0> <s2p_l1> <s2p_l2> <s2p_l3>]]\n");
+		printf("                                   ");
+		printf("Analyzes training (unless it is bypassed by forcing trim values) and enables high speed mode.\n");
+		printf("                                   ");
+		printf("<eye width> values: odd number in the range 3-63 (default 5)\n");
+		printf("                                   ");
+		printf("<x2x_rx> values: 0 - 63\n");
+		printf("                                   ");
+		printf("<x2x_lx> values: 0 - 15\n");
+		printf("                                   ");
+		printf("Notes: p2s_rx is applied to secondary rx clk and s2p_rx is applied to primary rx clk\n");
+		printf("                                   ");
+		printf("       p2s_lx is applied to primary tx data and s2p_lx is applied to primary rx data\n");
+		printf("                                   ");
+		printf("       In loopback mode, s2p_xxx data is ignored and secondary becomes primary (ie: p2s_rx is applied to primary rx clk)\n");
+		printf("                                   ");
+		printf("       If x2x_xx data is provided, eye_width is ignored\n");
 	} else {
 		/* Optional parameter to set eye width (default is 5) */
 		command_buffer = parse_next_param(10, command_buffer, &min_eye_width);
+		if (command_buffer != NULL) {
+			for (i = 0; i < (2 * (ADI_C2C_LANE_COUNT + 1)); i++) {
+				command_buffer = parse_next_param(10, command_buffer, &data);
+				if (command_buffer == NULL) {
+					forced = false;
+					break;
+				}
+				all_data[i] = data;
+			}
+
+			if (forced) {
+				forced_trim.p2s_trim = all_data[0];
+				forced_trim.p2s_trim_delays[0] = all_data[1];
+				forced_trim.p2s_trim_delays[1] = all_data[2];
+				forced_trim.p2s_trim_delays[2] = all_data[3];
+				forced_trim.p2s_trim_delays[3] = all_data[4];
+				forced_trim.s2p_trim = all_data[5];
+				forced_trim.s2p_trim_delays[0] = all_data[6];
+				forced_trim.s2p_trim_delays[1] = all_data[7];
+				forced_trim.s2p_trim_delays[2] = all_data[8];
+				forced_trim.s2p_trim_delays[3] = all_data[9];
+
+				if ((forced_trim.p2s_trim > 63) || (forced_trim.s2p_trim > 63) ||
+				    (forced_trim.p2s_trim_delays[0] > 15) || (forced_trim.p2s_trim_delays[1] > 15) ||
+				    (forced_trim.p2s_trim_delays[2] > 15) || (forced_trim.p2s_trim_delays[3] > 15) ||
+				    (forced_trim.s2p_trim_delays[0] > 15) || (forced_trim.s2p_trim_delays[1] > 15) ||
+				    (forced_trim.s2p_trim_delays[2] > 15) || (forced_trim.s2p_trim_delays[3] > 15)) {
+					printf("Invalid trim values\n");
+					return -1;
+				}
+
+				/* use forced trim values */
+				trim = &forced_trim;
+			}
+		}
 
 		/* c2cstrain must be run first */
-		if (c2c_train_state < C2C_TRAINED) {
+		if (c2c_train_state < C2C_STATE_TRAINED) {
 			printf("Please run c2ctrain first\n");
 			return -1;
 		}
@@ -1142,9 +1235,38 @@ static int c2c_activate_command_function(uint8_t *command_buffer, bool help)
 		if (((min_eye_width % 2) == 0) || (min_eye_width < 3))
 			return -1;
 
-		if (!adi_c2cc_process_train_data_and_apply(min_eye_width, p2s_stats, s2p_stats, &(params->tx_clk)))
+		if (!adi_c2cc_process_train_data_and_apply(min_eye_width, trim, p2s_stats, s2p_stats, &(params->tx_clk)))
 			return -1;
+
+		c2c_train_state = C2C_STATE_CALIBRATED;
 	}
+	return 0;
+}
+
+static int c2c_test_command_function(uint8_t *command_buffer, bool help)
+{
+	if (help) {
+		printf("c2ctest                            ");
+		printf("Tests C2C in loopback mode (LFSR)\n");
+	} else {
+		/* c2ctest applies only to loopback mode */
+		if (c2c_mode == C2C_MODE_NORMAL) {
+			printf("c2ctest does not apply to c2c normal mode\n");
+			return -1;
+		}
+
+		/* c2csactivate must be run first */
+		if (c2c_train_state < C2C_STATE_CALIBRATED) {
+			printf("Please run c2cactivate first\n");
+			return -1;
+		}
+
+		if (!adi_c2cc_run_loopback_test())
+			return -1;
+
+		printf("Test complete (PASS)\n");
+	}
+
 	return 0;
 }
 
@@ -1152,9 +1274,10 @@ cli_command_t plat_command_list[] = {
 	{ "atetest",	   ate_test_command_function			  },
 	{ "ateddr",	   ate_ddr_command_function			  },
 	{ "bootrominotp",  bootrom_in_otp_command_function		  },
-	{ "c2csetup",	   c2c_setup_command_function			  },
-	{ "c2ctrain",	   c2c_train_command_function			  },
 	{ "c2cactivate",   c2c_activate_command_function		  },
+	{ "c2csetup",	   c2c_setup_command_function			  },
+	{ "c2ctest",	   c2c_test_command_function			  },
+	{ "c2ctrain",	   c2c_train_command_function			  },
 	{ "ddrinit",	   ddr_init_command_function			  },
 	{ "ddrextmemtest", ddr_extensive_mem_test_command_function	  },
 	{ "ddrmemtest",	   ddr_mem_test_command_function		  },

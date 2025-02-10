@@ -18,7 +18,7 @@
 int adi_c2cc_test(void)
 {
 	printf("initializing c2c\n");
-	adi_c2cc_init(C2CC_BASE, SEC_C2CC_BASE);
+	adi_c2cc_init(C2CC_BASE, SEC_C2CC_BASE, C2C_MODE_NORMAL);
 
 	/* read the secondary SPU's config register */
 	uint32_t reg = mmio_read_32(0x24250000U);

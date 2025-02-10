@@ -103,7 +103,7 @@ static struct adi_c2cc_training_settings adrv906x_c2c_training_params = {
 
 bool adrv906x_c2c_enable(void)
 {
-	adi_c2cc_init(C2CC_BASE, SEC_C2CC_BASE);
+	adi_c2cc_init(C2CC_BASE, SEC_C2CC_BASE, C2C_MODE_NORMAL);
 	return adi_c2cc_enable();
 }
 

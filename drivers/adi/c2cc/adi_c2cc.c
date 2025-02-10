@@ -11,8 +11,14 @@
 #include <lib/mmio.h>
 #include "adi_c2cc.h"
 
+/* Low speed (20 MHz) settings */
+#define ADI_C2CC_TXDIV_ROSC 25
+#define ADI_C2CC_TXDIV_DEVCLK 50
+#define ADI_C2CC_TXDIV_PLL 50
+
 static uintptr_t adi_c2cc_primary_addr_base = 0;
 static uintptr_t adi_c2cc_secondary_addr_base = 0;
+static bool adi_c2cc_loopback = false;
 
 static uint32_t adi_c2cc_read_bf32(uintptr_t addr, uint8_t position, uint32_t mask)
 {
@@ -61,6 +67,17 @@ static void adi_c2cc_axi_control(uintptr_t addr_base, bool enabled)
 
 static void adi_c2cc_configure_tx_clk(uintptr_t pri_base, uintptr_t sec_base, struct adi_c2cc_training_clock_settings *tx_clk)
 {
+	/* Set low speed (20MHz) before training procedure
+	 * (setting explicitly these values (which are default on reset), allows to
+	 * go and back during CLI C2C testing) */
+	ADI_C2CC_WRITE_ROSC_TX_CLK_DIV(sec_base, ADI_C2CC_TXDIV_ROSC);
+	ADI_C2CC_WRITE_DEV_TX_CLK_DIV(sec_base, ADI_C2CC_TXDIV_DEVCLK);
+	ADI_C2CC_WRITE_PLL_TX_CLK_DIV(sec_base, ADI_C2CC_TXDIV_PLL);
+	ADI_C2CC_WRITE_ROSC_TX_CLK_DIV(sec_base, ADI_C2CC_TXDIV_ROSC);
+	ADI_C2CC_WRITE_DEV_TX_CLK_DIV(sec_base, ADI_C2CC_TXDIV_DEVCLK);
+	ADI_C2CC_WRITE_PLL_TX_CLK_DIV(sec_base, ADI_C2CC_TXDIV_PLL);
+
+	/* Configure training speed (high speed) */
 	ADI_C2CC_WRITE_TRAIN_ROSC_TX_CLK_DIV(pri_base, tx_clk->rosc_div);
 	ADI_C2CC_WRITE_TRAIN_ROSC_TX_CLK_DIV(sec_base, tx_clk->rosc_div);
 	ADI_C2CC_WRITE_TRAIN_DEV_TX_CLK_DIV(pri_base, tx_clk->devclk_div);
@@ -155,6 +172,9 @@ static bool adi_c2cc_p2s_gather_statistics(uintptr_t pri_base, uintptr_t sec_bas
 	/* collect statistics (4 lanes, 2 edges each - combined in TRAINSTAT3) */
 	if (stats)
 		*stats = ADI_C2CC_READ_TRAINSTAT3_RAW(sec_base);
+
+	/* Workaround: training does not work (reads all 0s) in loopback mode unless a small delay is added here */
+	udelay(1);
 
 	ADI_C2CC_WRITE_PWR_UP_RX_CAL_IRQ(sec_base, 1); /* clear secondary's interrupt flag and stats */
 
@@ -468,6 +488,10 @@ static bool adi_c2cc_apply_training(
 	ADI_C2CC_WRITE_DEV_TX_CLK_DIV(pri_base, tx_clk->devclk_div);
 	ADI_C2CC_WRITE_PLL_TX_CLK_DIV(pri_base, tx_clk->pll_div);
 
+	if (adi_c2cc_loopback)
+		/* No need to apply s2p related settings in loopback mode */
+		return true;
+
 	if (!adi_c2cc_wait_transactions(pri_base) || !adi_c2cc_wait_transactions(sec_base))
 		return false;
 
@@ -478,6 +502,11 @@ static bool adi_c2cc_apply_training(
 	ADI_C2CC_WRITE_PLL_TX_CLK_DIV(sec_base, tx_clk->pll_div);
 
 	return true;
+}
+
+static void adi_c2cc_phydig_enable(bool enable)
+{
+	ADI_C2CC_WRITE_PHYDIG_LPBK_EN(adi_c2cc_primary_addr_base, enable);
 }
 
 bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params)
@@ -491,7 +520,7 @@ bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params)
 	if (!adi_c2cc_run_train(p2s_stats, s2p_stats))
 		return false;
 
-	if (!adi_c2cc_process_train_data_and_apply(ADI_C2C_MIN_WINDOW_SIZE, p2s_stats, s2p_stats, &(params->tx_clk)))
+	if (!adi_c2cc_process_train_data_and_apply(ADI_C2C_MIN_WINDOW_SIZE, NULL, p2s_stats, s2p_stats, &(params->tx_clk)))
 		return false;
 
 	return true;
@@ -517,10 +546,11 @@ bool adi_c2cc_setup_train(struct adi_c2cc_training_settings *params)
 		return false;
 	}
 
-	adi_c2cc_configure_tx_clk(pri_base, sec_base, &params->tx_clk);         /* clock divisors */
-	adi_c2cc_configure_generator(pri_base, sec_base, &params->generator);   /* polynomial and seed */
-	adi_c2cc_configure_delay(pri_base, sec_base, &params->p2s_delay);       /* primary-to-secondary */
-	adi_c2cc_configure_delay(sec_base, pri_base, &params->s2p_delay);       /* secondary-to-primary */
+	adi_c2cc_configure_tx_clk(pri_base, sec_base, &params->tx_clk);                 /* clock divisors */
+	adi_c2cc_configure_generator(pri_base, sec_base, &params->generator);           /* polynomial and seed */
+	adi_c2cc_configure_delay(pri_base, sec_base, &params->p2s_delay);               /* primary-to-secondary */
+	if (!adi_c2cc_loopback)
+		adi_c2cc_configure_delay(sec_base, pri_base, &params->s2p_delay);       /* secondary-to-primary */
 
 	return true;
 }
@@ -550,14 +580,16 @@ bool adi_c2cc_run_train(uint32_t *p2s_stats, uint32_t *s2p_stats)
 		}
 	}
 
-	VERBOSE("%s: C2CC gathering secondary (Tx) to primary (Rx) statistics.\n", __func__);
-	for (trim = 0; trim < ADI_C2C_TRIM_MAX; trim++)
-		if (!adi_c2cc_s2p_gather_statistics(sec_base, pri_base, trim, &s2p_stats[trim])) {
-			ERROR("%s: C2CC timeout while gathering statistics (s2p,trim=%u).\n", __func__, trim);
-			ADI_C2CC_WRITE_INT_EN(pri_base, 1);
-			ADI_C2CC_WRITE_INT_EN(sec_base, 1);
-			return false;
-		}
+	if (!adi_c2cc_loopback) {
+		VERBOSE("%s: C2CC gathering secondary (Tx) to primary (Rx) statistics.\n", __func__);
+		for (trim = 0; trim < ADI_C2C_TRIM_MAX; trim++)
+			if (!adi_c2cc_s2p_gather_statistics(sec_base, pri_base, trim, &s2p_stats[trim])) {
+				ERROR("%s: C2CC timeout while gathering statistics (s2p,trim=%u).\n", __func__, trim);
+				ADI_C2CC_WRITE_INT_EN(pri_base, 1);
+				ADI_C2CC_WRITE_INT_EN(sec_base, 1);
+				return false;
+			}
+	}
 
 	/* re-enable bridged interrupts */
 	ADI_C2CC_WRITE_INT_EN(pri_base, 1);
@@ -567,7 +599,7 @@ bool adi_c2cc_run_train(uint32_t *p2s_stats, uint32_t *s2p_stats)
 }
 
 bool adi_c2cc_process_train_data_and_apply(
-	size_t min_size,
+	size_t min_size, struct adi_c2cc_trim_settings *forced_trim,
 	uint32_t *p2s_stats, uint32_t *s2p_stats,
 	struct adi_c2cc_training_clock_settings *tx_clk)
 {
@@ -578,29 +610,45 @@ bool adi_c2cc_process_train_data_and_apply(
 	uint8_t s2p_trim = ADI_C2C_TRIM_MAX;
 	uint8_t s2p_trim_delays[ADI_C2C_LANE_COUNT] = { 0 };
 	size_t eye_width;
+	int lane;
 
 	/* re-enable bridged interrupts */
 	ADI_C2CC_WRITE_INT_EN(pri_base, 1);
 	ADI_C2CC_WRITE_INT_EN(sec_base, 1);
 
-	p2s_trim = adi_c2cc_find_optimal_trim(p2s_stats, min_size, p2s_trim_delays, &eye_width);
-	if (p2s_trim == ADI_C2C_TRIM_MAX) {
-		WARN("%s: C2CC failed to find optimal p2s trim.\n", __func__);
-		return false;
+	if (forced_trim) {
+		p2s_trim = forced_trim->p2s_trim;
+		s2p_trim = forced_trim->s2p_trim;
+		for (lane = 0; lane < ADI_C2C_LANE_COUNT; lane++) {
+			p2s_trim_delays[lane] = forced_trim->p2s_trim_delays[lane];
+			s2p_trim_delays[lane] = forced_trim->s2p_trim_delays[lane];
+		}
+
+		INFO("%s: C2CC trim settings forced by user\n", __func__);
+	} else {
+		p2s_trim = adi_c2cc_find_optimal_trim(p2s_stats, min_size, p2s_trim_delays, &eye_width);
+		if (p2s_trim == ADI_C2C_TRIM_MAX) {
+			WARN("%s: C2CC failed to find optimal p2s trim.\n", __func__);
+			return false;
+		}
+		INFO(
+			"%s: C2CC selected primary-to-secondary trim %u eye_width %lu (delays=%u,%u,%u,%u)\n",
+			__func__, p2s_trim, eye_width, p2s_trim_delays[0], p2s_trim_delays[1], p2s_trim_delays[2], p2s_trim_delays[3]
+			);
+
+		/* Loopback mode does not require s2p config */
+		if (!adi_c2cc_loopback) {
+			s2p_trim = adi_c2cc_find_optimal_trim(s2p_stats, min_size, s2p_trim_delays, &eye_width);
+			if (s2p_trim == ADI_C2C_TRIM_MAX) {
+				WARN("%s: C2CC failed to find optimal s2p trim.\n", __func__);
+				return false;
+			}
+			INFO(
+				"%s: C2CC selected secondary-to-primary trim %u eye_width %lu (delays=%u,%u,%u,%u)\n",
+				__func__, s2p_trim, eye_width, s2p_trim_delays[0], s2p_trim_delays[1], s2p_trim_delays[2], s2p_trim_delays[3]
+				);
+		}
 	}
-	INFO(
-		"%s: C2CC selected primary-to-secondary trim %u eye_width %lu (delays=%u,%u,%u,%u)\n",
-		__func__, p2s_trim, eye_width, p2s_trim_delays[0], p2s_trim_delays[1], p2s_trim_delays[2], p2s_trim_delays[3]
-		);
-	s2p_trim = adi_c2cc_find_optimal_trim(s2p_stats, min_size, s2p_trim_delays, &eye_width);
-	if (s2p_trim == ADI_C2C_TRIM_MAX) {
-		WARN("%s: C2CC failed to find optimal s2p trim.\n", __func__);
-		return false;
-	}
-	INFO(
-		"%s: C2CC selected secondary-to-primary trim %u eye_width %lu (delays=%u,%u,%u,%u)\n",
-		__func__, s2p_trim, eye_width, s2p_trim_delays[0], s2p_trim_delays[1], s2p_trim_delays[2], s2p_trim_delays[3]
-		);
 
 	if (!adi_c2cc_apply_training(pri_base, sec_base, p2s_trim, p2s_trim_delays, s2p_trim, s2p_trim_delays, tx_clk)) {
 		ERROR("%s: C2CC timeout while applying training.\n", __func__);
@@ -633,8 +681,68 @@ bool adi_c2cc_enable(void)
 	return true;
 }
 
-void adi_c2cc_init(uintptr_t pri_base, uintptr_t sec_base)
+void adi_c2cc_init(uintptr_t pri_base, uintptr_t sec_base, c2c_mode_t mode)
 {
+	adi_c2cc_loopback = (mode != C2C_MODE_NORMAL);
 	adi_c2cc_primary_addr_base = pri_base;
-	adi_c2cc_secondary_addr_base = sec_base;
+	adi_c2cc_secondary_addr_base = adi_c2cc_loopback ? pri_base : sec_base;
+
+	adi_c2cc_phydig_enable(mode == C2C_MODE_PHYDIG_LOOPBACK);
+}
+
+bool adi_c2cc_run_loopback_test()
+{
+	unsigned int lane;
+	unsigned int edge;
+	uintptr_t pri_base = adi_c2cc_primary_addr_base;
+	bool ret = true;
+	uint16_t cnt;
+
+	/* TODO: pending HW design confirmation. By now, keeping power up
+	 *       calibration configuration values
+	 * - txptrndur
+	 * - lpdur
+	 */
+
+	/* Start LFSR */
+	ADI_C2CC_WRITE_TSTCONFIG_START_LFSR(pri_base, true);
+
+	udelay(100);
+
+	/* Stop LFSR */
+	ADI_C2CC_WRITE_TSTCONFIG_STOP_LFSR(pri_base, true);
+
+	/* Check errors */
+	for (lane = 0; lane < ADI_C2C_LANE_COUNT; lane++) {
+		for (edge = 0; edge < 2; edge++) {
+			cnt = ADI_C2CC_READ_TRAINSTAT1_FAIL_CNT(pri_base, lane, edge);
+			if (cnt != 0) {
+				ERROR("%s: FAIL_CNT: lane %d, edge %d: %d\n", __func__, lane, edge, cnt);
+				ret = false;
+			}
+			cnt = ADI_C2CC_READ_TRAINSTAT2_BAD_CNT(pri_base, lane, edge);
+			if (cnt != 0) {
+				ERROR("%s: BAD_CNT: lane %d, edge %d: %d\n", __func__, lane, edge, cnt);
+				ret = false;
+			}
+			cnt = ADI_C2CC_READ_TRAINSTAT1_LATE_CNT(pri_base, lane, edge);
+			if (cnt != 0) {
+				ERROR("%s: LATE_CNT: lane %d, edge %d: %d\n", __func__, lane, edge, cnt);
+				ret = false;
+			}
+			cnt = ADI_C2CC_READ_TRAINSTAT2_EARLY_CNT(pri_base, lane, edge);
+			if (cnt != 0) {
+				ERROR("%s: EARLY_CNT: lane %d, edge %d: %d\n", __func__, lane, edge, cnt);
+				ret = false;
+			}
+		}
+	}
+
+	/* Clean everything */
+	ADI_C2CC_WRITE_TSTCONFIG_LFSR_STS_CLR(pri_base, true);
+	ADI_C2CC_WRITE_TSTCONFIG_START_LFSR(pri_base, false);
+	ADI_C2CC_WRITE_TSTCONFIG_STOP_LFSR(pri_base, false);
+	ADI_C2CC_WRITE_TSTCONFIG_LFSR_STS_CLR(pri_base, false);
+
+	return ret;
 }
