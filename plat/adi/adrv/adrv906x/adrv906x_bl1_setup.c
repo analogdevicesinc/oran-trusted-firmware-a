@@ -118,7 +118,6 @@ void plat_enclave_mailbox_init(void)
 {
 	plat_dprof_init();
 
-	if (!plat_is_bootrom_bypass_enabled())
-		/* Initialize TE mailbox */
-		adi_enclave_mailbox_init(TE_MAILBOX_BASE);
+	/* Initialize TE mailbox */
+	adi_enclave_mailbox_init(TE_MAILBOX_BASE);
 }

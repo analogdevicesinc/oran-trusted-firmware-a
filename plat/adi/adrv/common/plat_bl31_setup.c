@@ -134,90 +134,60 @@ static void fixup_hw_config(void)
 	/* Get the boot slot */
 	boot_slot = plat_get_boot_slot();
 
-	if (plat_is_bootrom_bypass_enabled()) {
-		te_boot_slot = "N/A";
-		lifecycle_state_str = "Unknown";
+	/* Get lifecycle and TE-related info */
+	te_boot_slot = adi_enclave_get_active_boot_slot(TE_MAILBOX_BASE);
+	lifecycle_state_str = adi_enclave_get_lifecycle_state_str(TE_MAILBOX_BASE);
+	if (adi_enclave_get_lifecycle_state(TE_MAILBOX_BASE) == ADI_LIFECYCLE_DEPLOYED)
+		is_deployed = 1;
+	else
 		is_deployed = 0;
+
+	/* Populate the KASLR seed with a value from TE's RNG */
+	err = adi_enclave_random_bytes(TE_MAILBOX_BASE, (void *)&kaslr_seed, sizeof(kaslr_seed));
+	if (err != 0) {
+		plat_warn_message("Failed to set KASLR seed. TE error %d.", err);
 		kaslr_valid = false;
-		kaslr_seed = 0xDEADBEEF;
-		nv_ctr = 0;
-		app_sec_ver = 0;
-		enforcement_ctr = 0;
-		te_enforcement_ctr = 0;
-
-		err = fdt_open_into(hw_config_dtb, hw_config_dtb, HW_CONFIG_MAX_SIZE);
-		if (err < 0) {
-			plat_error_message("Failed to open HW_CONFIG %d", err);
-			plat_error_handler(err);
-		}
-
-		node = fdt_path_offset(hw_config_dtb, "/boot");
-		if (node < 0) {
-			plat_error_message("Failed to find '/boot' node in HW_CONFIG %d", node);
-			plat_error_handler(node);
-		}
-
-		err = fdt_setprop_empty(hw_config_dtb, node, "bootrom_bypass");
-		if (err != 0) {
-			plat_error_message("Failed to set bootrom_bypass property in boot node");
-			plat_error_handler(err);
-		}
 	} else {
-		/* Get lifecycle and TE-related info */
-		te_boot_slot = adi_enclave_get_active_boot_slot(TE_MAILBOX_BASE);
-		lifecycle_state_str = adi_enclave_get_lifecycle_state_str(TE_MAILBOX_BASE);
-		if (adi_enclave_get_lifecycle_state(TE_MAILBOX_BASE) == ADI_LIFECYCLE_DEPLOYED)
-			is_deployed = 1;
-		else
-			is_deployed = 0;
+		kaslr_valid = true;
+	}
 
-		/* Populate the KASLR seed with a value from TE's RNG */
-		err = adi_enclave_random_bytes(TE_MAILBOX_BASE, (void *)&kaslr_seed, sizeof(kaslr_seed));
-		if (err != 0) {
-			plat_warn_message("Failed to set KASLR seed. TE error %d.", err);
-			kaslr_valid = false;
-		} else {
-			kaslr_valid = true;
-		}
+	/* Anti-rollback fixup
+	 * Get enforcement counter from OTP */
+	err = plat_get_enforcement_counter(&enforcement_ctr);
+	if (err < 0) {
+		plat_error_message("Failed to get anti-rollback enforcement counter");
+		plat_error_handler(err);
+	}
 
-		/* Anti-rollback fixup
-		 * Get enforcement counter from OTP */
-		err = plat_get_enforcement_counter(&enforcement_ctr);
+	/* Get TE enforcement counter from OTP */
+	err = adi_enclave_get_otp_app_anti_rollback(TE_MAILBOX_BASE, &te_enforcement_ctr);
+	if (err < 0) {
+		plat_error_message("Failed get TE anti-rollback counter from OTP");
+		plat_error_handler(err);
+	}
+
+	/* Get FIP certificate anti-rollback counter from FW_CONFIG
+	 * If FIP certificate anti-rollback counter value is not set,
+	 * 0, use enforcement counter from OTP.
+	 * FIP certificate anti-rollback counter is only set when the
+	 * nv counter is greater than the enforcement counter.
+	 * If they are equal, the FIP certificate anti-rollback counter
+	 * will be 0, and the enforcement counter can be used as the
+	 * FIP anti-rollback counter.
+	 */
+	cert_nv_ctr = plat_get_fw_config_rollback_ctr();
+	if (cert_nv_ctr != 0) {
+		nv_ctr = cert_nv_ctr;
+	} else {
+		err = plat_get_enforcement_counter(&nv_ctr);
 		if (err < 0) {
 			plat_error_message("Failed to get anti-rollback enforcement counter");
 			plat_error_handler(err);
 		}
-
-		/* Get TE enforcement counter from OTP */
-		err = adi_enclave_get_otp_app_anti_rollback(TE_MAILBOX_BASE, &te_enforcement_ctr);
-		if (err < 0) {
-			plat_error_message("Failed get TE anti-rollback counter from OTP");
-			plat_error_handler(err);
-		}
-
-		/* Get FIP certificate anti-rollback counter from FW_CONFIG
-		 * If FIP certificate anti-rollback counter value is not set,
-		 * 0, use enforcement counter from OTP.
-		 * FIP certificate anti-rollback counter is only set when the
-		 * nv counter is greater than the enforcement counter.
-		 * If they are equal, the FIP certificate anti-rollback counter
-		 * will be 0, and the enforcement counter can be used as the
-		 * FIP anti-rollback counter.
-		 */
-		cert_nv_ctr = plat_get_fw_config_rollback_ctr();
-		if (cert_nv_ctr != 0) {
-			nv_ctr = cert_nv_ctr;
-		} else {
-			err = plat_get_enforcement_counter(&nv_ctr);
-			if (err < 0) {
-				plat_error_message("Failed to get anti-rollback enforcement counter");
-				plat_error_handler(err);
-			}
-		}
-
-		/* Get TE anti-rollback counter from FW_CONFIG */
-		app_sec_ver = plat_get_fw_config_te_rollback_ctr();
 	}
+
+	/* Get TE anti-rollback counter from FW_CONFIG */
+	app_sec_ver = plat_get_fw_config_te_rollback_ctr();
 
 	/* Calculate the size of NS DRAM
 	 * This is the remaining DRAM that hasn't been allocated for the TEE

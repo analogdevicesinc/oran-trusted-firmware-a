@@ -52,7 +52,6 @@ static bool dual_tile_no_c2c_secondary = false;
 static uint8_t eth_mac[ETH_LEN] = { 0 };
 static const char zero_mac[ETH_LEN] = { 0 };
 static uint8_t mac_otp[ETH_LEN] = { 0 };
-static bool bootrom_bypass_enabled = false;
 static bool secure_peripherals[FW_CONFIG_PERIPH_NUM_MAX];
 static bool secure_pins[FW_CONFIG_PIN_NUM_MAX];
 
@@ -433,18 +432,13 @@ static int get_mac_from_otp(uint32_t index, uint8_t **mac)
 
 	if (index >= MAX_NUM_MACS)
 		return -1;
-	if (plat_is_bootrom_bypass_enabled()) {
-		/* Calling function expects return to be 0 unless OTP read fails, so we need to return a 0, but set the mac address to 0 to get the intended result of no MAC address from OTP */
-		*mac = (uint8_t *)zero_mac;
-		return 0;
-	} else {
-		err = adrv906x_otp_get_mac_addr(OTP_BASE, index + 1, mac_otp);
 
-		if (err == 0)
-			*mac = mac_otp;
+	err = adrv906x_otp_get_mac_addr(OTP_BASE, index + 1, mac_otp);
 
-		return err;
-	}
+	if (err == 0)
+		*mac = mac_otp;
+
+	return err;
 }
 
 static int get_mac_from_bootcfg(int index, uint8_t **mac)
@@ -577,10 +571,6 @@ void plat_dprof_init(void)
 	err = fw_config_prop_exists("/", "secondary-linux-enabled", &secondary_linux_enabled);
 	if (err != 0)
 		handle_fw_config_read_error("Secondary linux configuration", err);
-
-	err = fw_config_prop_exists("/", "bootrom_bypass", &bootrom_bypass_enabled);
-	if (err != 0)
-		handle_fw_config_read_error("Bootrom bypass configuration", err);
 
 	if (dual_tile_enabled) {
 		/* Get Secondary DRAM size */
@@ -1119,11 +1109,6 @@ int plat_get_fw_config_error_num(void)
 		return err;
 
 	return (int)error_num;
-}
-
-bool plat_is_bootrom_bypass_enabled(void)
-{
-	return bootrom_bypass_enabled;
 }
 
 unsigned int plat_get_syscnt_freq2(void)
