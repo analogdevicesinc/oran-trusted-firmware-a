@@ -13,9 +13,9 @@
 #include <drivers/adi/adrv906x/adrv906x_gpio.h>
 #include <drivers/adi/adi_spu.h>
 
-#include <platform_def.h>
-#include <plat_setup.h>
 #include <plat_err.h>
+#include <plat_setup.h>
+#include <platform_def.h>
 
 #include <adrv906x_board.h>
 #include <adrv906x_device_profile.h>
@@ -25,6 +25,10 @@
 #include <adrv906x_otp.h>
 #include <adrv906x_tsgen.h>
 #include <adrv906x_spu_def.h>
+
+#if EL3_EXCEPTION_HANDLING == 0
+#include <plat_interrupts.h>
+#endif
 
 static void clk_switch_hook(void)
 {
