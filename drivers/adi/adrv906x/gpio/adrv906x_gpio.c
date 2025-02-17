@@ -24,12 +24,8 @@
 #define GPIO_REG_NUM    (4)             /* Number of GPIO registers */
 #define GPIO_FUNCTION_NUM       (5)     /* Number of GPIO functions (write, clear, set, toggle, read) */
 
-static int get_direction(int gpio);
-static void set_direction(int gpio, int direction);
-static int get_value(int gpio);
-static void set_value(int gpio, int value);
-
-static uint32_t gpio_mode_base_addr;
+uint32_t pri_base_addr = 0;
+uint32_t sec_base_addr = 0;
 
 static uintptr_t adrv906x_reg_base_s[GPIO_REG_NUM][GPIO_FUNCTION_NUM] = {
 	{ GPIO_WRITE_REG0_OFFSET, GPIO_WRITE_REG0_CLEAR_OFFSET, GPIO_WRITE_REG0_SET_OFFSET,
@@ -51,19 +47,12 @@ typedef enum {
 	GPIO_READ	= 4
 } gpio_mode_action_t;
 
-static const gpio_ops_t gpio_ops = {
-	.get_direction	= get_direction,
-	.set_direction	= set_direction,
-	.get_value	= get_value,
-	.set_value	= set_value,
-};
-
-static int get_direction(int gpio)
+static int get_direction(uint32_t gpio_mode_base_addr, int gpio)
 {
 	uintptr_t base_addr;
 	uint32_t offset, data;
 
-	assert((gpio >= 0) && (gpio < GPIO_PIN_NUM));
+	assert((gpio_mode_base_addr != 0) && (gpio >= 0) && (gpio < GPIO_PIN_NUM));
 
 	base_addr = gpio_mode_base_addr + GPIO_DIR_CONTROL_OFFSET;
 	offset = gpio * GPIO_DIR_CONTROL_SIZE;
@@ -81,12 +70,12 @@ static int get_direction(int gpio)
 	}
 }
 
-static void set_direction(int gpio, int direction)
+static void set_direction(uint32_t gpio_mode_base_addr, int gpio, int direction)
 {
 	uintptr_t base_addr;
 	uint32_t offset, data, cleared_data;
 
-	assert((gpio >= 0) && (gpio < GPIO_PIN_NUM));
+	assert((gpio_mode_base_addr != 0) && (gpio >= 0) && (gpio < GPIO_PIN_NUM));
 
 	base_addr = gpio_mode_base_addr + GPIO_DIR_CONTROL_OFFSET;
 	offset = gpio * GPIO_DIR_CONTROL_SIZE;
@@ -100,13 +89,13 @@ static void set_direction(int gpio, int direction)
 		mmio_write_32(base_addr + offset, cleared_data | (0x1U << (GPIO_DIR_SEL_POS + 1)));
 }
 
-static int get_value(int gpio)
+static int get_value(uint32_t gpio_mode_base_addr, int gpio)
 {
 	uintptr_t base_addr;
 	uint32_t offset, data;
 	uint32_t bitmask;
 
-	assert((gpio >= 0) && (gpio < GPIO_PIN_NUM));
+	assert((gpio_mode_base_addr != 0) && (gpio >= 0) && (gpio < GPIO_PIN_NUM));
 
 	base_addr = gpio_mode_base_addr + adrv906x_reg_base_s[GET_GPIO_REG(gpio)][GPIO_READ];
 	offset = GET_GPIO_OFFSET(gpio);
@@ -120,12 +109,12 @@ static int get_value(int gpio)
 		return GPIO_LEVEL_LOW;
 }
 
-static void set_value(int gpio, int value)
+static void set_value(uint32_t gpio_mode_base_addr, int gpio, int value)
 {
 	uintptr_t base_addr;
 	uint32_t offset, bitmask;
 
-	assert((gpio >= 0) && (gpio < GPIO_PIN_NUM));
+	assert((gpio_mode_base_addr != 0) && (gpio >= 0) && (gpio < GPIO_PIN_NUM));
 
 	offset = GET_GPIO_OFFSET(gpio);
 	bitmask = 0x1U << offset;
@@ -138,9 +127,48 @@ static void set_value(int gpio, int value)
 	mmio_setbits_32(base_addr, bitmask);
 }
 
-void adrv906x_gpio_init(uint32_t base_addr)
+void adrv906x_gpio_init(uint32_t primary_base_address, uint32_t secondary_base_address)
 {
-	gpio_mode_base_addr = base_addr;
+	pri_base_addr = primary_base_address;
+	sec_base_addr = secondary_base_address;
+}
 
-	gpio_init(&gpio_ops);
+int adrv906x_primary_gpio_get_direction(int gpio)
+{
+	return get_direction(pri_base_addr, gpio);
+}
+
+void adrv906x_primary_gpio_set_direction(int gpio, int direction)
+{
+	set_direction(pri_base_addr, gpio, direction);
+}
+
+int  adrv906x_primary_gpio_get_value(int gpio)
+{
+	return get_value(pri_base_addr, gpio);
+}
+
+void adrv906x_primary_gpio_set_value(int gpio, int value)
+{
+	set_value(pri_base_addr, gpio, value);
+}
+
+int adrv906x_secondary_gpio_get_direction(int gpio)
+{
+	return get_direction(sec_base_addr, gpio);
+}
+
+void adrv906x_secondary_gpio_set_direction(int gpio, int direction)
+{
+	set_direction(sec_base_addr, gpio, direction);
+}
+
+int  adrv906x_secondary_gpio_get_value(int gpio)
+{
+	return get_value(sec_base_addr, gpio);
+}
+
+void adrv906x_secondary_gpio_set_value(int gpio, int value)
+{
+	set_value(sec_base_addr, gpio, value);
 }

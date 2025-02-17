@@ -104,7 +104,7 @@ void plat_bl1_setup(void)
 	adrv906x_otp_init_driver();
 
 	/* Initialize GPIO framework */
-	adrv906x_gpio_init(GPIO_MODE_SECURE_BASE);
+	adrv906x_gpio_init(GPIO_MODE_SECURE_BASE, SEC_GPIO_MODE_SECURE_BASE);
 
 	/* Setup memory region for host boot */
 	if (plat_get_boot_device() == PLAT_BOOT_DEVICE_HOST)

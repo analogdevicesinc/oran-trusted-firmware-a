@@ -379,7 +379,7 @@ void plat_bl2_setup(void)
 	plat_dprof_init();
 
 	/* Initialize GPIO framework */
-	adrv906x_gpio_init(GPIO_MODE_SECURE_BASE);
+	adrv906x_gpio_init(GPIO_MODE_SECURE_BASE, SEC_GPIO_MODE_SECURE_BASE);
 
 	/* Perform BL2-specific hardware init */
 	init();

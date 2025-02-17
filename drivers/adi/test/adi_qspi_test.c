@@ -142,7 +142,7 @@ static int adi_qspi_setup(bool dma)
 	adi_spu_enable_msec(SPU_A55MMR_BASE, SPU_A55MMR_PERIPH_QUAD_SPI_DMA_1);
 
 	/* Initialize GPIO framework */
-	adrv906x_gpio_init(GPIO_MODE_SECURE_BASE);
+	adrv906x_gpio_init(GPIO_MODE_SECURE_BASE, SEC_GPIO_MODE_SECURE_BASE);
 	plat_secure_pinctrl_set_group(qspi_pin_grp, qspi_pin_grp_members, true);
 
 	qspi_params.reg_base = QSPI_0_BASE;

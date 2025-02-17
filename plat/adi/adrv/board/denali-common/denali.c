@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include <common/debug.h>
+#include <drivers/adi/adrv906x/adrv906x_gpio.h>
 #include <drivers/adi/adrv906x/clk.h>
 #include <drivers/adi/adrv906x/ddr/ddr.h>
 #include <drivers/adi/adrv906x/debug_xbar/debug_xbar.h>
@@ -129,16 +130,16 @@ int plat_get_nor_data(struct nor_device *device)
 void plat_do_spi_nor_reset(void)
 {
 	/* Setup reset pin */
-	gpio_set_direction(QSPI_FLASH_RESETN_PIN, GPIO_DIR_OUT);
+	adrv906x_primary_gpio_set_direction(QSPI_FLASH_RESETN_PIN, GPIO_DIR_OUT);
 
 	/* Assert qspi pin */
-	gpio_set_value(QSPI_FLASH_RESETN_PIN, GPIO_LEVEL_LOW);
+	adrv906x_primary_gpio_set_value(QSPI_FLASH_RESETN_PIN, GPIO_LEVEL_LOW);
 
 	/* Delay */
 	udelay(QSPI_FLASH_RESET_TIME_US);
 
 	/* De-assert qspi pin */
-	gpio_set_value(QSPI_FLASH_RESETN_PIN, GPIO_LEVEL_HIGH);
+	adrv906x_primary_gpio_set_value(QSPI_FLASH_RESETN_PIN, GPIO_LEVEL_HIGH);
 
 	/* Recovery delay */
 	udelay(QSPI_FLASH_RECOVERY_TIME_US);
@@ -191,12 +192,12 @@ static void plat_configure_mcs_kickoff_output(void)
 
 static void plat_assert_mcs_kickoff_output(void)
 {
-	gpio_set_value(MCS_KICKOFF_OUTPUT_PIN, MCS_KICKOFF_ON);
+	adrv906x_primary_gpio_set_value(MCS_KICKOFF_OUTPUT_PIN, MCS_KICKOFF_ON);
 }
 
 static void plat_deassert_mcs_kickoff_output(void)
 {
-	gpio_set_value(MCS_KICKOFF_OUTPUT_PIN, MCS_KICKOFF_OFF);
+	adrv906x_primary_gpio_set_value(MCS_KICKOFF_OUTPUT_PIN, MCS_KICKOFF_OFF);
 }
 
 static int plat_get_mcs_kickoff_input(void)
@@ -342,6 +343,14 @@ void plat_board_bl1_setup(void)
 	/* Initialize Debug Crossbar */
 	adi_adrv906x_debug_xbar_set_default_map(DEBUG_XBAR_SOURCE_CONTROL_BASE, BRINGUP_MAPPING);
 
+	if (plat_get_dual_tile_enabled()) {
+		/* Initialize Debug GPIOs */
+		plat_secure_pinctrl_set_group(debug_gpios_pin_grp, debug_gpios_pin_grp_members, true, SEC_PINCTRL_BASE);
+
+		/* Initialize Debug Crossbar */
+		adi_adrv906x_debug_xbar_set_default_map(SEC_DEBUG_XBAR_SOURCE_CONTROL_BASE, BRINGUP_MAPPING);
+	}
+
 	/* Print out firmware version of clock chip for debugging */
 	init_sysref();
 	INFO("Clock chip firmware version: %d\n", adi_zl30732_get_firmware_version(ZL30732_SPI_BASE_ADDRESS, ZL30732_SPI_CS));
@@ -354,11 +363,18 @@ void plat_board_bl2_setup(void)
 
 void plat_board_bl31_setup(void)
 {
-	gpio_set_direction(A55_GPIO_S_102_PIN, GPIO_DIR_OUT);
-	gpio_set_value(A55_GPIO_S_102_PIN, GPIO_LEVEL_LOW);
+	adrv906x_primary_gpio_set_direction(A55_GPIO_S_102_PIN, GPIO_DIR_OUT);
+	adrv906x_primary_gpio_set_value(A55_GPIO_S_102_PIN, GPIO_LEVEL_LOW);
 
 	/* Init POWER controller to control external power sequencer chip ADM1266 */
 	plat_secure_pinctrl_set_group(power_pin_grp, power_pin_grp_members, true, PINCTRL_BASE);
+
+	if (plat_get_dual_tile_enabled()) {
+		adrv906x_secondary_gpio_set_direction(A55_GPIO_S_102_PIN, GPIO_DIR_OUT);
+		adrv906x_secondary_gpio_set_value(A55_GPIO_S_102_PIN, GPIO_LEVEL_LOW);
+		/* Init POWER controller to control external power sequencer chip ADM1266 */
+		plat_secure_pinctrl_set_group(power_pin_grp, power_pin_grp_members, true, SEC_PINCTRL_BASE);
+	}
 }
 
 static void __dead2 plat_board_psci_system_off(void)
@@ -372,11 +388,16 @@ static void __dead2 plat_board_psci_system_off(void)
 	 * GPIO_102 low
 	 */
 	plat_secure_wdt_ping(); /* Make sure WDT doesn't expire while delaying below */
-	gpio_set_value(A55_GPIO_S_102_PIN, GPIO_LEVEL_HIGH);
+	adrv906x_primary_gpio_set_value(A55_GPIO_S_102_PIN, GPIO_LEVEL_HIGH);
+	if (plat_get_dual_tile_enabled())
+		adrv906x_secondary_gpio_set_value(A55_GPIO_S_102_PIN, GPIO_LEVEL_HIGH);
+
 	/* Must hold pin high for certain amount of time and then set low to tell sequencer to shutdown instead of reset.
 	 *  Exact delay time obtained from Apps */
 	mdelay(55);
-	gpio_set_value(A55_GPIO_S_102_PIN, GPIO_LEVEL_LOW);
+	adrv906x_primary_gpio_set_value(A55_GPIO_S_102_PIN, GPIO_LEVEL_LOW);
+	if (plat_get_dual_tile_enabled())
+		adrv906x_secondary_gpio_set_value(A55_GPIO_S_102_PIN, GPIO_LEVEL_LOW);
 	mdelay(1000);
 	plat_error_message("System Off failed");
 	panic();
@@ -389,7 +410,9 @@ void __dead2 plat_board_system_reset(void)
 
 	/* To trigger ADM1266 reset, set GPIO_102 high until reset occurs (or we time out) */
 	plat_secure_wdt_ping(); /* Make sure WDT doesn't expire while delaying below */
-	gpio_set_value(A55_GPIO_S_102_PIN, GPIO_LEVEL_HIGH);
+	adrv906x_primary_gpio_set_value(A55_GPIO_S_102_PIN, GPIO_LEVEL_HIGH);
+	if (plat_get_dual_tile_enabled())
+		adrv906x_secondary_gpio_set_value(A55_GPIO_S_102_PIN, GPIO_LEVEL_HIGH);
 	mdelay(1050);
 	plat_error_message("System Reset failed");
 	panic();

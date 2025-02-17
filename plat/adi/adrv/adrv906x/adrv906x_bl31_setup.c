@@ -77,7 +77,7 @@ void plat_bl31_setup(void)
 	adrv906x_otp_init_driver();
 
 	/* Initialize GPIO framework */
-	adrv906x_gpio_init(GPIO_MODE_SECURE_BASE);
+	adrv906x_gpio_init(GPIO_MODE_SECURE_BASE, SEC_GPIO_MODE_SECURE_BASE);
 
 	/* the eMMC and/or SD were granted special MSEC permissions during BL2,
 	 * but we should remove those permissions before BL31.
