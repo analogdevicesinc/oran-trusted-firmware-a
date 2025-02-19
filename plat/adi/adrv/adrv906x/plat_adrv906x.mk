@@ -113,5 +113,9 @@ ifeq (${ENABLE_FP}, 1)
 TF_CFLAGS_aarch64 := $(subst -mgeneral-regs-only,,${TF_CFLAGS_aarch64})
 endif
 
+ifeq (${SECONDARY_LINUX_ENABLED}, 1)
+$(eval $(call add_defines, SECONDARY_LINUX_ENABLED))
+endif
+
 # Add argument for secondary image binary
 $(eval $(call add_defines, SECONDARY_IMAGE_BIN))
