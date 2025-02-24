@@ -73,7 +73,55 @@ extern void tempr_init(void)
 	}
 }
 
+/**
+ *******************************************************************************
+ * Function: tempr_read
+ *
+ * @brief       Read ClkPLL and EthPLL temperature sensors
+ * *
+ * Parameters:
+ * @param       None
+ *
+ * @return      Error Code, or 0 on succes
+ *
+ * Reference to other related functions
+ * @sa
+ *
+ *******************************************************************************
+ */
+extern int tempr_read(float *clkpll_temp, float *ethpll_temp)
+{
+	int err = 0;
 
+	err |= tempr_run_measurement_get_sensor_temp(ADI_DEVTEMP_CLKPLL, clkpll_temp, CLKPLL_BASE);
+	err |= tempr_run_measurement_get_sensor_temp(ADI_DEVTEMP_ETHERNET_CLKPLL, ethpll_temp, ETH_PLL_BASE);
+	return err;
+}
+
+/**
+ *******************************************************************************
+ * Function: tempr_read_secondary
+ *
+ * @brief       Read Secondary ClkPLL and EthPLL temperature sensors
+ * *
+ * Parameters:
+ * @param       None
+ *
+ * @return      Error Code, or 0 on succes
+ *
+ * Reference to other related functions
+ * @sa
+ *
+ *******************************************************************************
+ */
+extern int tempr_read_secondary(float *sec_clkpll_temp, float *sec_ethpll_temp)
+{
+	int err = 0;
+
+	err |= tempr_run_measurement_get_sensor_temp(ADI_DEVTEMP_SEC_CLKPLL, sec_clkpll_temp, SEC_CLKPLL_BASE);
+	err |= tempr_run_measurement_get_sensor_temp(ADI_DEVTEMP_SEC_ETHERNET_CLKPLL, sec_ethpll_temp, SEC_ETH_PLL_BASE);
+	return err;
+}
 
 /**
  *******************************************************************************

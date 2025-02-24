@@ -709,6 +709,42 @@ static int otp_dump_command_function(uint8_t *command_buffer, bool help)
 	return result;
 }
 
+static void print_temp(float temp)
+{
+	printf("%d.%d C\n", (int)(temp), ((int)(temp * 10)) % 10);
+}
+
+static int pll_temp_sensors_read_function(uint8_t *command_buffer, bool help)
+{
+	int err = 0;
+
+	if (help) {
+		printf("plltemp                            ");
+		printf("Gets ClockPLL and EthernetPLL temperatures, including the secondary if available\n");
+		printf("                                   ");
+	} else {
+		float clkpll_temp, ethpll_temp;
+		if (tempr_read(&clkpll_temp, &ethpll_temp) == 0) {
+			printf("ClkPLL:     "); print_temp(clkpll_temp);
+			printf("EthPLL:     "); print_temp(ethpll_temp);
+		} else {
+			printf("Error reading PLL temperature sensors\n");
+			err = 1;
+		}
+		if (plat_get_dual_tile_enabled()) {
+			float sec_clkpll_temp, sec_ethpll_temp;
+			if (tempr_read(&sec_clkpll_temp, &sec_ethpll_temp) == 0) {
+				printf("Sec ClkPLL: "); print_temp(sec_clkpll_temp);
+				printf("Sec EthPLL: "); print_temp(sec_ethpll_temp);
+			} else {
+				printf("Error reading secondary PLL temperature sensors\n");
+				err = 1;
+			}
+		}
+	}
+	return err;
+}
+
 static int program_pll_command_function(uint8_t *command_buffer, bool help)
 {
 	uintptr_t base_addr, dig_core_base_addr;
@@ -1295,6 +1331,7 @@ cli_command_t plat_command_list[] = {
 	{ "i2cwrite",	   i2c_write_command_function			  },
 	{ "otpdump",	   otp_dump_command_function			  },
 	{ "otpqrr",	   otp_qrr_command_function			  },
+	{ "plltemp",	   pll_temp_sensors_read_function		  },
 	{ "pllvcoout",	   pll_vco_output_command_function		  },
 	{ "pllvtuneout",   pll_vtune_output_command_function		  },
 	{ "programpll",	   program_pll_command_function			  },

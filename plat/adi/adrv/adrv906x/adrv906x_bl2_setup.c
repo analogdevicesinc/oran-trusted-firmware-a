@@ -182,7 +182,6 @@ static void init(void)
 			plat_error_handler(-EMCS);
 		}
 	}
-	INFO("MCS complete.\n");
 
 	/* Init Primary GPINT */
 	adrv906x_gpint_init(DIG_CORE_BASE);
