@@ -253,57 +253,96 @@ static void adrv906x_override_secure_spi_spu(uint32_t index)
 	plat_spu_a55mmr_peripherals[spu_master_periph_map[index][1]].flags |= ADI_SPU_PERIPHERAL_FLAGS_MSEC;
 }
 
-static void adrv906x_customer_override_spu(void)
+static void adrv906x_customer_override_spu(bool is_primary)
 {
-	/* Security configuration for some peripherals is exposed to the customer
-	 * Note: only a few A55MMR peripherals are exposed
+	/* SPU configuration is harcoded except for a few peripherals that are
+	 * exposed for the customer in FW_CONFIG.
 	 *
-	 * This is a mapping between the exposed peripherals and their
-	 * corresponding SPU entry index.
+	 * These peripherals are available in FW_CONFIG for primary and secondary
+	 * respectively.
 	 */
-	const enum spu_a55mmr_peripheral_ids spu_slave_periph_map[] = {
-		SPU_A55MMR_PERIPH_UART_1,
-		SPU_A55MMR_PERIPH_UART_3,
-		SPU_A55MMR_PERIPH_UART_4,
-		SPU_A55MMR_PERIPH_SPICONFIG0,
-		SPU_A55MMR_PERIPH_SPICONFIG1,
-		SPU_A55MMR_PERIPH_SPICONFIG2,
-		SPU_A55MMR_PERIPH_SPICONFIG3,
-		SPU_A55MMR_PERIPH_SPICONFIG4,
-		SPU_A55MMR_PERIPH_SPICONFIG5,
-		SPU_A55MMR_PERIPH_I2C0,
-		SPU_A55MMR_PERIPH_I2C1,
-		SPU_A55MMR_PERIPH_I2C2,
-		SPU_A55MMR_PERIPH_I2C3,
-		SPU_A55MMR_PERIPH_I2C4,
-		SPU_A55MMR_PERIPH_I2C5,
-		SPU_A55MMR_PERIPH_I2C6,
-		SPU_A55MMR_PERIPH_I2C7,
+	const spu_a55mmr_peripheral_ids_t spu_slave_periph_map[] = {
+		SPU_A55MMR_PERIPH_UART_1,       // PROFILE_PERIPH_UART1
+		SPU_A55MMR_PERIPH_UART_3,       // PROFILE_PERIPH_UART3
+		SPU_A55MMR_PERIPH_UART_4,       // PROFILE_PERIPH_UART4
+		SPU_A55MMR_PERIPH_SPICONFIG0,   // PROFILE_PERIPH_SPI0,
+		SPU_A55MMR_PERIPH_SPICONFIG1,   // PROFILE_PERIPH_SPI1,
+		SPU_A55MMR_PERIPH_SPICONFIG2,   // PROFILE_PERIPH_SPI2,
+		SPU_A55MMR_PERIPH_SPICONFIG3,   // PROFILE_PERIPH_SPI3,
+		SPU_A55MMR_PERIPH_SPICONFIG4,   // PROFILE_PERIPH_SPI4,
+		SPU_A55MMR_PERIPH_SPICONFIG5,   // PROFILE_PERIPH_SPI5,
+		SPU_A55MMR_PERIPH_I2C0,         // PROFILE_PERIPH_I2C0,
+		SPU_A55MMR_PERIPH_I2C1,         // PROFILE_PERIPH_I2C1,
+		SPU_A55MMR_PERIPH_I2C2,         // PROFILE_PERIPH_I2C2,
+		SPU_A55MMR_PERIPH_I2C3,         // PROFILE_PERIPH_I2C3,
+		SPU_A55MMR_PERIPH_I2C4,         // PROFILE_PERIPH_I2C4,
+		SPU_A55MMR_PERIPH_I2C5,         // PROFILE_PERIPH_I2C5,
+		SPU_A55MMR_PERIPH_I2C6,         // PROFILE_PERIPH_I2C6,
+		SPU_A55MMR_PERIPH_I2C7          // PROFILE_PERIPH_I2C7,
+	};
+	const spu_a55mmr_peripheral_ids_t spu_slave_secondary_periph_map[] = {
+		SPU_A55MMR_PERIPH_I2C0,         // PROFILE_SECONDARY_PERIPH_I2C0
+		SPU_A55MMR_PERIPH_I2C1,         // PROFILE_SECONDARY_PERIPH_I2C1
+		SPU_A55MMR_PERIPH_I2C2,         // PROFILE_SECONDARY_PERIPH_I2C2
+		SPU_A55MMR_PERIPH_I2C3,         // PROFILE_SECONDARY_PERIPH_I2C3
+		SPU_A55MMR_PERIPH_I2C4,         // PROFILE_SECONDARY_PERIPH_I2C4
+		SPU_A55MMR_PERIPH_I2C5,         // PROFILE_SECONDARY_PERIPH_I2C5
+		SPU_A55MMR_PERIPH_I2C6,         // PROFILE_SECONDARY_PERIPH_I2C6
+		SPU_A55MMR_PERIPH_I2C7          // PROFILE_SECONDARY_PERIPH_I2C7
 	};
 	bool *secure_peripherals;
-	uint32_t len;
+	int len;
+	int i;
 
-	/* Sanity check */
-	if (FW_CONFIG_PERIPH_NUM_MAX != sizeof(spu_slave_periph_map) / sizeof(enum spu_a55mmr_peripheral_ids)) {
-		plat_error_message("sou_periph_map list size is not correct");
+	/* Sanity checks */
+	if (PROFILE_PERIPH_NUM_MAX != sizeof(spu_slave_periph_map) / sizeof(spu_a55mmr_peripheral_ids_t)) {
+		plat_error_message("spu_slave_periph_map list size is not correct");
 		return;
 	}
 
-	secure_peripherals = plat_get_secure_peripherals(&len);
+	if (PROFILE_SECONDARY_PERIPH_NUM_MAX != sizeof(spu_slave_secondary_periph_map) / sizeof(spu_a55mmr_peripheral_ids_t)) {
+		plat_error_message("spu_slave_secondary_periph_map list size is not correct");
+		return;
+	}
+
+	/* plat_spu_a55mmr_peripherals array is common for primary and secondary
+	 * Default state for exposed peripherals is non-secure, and this
+	 * function sets to secure those ones present in FW_CONFIG.
+	 */
+	secure_peripherals = plat_get_secure_peripherals(true, &len);
 	if (secure_peripherals == NULL) {
 		plat_error_message("Invalid pointer to the secure_peripheral list");
 		return;
 	}
 
-	for (uint32_t i = 0; i < len; i++)
-		if (secure_peripherals[i]) {
-			if ((i >= FW_CONFIG_PERIPH_SPI0) && (i <= FW_CONFIG_PERIPH_SPI5))
-				/* Mark all related peripherals as secure */
-				adrv906x_override_secure_spi_spu(i - FW_CONFIG_PERIPH_SPI0);
-			else
-				/* Mark the peripheral as secure */
-				plat_spu_a55mmr_peripherals[spu_slave_periph_map[i]].flags &= ~ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	if (is_primary) {
+		for (i = 0; i < PROFILE_PERIPH_NUM_MAX; i++) {
+			if (secure_peripherals[i]) {
+				if ((i >= FW_CONFIG_PERIPH_SPI0) && (i <= FW_CONFIG_PERIPH_SPI5))
+					/* Each SPIx involves several peripherals. Mark them all as secure */
+					adrv906x_override_secure_spi_spu(i - FW_CONFIG_PERIPH_SPI0);
+				else
+					/* Mark the peripheral as secure */
+					plat_spu_a55mmr_peripherals[spu_slave_periph_map[i]].flags &= ~ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+			}
 		}
+	} else {
+		/* Reset to default SPU state (non-secure) the exposed
+		 * peripherals before applying secondary settings.
+		 */
+		for (i = 0; i < PROFILE_PERIPH_NUM_MAX; i++)
+			plat_spu_a55mmr_peripherals[spu_slave_periph_map[i]].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+
+		secure_peripherals = plat_get_secure_peripherals(false, &len);
+		if (secure_peripherals == NULL) {
+			plat_error_message("Invalid pointer to the secure_secondary peripheral list");
+			return;
+		}
+		for (i = 0; i < PROFILE_SECONDARY_PERIPH_NUM_MAX; i++)
+			if (secure_peripherals[i])
+				/* Mark the peripheral as secure */
+				plat_spu_a55mmr_peripherals[spu_slave_secondary_periph_map[i]].flags &= ~ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	}
 }
 
 /* Disable SPU, for development/debug purposes.
@@ -561,7 +600,7 @@ static void adrv906x_spu_setup(void)
 	}
 
 	/* Security customization by customer */
-	adrv906x_customer_override_spu();
+	adrv906x_customer_override_spu(true);
 
 	plat_spu_setup(SPU_A55MMR_BASE, plat_spu_a55mmr_peripherals,
 		       SPU_A55MMR_PERIPHERALS_COUNT);
@@ -584,6 +623,10 @@ static void adrv906x_spu_setup(void)
 			plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_QUAD_SPI_DMA_0].flags &= ~ADI_SPU_PERIPHERAL_FLAGS_MSEC;
 			plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_QUAD_SPI_DMA_1].flags &= ~ADI_SPU_PERIPHERAL_FLAGS_MSEC;
 		}
+
+		/* Security customization for secondary by customer */
+		adrv906x_customer_override_spu(false);
+
 		plat_spu_setup(SEC_SPU_A55MMR_BASE, plat_spu_a55mmr_peripherals,
 			       SPU_A55MMR_PERIPHERALS_COUNT);
 		plat_spu_setup(SEC_SPU_ORAN_BASE, plat_spu_oran_peripherals,

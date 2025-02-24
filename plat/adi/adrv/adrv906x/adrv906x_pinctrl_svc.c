@@ -32,10 +32,10 @@
 /**
  * This function returns true if pad_pin_num is secure_world access only
  */
-static bool plat_pin_is_secure(uint32_t pad_pin_num)
+static bool plat_pin_is_secure(bool is_primary, uint32_t pad_pin_num)
 {
-	uint32_t len;
-	bool *pin_list = plat_get_secure_pins(&len);
+	int len;
+	bool *pin_list = plat_get_secure_pins(is_primary, &len);
 
 	if (pad_pin_num < len)
 		return pin_list[pad_pin_num];
@@ -59,6 +59,7 @@ bool plat_secure_pinctrl_set(const plat_pinctrl_settings settings, const bool se
 {
 	adrv906x_cmos_pad_ds_t adrv906x_drive_strength = (adrv906x_cmos_pad_ds_t)(settings.drive_strength & ADRV906X_PINCTRL_x4_DRIVE_STRENGTH_MASK);
 	adrv906x_pad_pupd_t pull_direction;
+	bool is_primary = (base_addr == PINCTRL_BASE);
 
 	if (base_addr == SEC_PINCTRL_BASE) {
 		if (!plat_get_dual_tile_enabled()) {
@@ -114,8 +115,9 @@ bool plat_secure_pinctrl_set(const plat_pinctrl_settings settings, const bool se
 	/*
 	 * Prohibit normal world from configuring secure IO
 	 */
-	if (!secure_access && plat_pin_is_secure(settings.pin_pad)) {
-		plat_runtime_warn_message("PINCTRL: Normal World request to configure secure Pin # = %d ", settings.pin_pad);
+	if (!secure_access && plat_pin_is_secure(is_primary, settings.pin_pad)) {
+		plat_runtime_warn_message("PINCTRL: Normal World request to configure secure %sPin # = %d ",
+					  is_primary ? "" : "secondary-", settings.pin_pad);
 		return false;
 	}
 	/*
@@ -163,6 +165,7 @@ bool plat_secure_pinctrl_get(plat_pinctrl_settings *settings, const bool secure_
 {
 	adrv906x_cmos_pad_ds_t adrv906x_drive_strength;
 	adrv906x_pad_pupd_t pull_direction;
+	bool is_primary = (base_addr == PINCTRL_BASE);
 
 	if (base_addr == SEC_PINCTRL_BASE) {
 		if (!plat_get_dual_tile_enabled()) {
@@ -213,8 +216,9 @@ bool plat_secure_pinctrl_get(plat_pinctrl_settings *settings, const bool secure_
 	/*
 	 * Prohibit normal world from configuring secure IO
 	 */
-	if (!secure_access && plat_pin_is_secure(settings->pin_pad)) {
-		plat_runtime_warn_message("PINCTRL: Normal World request to configure secure Pin # = %d ", settings->pin_pad);
+	if (!secure_access && plat_pin_is_secure(is_primary, settings->pin_pad)) {
+		plat_runtime_warn_message("PINCTRL: Normal World request to configure secure %sPin # = %d ",
+					  is_primary ? "" : "secondary-", settings->pin_pad);
 		return false;
 	}
 	/*

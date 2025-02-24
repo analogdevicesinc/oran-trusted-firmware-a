@@ -47,6 +47,39 @@ enum fw_config_periph_ids {
 	FW_CONFIG_PERIPH_NUM_MAX
 };
 
+enum profile_periph_ids {
+	PROFILE_PERIPH_UART1,
+	PROFILE_PERIPH_UART3,
+	PROFILE_PERIPH_UART4,
+	PROFILE_PERIPH_SPI0,
+	PROFILE_PERIPH_SPI1,
+	PROFILE_PERIPH_SPI2,
+	PROFILE_PERIPH_SPI3,
+	PROFILE_PERIPH_SPI4,
+	PROFILE_PERIPH_SPI5,
+	PROFILE_PERIPH_I2C0,
+	PROFILE_PERIPH_I2C1,
+	PROFILE_PERIPH_I2C2,
+	PROFILE_PERIPH_I2C3,
+	PROFILE_PERIPH_I2C4,
+	PROFILE_PERIPH_I2C5,
+	PROFILE_PERIPH_I2C6,
+	PROFILE_PERIPH_I2C7,
+	PROFILE_PERIPH_NUM_MAX
+};
+
+enum profile_secondary_periph_ids {
+	PROFILE_SECONDARY_PERIPH_I2C0,
+	PROFILE_SECONDARY_PERIPH_I2C1,
+	PROFILE_SECONDARY_PERIPH_I2C2,
+	PROFILE_SECONDARY_PERIPH_I2C3,
+	PROFILE_SECONDARY_PERIPH_I2C4,
+	PROFILE_SECONDARY_PERIPH_I2C5,
+	PROFILE_SECONDARY_PERIPH_I2C6,
+	PROFILE_SECONDARY_PERIPH_I2C7,
+	PROFILE_SECONDARY_PERIPH_NUM_MAX,
+};
+
 void plat_dprof_init(void);
 bool plat_check_ddr_size(void);
 uint32_t plat_get_clkpll_freq_setting(void);
@@ -69,7 +102,7 @@ bool plat_is_secondary_phys_dram_present(void);
 bool plat_is_hardware(void);
 bool plat_is_protium(void);
 bool plat_is_palladium(void);
-bool *plat_get_secure_peripherals(uint32_t *len);
-bool *plat_get_secure_pins(uint32_t *len);
+bool *plat_get_secure_peripherals(bool is_primary, int *len);
+bool *plat_get_secure_pins(bool is_primary, int *len);
 
 #endif /* ADRV906X_DEVICE_PROFILE_H */

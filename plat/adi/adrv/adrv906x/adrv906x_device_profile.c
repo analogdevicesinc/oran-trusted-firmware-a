@@ -53,8 +53,10 @@ static bool dual_tile_no_c2c_secondary = false;
 static uint8_t eth_mac[ETH_LEN] = { 0 };
 static const char zero_mac[ETH_LEN] = { 0 };
 static uint8_t mac_otp[ETH_LEN] = { 0 };
-static bool secure_peripherals[FW_CONFIG_PERIPH_NUM_MAX];
-static bool secure_pins[FW_CONFIG_PIN_NUM_MAX];
+static bool pri_secure_peripherals[PROFILE_PERIPH_NUM_MAX];
+static bool sec_secure_peripherals[PROFILE_SECONDARY_PERIPH_NUM_MAX];
+static bool pri_secure_pins[FW_CONFIG_PIN_NUM_MAX];
+static bool sec_secure_pins[FW_CONFIG_PIN_NUM_MAX];
 
 static int get_fw_config_node(const char *node_name, bool warn)
 {
@@ -333,71 +335,147 @@ static int plat_get_secure_partitioning(void)
 {
 	int node;
 	int ret;
+	int prop_len;
 	int len;
 	int i;
-	uint32_t sec_list[FW_CONFIG_SECURE_LIST_MAX_SIZE];
-	char *periph_name[FW_CONFIG_PERIPH_NUM_MAX] = {
+	int tile;
+	bool is_primary;
+	bool *secure_list;
+	uint32_t prop_data[FW_CONFIG_SECURE_LIST_MAX_SIZE];
+	int ids_size;
+	const enum fw_config_periph_ids primary_ids_map[] = {
+		FW_CONFIG_PERIPH_UART1, // PROFILE_PERIPH_UART1
+		FW_CONFIG_PERIPH_UART3, // PROFILE_PERIPH_UART3
+		FW_CONFIG_PERIPH_UART4, // PROFILE_PERIPH_UART4
+		FW_CONFIG_PERIPH_SPI0,  // PROFILE_PERIPH_SPI0,
+		FW_CONFIG_PERIPH_SPI1,  // PROFILE_PERIPH_SPI1,
+		FW_CONFIG_PERIPH_SPI2,  // PROFILE_PERIPH_SPI2,
+		FW_CONFIG_PERIPH_SPI3,  // PROFILE_PERIPH_SPI3,
+		FW_CONFIG_PERIPH_SPI4,  // PROFILE_PERIPH_SPI4,
+		FW_CONFIG_PERIPH_SPI5,  // PROFILE_PERIPH_SPI5,
+		FW_CONFIG_PERIPH_I2C0,  // PROFILE_PERIPH_I2C0,
+		FW_CONFIG_PERIPH_I2C1,  // PROFILE_PERIPH_I2C1,
+		FW_CONFIG_PERIPH_I2C2,  // PROFILE_PERIPH_I2C2,
+		FW_CONFIG_PERIPH_I2C3,  // PROFILE_PERIPH_I2C3,
+		FW_CONFIG_PERIPH_I2C4,  // PROFILE_PERIPH_I2C4,
+		FW_CONFIG_PERIPH_I2C5,  // PROFILE_PERIPH_I2C5,
+		FW_CONFIG_PERIPH_I2C6,  // PROFILE_PERIPH_I2C6,
+		FW_CONFIG_PERIPH_I2C7   // PROFILE_PERIPH_I2C7,
+	};
+	const enum fw_config_periph_ids secondary_ids_map[] = {
+		FW_CONFIG_PERIPH_I2C0,  // PROFILE_SECONDARY_PERIPH_I2C0
+		FW_CONFIG_PERIPH_I2C1,  // PROFILE_SECONDARY_PERIPH_I2C1
+		FW_CONFIG_PERIPH_I2C2,  // PROFILE_SECONDARY_PERIPH_I2C2
+		FW_CONFIG_PERIPH_I2C3,  // PROFILE_SECONDARY_PERIPH_I2C3
+		FW_CONFIG_PERIPH_I2C4,  // PROFILE_SECONDARY_PERIPH_I2C4
+		FW_CONFIG_PERIPH_I2C5,  // PROFILE_SECONDARY_PERIPH_I2C5
+		FW_CONFIG_PERIPH_I2C6,  // PROFILE_SECONDARY_PERIPH_I2C6
+		FW_CONFIG_PERIPH_I2C7   // PROFILE_SECONDARY_PERIPH_I2C7
+	};
+	enum fw_config_periph_ids const *ids_map;
+	const char *pri_periph_name[PROFILE_PERIPH_NUM_MAX] = {
 		"UART1", "UART3", "UART4",
 		"SPI0",	 "SPI1",  "SPI2", "SPI3",  "SPI4", "SPI5",
 		"I2C0",	 "I2C1",  "I2C2", "I2C3",  "I2C4", "I2C5","I2C6", "I2C7"
 	};
+	const char *sec_periph_name[PROFILE_SECONDARY_PERIPH_NUM_MAX] = {
+		"I2C0", "I2C1", "I2C2", "I2C3", "I2C4", "I2C5", "I2C6", "I2C7"
+	};
+	char *node_name;
+	int num_tiles = dual_tile_enabled ? 2 : 1;
 
-	/* Default value: non-secure peripherals and pins */
-	memset(secure_peripherals, 0, sizeof(secure_peripherals));
-	memset(secure_pins, 0, sizeof(secure_pins));
+	memset(pri_secure_peripherals, 0, sizeof(pri_secure_peripherals));
+	memset(sec_secure_peripherals, 0, sizeof(sec_secure_peripherals));
+	memset(pri_secure_pins, 0, sizeof(pri_secure_pins));
+	memset(sec_secure_pins, 0, sizeof(sec_secure_pins));
 
 	node = get_fw_config_node("/secure-partitioning", true);
 	if (node < 0)
-		/* No secure partitioning present in FW_COFNIG */
+		/* No secure partitioning present in FW_CONFIG */
 		return 0;
 
-	/* Get secure peripheral list */
-	if (NULL != fdt_getprop(fw_config_dtb, node, "peripherals", &len)) {
-		/* Length in 32-bit unit */
-		len = NCELLS(len);
-
-		if ((unsigned int)len > FW_CONFIG_PERIPH_NUM_MAX) {
-			plat_error_message("Secure peripherals list in FW_CONFIG is too large (%d > %d)", len, FW_CONFIG_PERIPH_NUM_MAX);
-			return -1;
+	/* Update secure peripheral list */
+	for (tile = 0; tile < num_tiles; tile++) {
+		is_primary = (tile == 0);
+		if (is_primary) {
+			node_name = "peripherals";
+			ids_map = primary_ids_map;
+			ids_size = sizeof(primary_ids_map) / sizeof(enum fw_config_periph_ids);
+		} else {
+			node_name = "secondary-peripherals";
+			ids_map = secondary_ids_map;
+			ids_size = sizeof(secondary_ids_map) / sizeof(enum fw_config_periph_ids);
 		}
+		if (NULL != fdt_getprop(fw_config_dtb, node, node_name, &prop_len)) {
+			/* Length in 32-bit unit */
+			prop_len = NCELLS(prop_len);
 
-		ret = fdt_read_uint32_array(fw_config_dtb, node, "peripherals", len, sec_list);
-		if (ret == 0) {
-			for (i = 0; i < len; i++) {
-				uint32_t index = sec_list[i];
+			secure_list = plat_get_secure_peripherals(is_primary, &len);
 
-				if (index >= FW_CONFIG_PERIPH_NUM_MAX) {
-					plat_error_message("FW_CONFIG: invalid peripheral id (%d)", index);
-					return -1;
-				} else {
-					INFO("FW_CONFIG: peripheral %s is secure\n", periph_name[index]);
-					secure_peripherals[index] = true;
+			/* Sanity check */
+			if (len != ids_size) {
+				plat_error_message("Invalid ids_map size");
+				return -1;
+			}
+
+			if (prop_len > len) {
+				plat_error_message("Secure %s list in FW_CONFIG is too large (%d > %d)", node_name, prop_len, len);
+				return -1;
+			}
+
+			ret = fdt_read_uint32_array(fw_config_dtb, node, node_name, prop_len, prop_data);
+			if (ret == 0) {
+				for (i = 0; i < prop_len; i++) {
+					uint32_t fw_config_id = prop_data[i];
+					uint32_t index;
+
+					for (index = 0; index < len; index++) {
+						if (fw_config_id == ids_map[index]) {
+							secure_list[index] = true;
+							break;
+						}
+					}
+
+					if (index < len) {
+						INFO("FW_CONFIG: %speripheral %s is secure\n", is_primary ? "" : "secondary-",
+						     is_primary ? pri_periph_name[index] : sec_periph_name[index]);
+					} else {
+						plat_error_message("FW_CONFIG: invalid %speripheral id (%d)", is_primary ? "" : "secondary-", fw_config_id);
+						return -1;
+					}
 				}
 			}
 		}
 	}
 
-	/* Get secure pins list */
-	if (NULL != fdt_getprop(fw_config_dtb, node, "pins", &len)) {
-		/* Length in 32-bit unit */
-		len = NCELLS(len);
+	/* Update secure pin list */
+	for (tile = 0; tile < num_tiles; tile++) {
+		is_primary = (tile == 0);
+		node_name = is_primary ? "pins" : "secondary-pins";
+		if (NULL != fdt_getprop(fw_config_dtb, node, node_name, &prop_len)) {
+			/* Length in 32-bit unit */
+			prop_len = NCELLS(prop_len);
 
-		if ((unsigned int)len > FW_CONFIG_PIN_NUM_MAX) {
-			plat_error_message("Secure pins list in FW_CONFIG is too large (%d > %d)", len, FW_CONFIG_PIN_NUM_MAX);
-			return -1;
-		}
+			secure_list = plat_get_secure_pins(is_primary, &len);
 
-		ret = fdt_read_uint32_array(fw_config_dtb, node, "pins", len, sec_list);
-		if (ret == 0) {
-			for (i = 0; i < len; i++) {
-				uint32_t index = sec_list[i];
+			if (prop_len > len) {
+				plat_error_message("Secure %s list in FW_CONFIG is too large (%d > %d)", node_name, prop_len, len);
+				return -1;
+			}
 
-				if (index >= FW_CONFIG_PIN_NUM_MAX) {
-					plat_error_message("FW_CONFIG: invalid pin id (%d)", index);
-					return -1;
-				} else {
-					INFO("FW_CONFIG: pin %d is secure\n", index);
-					secure_pins[index] = true;
+			ret = fdt_read_uint32_array(fw_config_dtb, node, node_name, prop_len, prop_data);
+			if (ret == 0) {
+				for (i = 0; i < prop_len; i++) {
+					uint32_t index = prop_data[i];
+
+					if (index >= len) {
+						plat_error_message("FW_CONFIG: invalid %spin id (%d)", is_primary ? "" : "secondary-", index);
+						return -1;
+					} else {
+						INFO("FW_CONFIG: %spin %d is secure\n", is_primary ? "" : "secondary-", index);
+
+						secure_list[index] = true;
+					}
 				}
 			}
 		}
@@ -796,16 +874,24 @@ bool plat_check_ddr_size(void)
 	return (plat_get_dram_size() + plat_get_secondary_dram_size()) > MAX_DDR_SIZE;
 }
 
-bool *plat_get_secure_peripherals(uint32_t *len)
+bool *plat_get_secure_peripherals(bool is_primary, int *len)
 {
-	*len = FW_CONFIG_PERIPH_NUM_MAX;
-	return secure_peripherals;
+	if (is_primary) {
+		*len = PROFILE_PERIPH_NUM_MAX;
+		return pri_secure_peripherals;
+	} else {
+		*len = PROFILE_SECONDARY_PERIPH_NUM_MAX;
+		return sec_secure_peripherals;
+	}
 }
 
-bool *plat_get_secure_pins(uint32_t *len)
+bool *plat_get_secure_pins(bool is_primary, int *len)
 {
 	*len = FW_CONFIG_PIN_NUM_MAX;
-	return secure_pins;
+	if (is_primary)
+		return pri_secure_pins;
+	else
+		return sec_secure_pins;
 }
 
 /* Returns true if ECC on primary DDR is enabled */

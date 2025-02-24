@@ -33,10 +33,12 @@ static interrupt_prop_t adrv906x_interrupt_props[] = {
  */
 int plat_specific_gic_driver_init(gicv3_driver_data_t *plat_gic_data)
 {
-	uint32_t len;
+	int len;
+	int num_cols;
 	bool *secure_peripherals;
+	bool is_primary;
 	unsigned int props_size;
-	int periph_gic_num[][6] = {
+	int pri_periph_gic_num[][6] = {
 		{ IRQ_PL011_UART_INTR_1,	 0,				0,			0,			0,			 0			  },
 		{ IRQ_PL011_UART_INTR_2,	 0,				0,			0,			0,			 0			  },
 		{ IRQ_PL011_UART_INTR_3,	 0,				0,			0,			0,			 0			  },
@@ -55,38 +57,59 @@ int plat_specific_gic_driver_init(gicv3_driver_data_t *plat_gic_data)
 		{ IRQ_I2C_IRQ_S2F_PIPED_6,	 0,				0,			0,			0,			 0			  },
 		{ IRQ_I2C_IRQ_S2F_PIPED_7,	 0,				0,			0,			0,			 0			  }
 	};
-
-	secure_peripherals = plat_get_secure_peripherals(&len);
-
-	/* Sanity checks */
-	if (secure_peripherals == NULL) {
-		plat_error_message("Invalid pointer to the secure_peripheral list");
-		return -1;
-	}
-
-	if (len != ARRAY_SIZE(periph_gic_num)) {
-		plat_error_message("Missmatch in secure periherpal list size");
-		return -1;
-	}
+	int sec_periph_gic_num[][1] = {
+		{ IRQ_C2C_OUT_HW_INTERRUPT_94  },       /*secondary IRQ_I2C_IRQ_S2F_PIPED_0 */
+		{ IRQ_C2C_OUT_HW_INTERRUPT_95  },       /*secondary IRQ_I2C_IRQ_S2F_PIPED_1 */
+		{ IRQ_C2C_OUT_HW_INTERRUPT_96  },       /*secondary IRQ_I2C_IRQ_S2F_PIPED_2 */
+		{ IRQ_C2C_OUT_HW_INTERRUPT_97  },       /*secondary IRQ_I2C_IRQ_S2F_PIPED_3 */
+		{ IRQ_C2C_OUT_HW_INTERRUPT_98  },       /*secondary IRQ_I2C_IRQ_S2F_PIPED_4 */
+		{ IRQ_C2C_OUT_HW_INTERRUPT_99  },       /*secondary IRQ_I2C_IRQ_S2F_PIPED_5 */
+		{ IRQ_C2C_OUT_HW_INTERRUPT_100 },       /*secondary IRQ_I2C_IRQ_S2F_PIPED_5 */
+		{ IRQ_C2C_OUT_HW_INTERRUPT_101 },       /*secondary IRQ_I2C_IRQ_S2F_PIPED_7 */
+	};
+	int gic_lane;
 
 	props_size = plat_gic_data->interrupt_props_num;
 
-	for (uint32_t i = 0; i < len; i++) {
-		if (secure_peripherals[i]) {
-			for (uint32_t j = 0; j < ARRAY_SIZE(periph_gic_num[0]); j++) {
-				if (periph_gic_num[i][j] != 0) {
-					if (props_size > ARRAY_SIZE(adrv906x_interrupt_props)) {
-						plat_error_message("Too many interrupts. User GIC configuration ignored");
-						return -1;
+	for (uint32_t tile = 0; tile < 2; tile++) {
+		is_primary = (tile == 0);
+
+		/* Get the secure peripherals list (FW_CONFIG settings) */
+		secure_peripherals = plat_get_secure_peripherals(is_primary, &len);
+
+		/* Select the GIC lanes configuration based on the tile */
+		num_cols = is_primary ? ARRAY_SIZE(pri_periph_gic_num[0]) : ARRAY_SIZE(sec_periph_gic_num[0]);
+
+		/* Sanity checks */
+		if (secure_peripherals == NULL) {
+			plat_error_message("Invalid pointer to the secure_peripheral list");
+			return -1;
+		}
+
+		if ((is_primary && (len != ARRAY_SIZE(pri_periph_gic_num))) ||
+		    (!is_primary && (len != ARRAY_SIZE(sec_periph_gic_num)))) {
+			plat_error_message("Missmatch in secure periherpal list size");
+			return -1;
+		}
+
+		for (uint32_t i = 0; i < len; i++) {
+			if (secure_peripherals[i]) {
+				for (uint32_t j = 0; j < num_cols; j++) {
+					gic_lane = is_primary ? pri_periph_gic_num[i][j] : sec_periph_gic_num[i][0];
+					if (gic_lane != 0) {
+						if (props_size > ARRAY_SIZE(adrv906x_interrupt_props)) {
+							plat_error_message("Too many interrupts. User GIC configuration ignored");
+							return -1;
+						}
+
+						adrv906x_interrupt_props[props_size].intr_num = gic_lane;
+						adrv906x_interrupt_props[props_size].intr_pri = PLAT_IRQ_NORMAL_PRIORITY;
+						adrv906x_interrupt_props[props_size].intr_grp = INTR_GROUP1S;
+						adrv906x_interrupt_props[props_size].intr_cfg = GIC_INTR_CFG_LEVEL;
+						props_size++;
+
+						INFO("GIC lane %d routed to secure-world\n", gic_lane);
 					}
-
-					adrv906x_interrupt_props[props_size].intr_num = periph_gic_num[i][j];
-					adrv906x_interrupt_props[props_size].intr_pri = PLAT_IRQ_NORMAL_PRIORITY;
-					adrv906x_interrupt_props[props_size].intr_grp = INTR_GROUP1S;
-					adrv906x_interrupt_props[props_size].intr_cfg = GIC_INTR_CFG_LEVEL;
-					props_size++;
-
-					INFO("GIC lane %d routed to secure-world\n", periph_gic_num[i][j]);
 				}
 			}
 		}

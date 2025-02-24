@@ -210,10 +210,10 @@ uint32_t plat_pintmux_lane_to_irq(unsigned int lane, uintptr_t base_addr)
 /**
  * This function returns true if pad_pin_num is secure_world access only
  */
-static bool plat_pin_is_secure(uint32_t pad_pin_num)
+static bool plat_pin_is_secure(bool is_primary, uint32_t pad_pin_num)
 {
-	uint32_t len;
-	bool *pin_list = plat_get_secure_pins(&len);
+	int len;
+	bool *pin_list = plat_get_secure_pins(is_primary, &len);
 
 	if (pad_pin_num < len)
 		return pin_list[pad_pin_num];
@@ -245,6 +245,7 @@ int plat_secure_pintmux_map(unsigned int gpio, bool is_secure, bool pos_mask, ui
 	int lane;
 	int map_status;
 	uintptr_t pinctrl_addr;
+	bool is_primary = (base_addr == PINTMUX_BASE);
 
 	pinctrl_addr = plat_get_pintmux_to_pinctrl_mapping(base_addr);
 	if (pinctrl_addr == PINTMUX_MAPPING_BAD_ADDRESS) {
@@ -258,7 +259,7 @@ int plat_secure_pintmux_map(unsigned int gpio, bool is_secure, bool pos_mask, ui
 		return ERR_LOOKUP_FAIL;
 	}
 
-	if (!is_secure && plat_pin_is_secure(pin)) {
+	if (!is_secure && plat_pin_is_secure(is_primary, pin)) {
 		plat_warn_message("PINTMUX service: Request rejected (request coming from non-secure world for a secure pin (%d)", gpio);
 		return ERR_LOOKUP_FAIL;
 	}
