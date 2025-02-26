@@ -58,6 +58,7 @@
 #define ADI_ADRV906X_C2C_S2P_BLKTRF 0x50
 
 #define SECONDARY_TE_HOST_BOOT_TIMEOUT_US 50000
+#define SECONDARY_TE_HOST_BOOT_ENABLE 0x1048
 
 extern void memcpy16(void *dst, const void *src, unsigned int len);
 
@@ -168,13 +169,21 @@ int adrv906x_load_secondary_image(void)
 	memcpy16((void *)PLAT_SEC_IMAGE_DST_ADDR, (void *)PLAT_SEC_IMAGE_SRC_ADDR, PLAT_SEC_IMAGE_SIZE);
 	flush_dcache_range((uintptr_t)PLAT_SEC_IMAGE_DST_ADDR, PLAT_SEC_IMAGE_SIZE);
 
-	/* Setup the secondary boot config params */
-	boot_cfg_ptr = (plat_sec_boot_cfg_t *)PLAT_SEC_BOOT_CFG_ADDR;
-	boot_cfg_ptr->kernel_cfg_addr = plat_get_secondary_dram_base();
-	boot_cfg_ptr->syscnt_freq = clk_get_freq(CLK_CTL, CLK_ID_TIMER);
-	boot_cfg_ptr->uart_clk_freq = clk_get_freq(CLK_CTL, CLK_ID_SYSCLK);
-	boot_cfg_ptr->magic = PLAT_SEC_BOOT_MAGIC;
-	flush_dcache_range((uintptr_t)boot_cfg_ptr, sizeof(*boot_cfg_ptr));
+	if (plat_get_secondary_linux_enabled()) {
+		/* Setup the secondary boot config params */
+		boot_cfg_ptr = (plat_sec_boot_cfg_t *)PLAT_SEC_BOOT_CFG_ADDR;
+		boot_cfg_ptr->kernel_cfg_addr = plat_get_secondary_dram_base();
+		boot_cfg_ptr->syscnt_freq = clk_get_freq(CLK_CTL, CLK_ID_TIMER);
+		boot_cfg_ptr->uart_clk_freq = clk_get_freq(CLK_CTL, CLK_ID_SYSCLK);
+		boot_cfg_ptr->magic = PLAT_SEC_BOOT_MAGIC;
+		flush_dcache_range((uintptr_t)boot_cfg_ptr, sizeof(*boot_cfg_ptr));
+	} else {
+		/* Tell TE we are done loading the special AppPack and can enable the mailbox */
+		mmio_write_8(SEC_A55_SYS_CFG + SECONDARY_TE_HOST_BOOT_ENABLE, 0x1);
+
+		/* Check if mailbox is now initialized on the secondary */
+		adi_enclave_mailbox_init(SEC_TE_MAILBOX_BASE);
+	}
 
 	return 0;
 }

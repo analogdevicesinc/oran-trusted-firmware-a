@@ -98,7 +98,7 @@ void adi_enclave_mailbox_init(uintptr_t base_addr)
 	uint32_t print_timeout;
 
 	/* Wait for OpFw initialization to complete, will get a success response when it is running */
-	NOTICE("Waiting for Tiny Enclave initialization\n");
+	NOTICE("Waiting for Tiny Enclave initialization at address %lx\n", base_addr);
 	print_timeout = timeout_init_us(TE_INIT_WAITING_TIMEOUT_US_1_S);
 	while (adi_enclave_get_enclave_version(base_addr, output_buf, &output_buf_len) != 0) {
 		if (timeout_elapsed(print_timeout)) {
@@ -107,8 +107,8 @@ void adi_enclave_mailbox_init(uintptr_t base_addr)
 		}
 	}
 
-	NOTICE("Lifecycle State: %s\n", adi_enclave_get_lifecycle_state_str(base_addr));
-	NOTICE("TE: App Pack %s\n", adi_enclave_get_active_boot_slot(base_addr));
+	NOTICE("Lifecycle State from %lx: %s\n", base_addr, adi_enclave_get_lifecycle_state_str(base_addr));
+	NOTICE("TE @ %lx: App Pack %s\n", base_addr, adi_enclave_get_active_boot_slot(base_addr));
 }
 
 adi_lifecycle_t adi_enclave_get_lifecycle_state(uintptr_t base_addr)

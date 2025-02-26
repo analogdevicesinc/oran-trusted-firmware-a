@@ -336,21 +336,24 @@ static void init(void)
 			clk_print_info(SEC_CLK_CTL);
 	}
 
-	/* Load the secondary image (bootloader) on secondary-linux-enabled systems */
-	if (plat_get_secondary_linux_enabled()) {
-		/* Verify secondary DRAM size is sufficient for Linux */
-		dram_size = plat_get_secondary_dram_size();
-		if (dram_size >= SEC_DRAM_SIZE_MIN) {
-			NOTICE("Loading secondary image.\n");
-			err = adrv906x_load_secondary_image();
-			if (err == 0) {
-				NOTICE("Secondary image load complete.\n");
-			} else {
-				plat_error_message("Failed to load secondary image %d", err);
+	/* Load the secondary image dual-tile enabled systems */
+	if (plat_get_dual_tile_enabled()) {
+		if (plat_get_secondary_linux_enabled()) {
+			/* Verify secondary DRAM size is sufficient for Linux */
+			dram_size = plat_get_secondary_dram_size();
+			if (dram_size < SEC_DRAM_SIZE_MIN) {
+				plat_error_message("Secondary DRAM size 0x%lx is too small. Must be at least 0x%lx bytes.", dram_size, SEC_DRAM_SIZE_MIN);
 				plat_set_dual_tile_disabled();
+				return;
 			}
+		}
+
+		NOTICE("Loading secondary image.\n");
+		err = adrv906x_load_secondary_image();
+		if (err == 0) {
+			NOTICE("Secondary image load complete.\n");
 		} else {
-			plat_error_message("Secondary DRAM size 0x%lx is too small. Must be at least 0x%lx bytes.", dram_size, SEC_DRAM_SIZE_MIN);
+			plat_error_message("Failed to load secondary image %d", err);
 			plat_set_dual_tile_disabled();
 		}
 	}
