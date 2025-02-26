@@ -18,7 +18,7 @@
  *
  * U-boot: /arch/arm/mach-adrv906x/adrv906x_status_reg.c
  * Linux: /drivers/soc/adi/adrv906x-err.c
- * OP-TEE os: /core/drivers/adi_adrv906x_status_reg.c
+ * OP-TEE os: /core/drivers/adi/adrv906x/adrv906x_status_reg.c
  */
 #define RESET_CAUSE_NS_OFFSET              0
 #define RESET_CAUSE_OFFSET              0
@@ -86,8 +86,10 @@ bool plat_wr_status_reg(plat_status_reg_id_t reg, uint32_t value)
 const char *plat_get_reset_cause_str(reset_cause_t cause)
 {
 	switch (cause) {
-	case RESET_VALUE:
-		return "RESET VALUE";
+	case COLD_BOOT:
+		return "COLD BOOT";
+	case WARM_RESET:
+		return "WARM RESET";
 	case IMG_VERIFY_FAIL:
 		return "IMG VERIFY FAIL";
 	case WATCHDOG_RESET:

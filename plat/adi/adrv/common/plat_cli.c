@@ -276,9 +276,9 @@ static int common_reset_function(uint8_t *command_buffer, bool help)
 		printf("Performs immediate reset of the board.\n");
 	} else {
 		/* Clear reset cause prior to reset */
-		ret = plat_wr_status_reg(RESET_CAUSE, RESET_VALUE);
+		ret = plat_wr_status_reg(RESET_CAUSE, WARM_RESET);
 		if (ret == false) return -1;
-		ret = plat_wr_status_reg(RESET_CAUSE_NS, RESET_VALUE);
+		ret = plat_wr_status_reg(RESET_CAUSE_NS, WARM_RESET);
 		if (ret == false) return -1;
 
 		plat_warm_reset();

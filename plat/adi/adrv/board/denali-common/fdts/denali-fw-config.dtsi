@@ -15,6 +15,10 @@
 		nv-ctr = <0>;
 	};
 
+	status-reg {
+		reset-cause = <0>;
+	};
+
 	ddr {
 		physical-size = <0x80000000>; /* 2GB. Actual physical size of the primary's DDR */
 		logical-size = <0x80000000>; /* 2GB. Size of the DDR we want U-Boot and Linux to utilize, the "logical" size*/

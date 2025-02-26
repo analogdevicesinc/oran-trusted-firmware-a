@@ -13,10 +13,11 @@
  *
  * U-boot: /arch/arm/mach-adrv906x/include/plat_status_reg.h
  * Linux: /drivers/soc/adi/adrv906x-err.c
- * OP-TEE os: /core/drivers/adi_adrv906x_status_reg.c
+ * OP-TEE os: /core/drivers/adi/adrv906x/adrv906x_status_reg.c
  */
 typedef enum {
-	RESET_VALUE,
+	COLD_BOOT,
+	WARM_RESET,
 	IMG_VERIFY_FAIL,
 	WATCHDOG_RESET,
 	CACHE_ECC_ERROR,
@@ -30,7 +31,7 @@ typedef enum {
 /* This enum MUST MATCH the enumeration found in the following repos
  *
  * U-boot: /arch/arm/mach-adrv906x/include/plat_status_reg.h
- * OP-TEE os: /core/include/drivers/adi_adrv906x_status_reg.h
+ * OP-TEE os: /core/include/drivers/adi/adrv906x/adrv906x_status_reg.h
  */
 typedef enum {
 	RESET_CAUSE_NS,

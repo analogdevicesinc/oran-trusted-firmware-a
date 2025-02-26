@@ -96,9 +96,9 @@ static int plat_system_reset2(int is_vendor, int reset_type, u_register_t cookie
 {
 	/* Clear the reset cause registers on a "normal" shutdown */
 	if (plat_rd_status_reg(RESET_CAUSE) == WATCHDOG_RESET)
-		plat_wr_status_reg(RESET_CAUSE, RESET_VALUE);
+		plat_wr_status_reg(RESET_CAUSE, WARM_RESET);
 	if (plat_rd_status_reg(RESET_CAUSE_NS) == WATCHDOG_RESET)
-		plat_wr_status_reg(RESET_CAUSE_NS, RESET_VALUE);
+		plat_wr_status_reg(RESET_CAUSE_NS, WARM_RESET);
 
 	NOTICE("Warm reset command received\n");
 

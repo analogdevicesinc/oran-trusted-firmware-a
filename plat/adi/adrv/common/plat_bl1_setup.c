@@ -206,6 +206,9 @@ void bl1_platform_setup(void)
 	active_boot_slot[0] = plat_bootctrl_get_active_slot();
 	plat_set_boot_slot(active_boot_slot);
 
+	/* Log reset cause to device tree */
+	plat_set_fw_config_reset_cause(reset_cause_copy, reset_cause_ns_copy);
+
 	/* Log previous reset cause and boot failure messages to device tree */
 	plat_log_dt_boot_messages();
 

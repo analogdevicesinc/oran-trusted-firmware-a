@@ -8,7 +8,7 @@
 #define PLAT_DEVICE_PROFILE_H
 #include <stddef.h>
 
-#define ETH_LEN                           6     // Bytes
+#define ETH_LEN                           6     /* Bytes */
 
 #define MAX_NODE_NAME_LENGTH             30
 #define MAX_NODE_STRING_LENGTH             200
@@ -27,8 +27,8 @@ int plat_get_enforcement_counter(unsigned int *nv_ctr);
 int  plat_get_mac_setting(uint32_t index, uint8_t **mac);
 int plat_get_num_macs(void);
 bool plat_is_sysc(void);
-
 size_t plat_get_dram_size(void);
+void plat_set_fw_config_reset_cause(uint32_t reset_cause, uint32_t reset_cause_ns);
 
 /* Device tree error logging functions */
 void plat_set_fw_config_error_log(char *input);

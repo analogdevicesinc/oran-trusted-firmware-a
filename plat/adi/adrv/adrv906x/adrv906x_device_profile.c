@@ -25,6 +25,7 @@
 #include <plat/common/platform.h>
 #include <plat_device_profile.h>
 #include <plat_err.h>
+#include <plat_status_reg.h>
 #include <plat_trusted_boot.h>
 
 #define FW_CONFIG_SECURE_LIST_MAX_SIZE          FW_CONFIG_PIN_NUM_MAX   /* pin list is larger than periph list */
@@ -1093,6 +1094,28 @@ void plat_set_fw_config_error_log(char *input)
 	err = set_fw_config_uint32("/error-log", "errors", error_num + 1, false);
 	if (err != 0)
 		INFO("Unable to update log\n");
+}
+
+/*
+ * Sets the reset cause in the device tree
+ */
+void plat_set_fw_config_reset_cause(uint32_t reset_cause, uint32_t reset_cause_ns)
+{
+	int err = -1;
+
+	if (((reset_cause == COLD_BOOT) && (reset_cause_ns == COLD_BOOT)) || ((reset_cause == WARM_RESET) && (reset_cause_ns == WARM_RESET))) {
+		err = set_fw_config_uint32("/status-reg", "reset-cause", reset_cause, true);
+		if (err != 0)
+			handle_fw_config_write_error("reset cause", err);
+	} else if ((reset_cause != COLD_BOOT) && (reset_cause_ns != WARM_RESET)) {
+		err = set_fw_config_uint32("/status-reg", "reset-cause", reset_cause, true);
+		if (err != 0)
+			handle_fw_config_write_error("reset cause", err);
+	} else {
+		err = set_fw_config_uint32("/status-reg", "reset-cause", reset_cause_ns, true);
+		if (err != 0)
+			handle_fw_config_write_error("reset cause", err);
+	}
 }
 
 /*

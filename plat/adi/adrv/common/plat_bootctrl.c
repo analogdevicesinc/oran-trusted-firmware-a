@@ -267,8 +267,8 @@ static int do_failure_detection(uint32_t reset_cause, uint32_t reset_cause_ns)
 		plat_wr_status_reg(STARTING_SLOT, active_slot);
 
 	/* If RESET_CAUSE is set, perform failure detection/recovery */
-	if ((reset_cause != RESET_VALUE) || (reset_cause_ns != RESET_VALUE)) {
-		if (reset_cause != RESET_VALUE) {
+	if (((reset_cause != COLD_BOOT) && (reset_cause != WARM_RESET)) || ((reset_cause_ns != COLD_BOOT) && (reset_cause_ns != WARM_RESET))) {
+		if ((reset_cause != COLD_BOOT) && (reset_cause != WARM_RESET)) {
 			NOTICE("Boot failure detected. Reset cause: %s.\n", plat_get_reset_cause_str(reset_cause));
 			plat_record_boot_log(RESET_CAUSE_MESSAGE, "Boot failure detected. Reset cause: %s.", plat_get_reset_cause_str(reset_cause));
 		} else {
