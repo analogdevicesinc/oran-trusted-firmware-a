@@ -178,7 +178,7 @@ static void plat_configure_mcs_kickoff_input(void)
 	plat_pinctrl_settings mcs_kickoff_input_pin = { MCS_KICKOFF_INPUT_PIN, MCS_KICKOFF_INPUT_MUX, CMOS_PAD_DS_0100, true, true, false, 0 };
 
 	plat_secure_pinctrl_set(mcs_kickoff_input_pin, true, PINCTRL_BASE);
-	gpio_set_direction(MCS_KICKOFF_INPUT_PIN, GPIO_DIR_IN);
+	adrv906x_primary_gpio_set_direction(MCS_KICKOFF_INPUT_PIN, GPIO_DIR_IN);
 }
 
 static void plat_configure_mcs_kickoff_output(void)
@@ -187,7 +187,7 @@ static void plat_configure_mcs_kickoff_output(void)
 	plat_pinctrl_settings mcs_kickoff_output_pin = { MCS_KICKOFF_OUTPUT_PIN, MCS_KICKOFF_OUTPUT_MUX, CMOS_PAD_DS_0100, true, true, false, 0 };
 
 	plat_secure_pinctrl_set(mcs_kickoff_output_pin, true, PINCTRL_BASE);
-	gpio_set_direction(MCS_KICKOFF_OUTPUT_PIN, GPIO_DIR_OUT);
+	adrv906x_primary_gpio_set_direction(MCS_KICKOFF_OUTPUT_PIN, GPIO_DIR_OUT);
 }
 
 static void plat_assert_mcs_kickoff_output(void)
@@ -202,7 +202,7 @@ static void plat_deassert_mcs_kickoff_output(void)
 
 static int plat_get_mcs_kickoff_input(void)
 {
-	return gpio_get_value(MCS_KICKOFF_INPUT_PIN);
+	return adrv906x_primary_gpio_get_value(MCS_KICKOFF_INPUT_PIN);
 }
 
 static bool plat_mcs_kickoff(void)
