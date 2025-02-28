@@ -1183,28 +1183,6 @@ void plat_set_fw_config_error_log(char *input)
 }
 
 /*
- * Sets the reset cause in the device tree
- */
-void plat_set_fw_config_reset_cause(uint32_t reset_cause, uint32_t reset_cause_ns)
-{
-	int err = -1;
-
-	if (((reset_cause == COLD_BOOT) && (reset_cause_ns == COLD_BOOT)) || ((reset_cause == WARM_RESET) && (reset_cause_ns == WARM_RESET))) {
-		err = set_fw_config_uint32("/status-reg", "reset-cause", reset_cause, true);
-		if (err != 0)
-			handle_fw_config_write_error("reset cause", err);
-	} else if ((reset_cause != COLD_BOOT) && (reset_cause_ns != WARM_RESET)) {
-		err = set_fw_config_uint32("/status-reg", "reset-cause", reset_cause, true);
-		if (err != 0)
-			handle_fw_config_write_error("reset cause", err);
-	} else {
-		err = set_fw_config_uint32("/status-reg", "reset-cause", reset_cause_ns, true);
-		if (err != 0)
-			handle_fw_config_write_error("reset cause", err);
-	}
-}
-
-/*
  * Get current number of errors from device tree
  */
 int plat_get_fw_config_error_num(void)
@@ -1218,6 +1196,43 @@ int plat_get_fw_config_error_num(void)
 		return err;
 
 	return (int)error_num;
+}
+
+/*
+ * Sets the reset cause in the device tree
+ */
+void plat_set_fw_config_reset_cause(uint32_t reset_cause, uint32_t reset_cause_ns)
+{
+	int err = -1;
+
+	if (((reset_cause == COLD_BOOT) && (reset_cause_ns == COLD_BOOT)) || ((reset_cause == WARM_RESET) && (reset_cause_ns == WARM_RESET))) {
+		err = set_fw_config_uint32("/status-reg", "reset-cause", reset_cause, true);
+		if (err != 0)
+			handle_fw_config_write_error("reset cause", err);
+	} else if ((reset_cause != COLD_BOOT) && (reset_cause != WARM_RESET)) {
+		err = set_fw_config_uint32("/status-reg", "reset-cause", reset_cause, true);
+		if (err != 0)
+			handle_fw_config_write_error("reset cause", err);
+	} else {
+		err = set_fw_config_uint32("/status-reg", "reset-cause", reset_cause_ns, true);
+		if (err != 0)
+			handle_fw_config_write_error("reset cause", err);
+	}
+}
+
+/*
+ * Get reset cause from device tree
+ */
+uint32_t plat_get_fw_config_reset_cause(void)
+{
+	int err = -1;
+	uint32_t reset_cause;
+
+	err = get_fw_config_uint32("/status-reg", "reset-cause", &reset_cause, true);
+	if (err != 0)
+		handle_fw_config_read_error("reset cause", err);
+
+	return reset_cause;
 }
 
 unsigned int plat_get_syscnt_freq2(void)

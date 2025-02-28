@@ -78,6 +78,7 @@ int plat_fixup_hw_config(void *hw_config_dtb)
 	int err = -1;
 	int node = -1;
 	int errors = -1;
+	int reset_cause = -1;
 	uint64_t clk_freq = 0ULL;
 	char node_name[MAX_NODE_NAME_LENGTH];
 
@@ -214,6 +215,15 @@ int plat_fixup_hw_config(void *hw_config_dtb)
 	/* TODO: Consider removing if/when SystemC support is removed */
 	if (plat_is_sysc() == true)
 		plat_enable_sysc_devices(hw_config_dtb);
+
+	/* Copy reset cause from TF-A device tree to U-boot device tree */
+	reset_cause = plat_get_fw_config_reset_cause();
+	node = fdt_path_offset(hw_config_dtb, "/boot");
+	if (node < 0)
+		return node;
+	err = fdt_setprop_u32(hw_config_dtb, node, "reset-cause", reset_cause);
+	if (err < 0)
+		return err;
 
 	/* Copy TF-A device tree error logs to U-boot device tree */
 	/* Get number of errors from TF-A device tree */

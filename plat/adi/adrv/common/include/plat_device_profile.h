@@ -29,6 +29,7 @@ int plat_get_num_macs(void);
 bool plat_is_sysc(void);
 size_t plat_get_dram_size(void);
 void plat_set_fw_config_reset_cause(uint32_t reset_cause, uint32_t reset_cause_ns);
+uint32_t plat_get_fw_config_reset_cause(void);
 
 /* Device tree error logging functions */
 void plat_set_fw_config_error_log(char *input);
