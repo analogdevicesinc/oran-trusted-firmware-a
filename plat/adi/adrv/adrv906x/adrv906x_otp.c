@@ -18,15 +18,25 @@
 
 /* DAP/PMC settings : Below values are taken from SBPI_TB__CQ_RQ_define.v */
 /* RQ_CQ_DAP_PROG = 112'h 0000_0000_0008_ee00_c000_0083_5d2a */
-#define ADRV906X_SBPI_DAP_CQ               0x0000
+#define ADRV906X_SBPI_DAP_CQ_PROG          0x0000
 #define ADRV906X_RQ_CQ_DAP_PROG_2          0x00000008
 #define ADRV906X_RQ_CQ_DAP_PROG_1          0xee00c000
 #define ADRV906X_RQ_CQ_DAP_PROG_0          0x00835d2a
 /* RQ_CQ_PMC_PROG = 112'h 4000_028c_1111_5f20_5f0f_df16_5f2a */
-#define ADRV906X_SBPI_PMC_CQ               0x4000
+#define ADRV906X_SBPI_PMC_CQ_PROG          0x4000
 #define ADRV906X_RQ_CQ_PMC_PROG_2          0x028c1111
 #define ADRV906X_RQ_CQ_PMC_PROG_1          0x5f205f0f
 #define ADRV906X_RQ_CQ_PMC_PROG_0          0xdf165f2a
+/* RQ_CQ_DAP_READ = 112'h 0000_0000_0008_ee00_c000_0003_5d2a */
+#define ADRV906X_SBPI_DAP_CQ_READ        0x0000
+#define ADRV906X_RQ_CQ_DAP_READ_2        0x00000008
+#define ADRV906X_RQ_CQ_DAP_READ_1        0xee00c000
+#define ADRV906X_RQ_CQ_DAP_READ_0        0x00835d2a
+/* RQ_CQ_PMC_READ = 112'h c000_0200_0511_0000_5d2a_5d0a_5d2a */
+#define ADRV906X_SBPI_PMC_CQ_READ        0xc000
+#define ADRV906X_RQ_CQ_PMC_READ_2        0x02000511
+#define ADRV906X_RQ_CQ_PMC_READ_1        0x00005d2a
+#define ADRV906X_RQ_CQ_PMC_READ_0        0x5d0a5d2a
 
 /*
  * Anti-rollback counter:
@@ -250,20 +260,32 @@ static int set_mac_addr_n(const uintptr_t mem_ctrl_base, uint8_t mac_number, uin
  *------------------------------------------------------*/
 void adrv906x_otp_init_driver(void)
 {
-	struct adi_otp_dap_settings dap_settings;
-	struct adi_otp_pmc_settings pmc_settings;
+	struct adi_otp_dap_settings prog_dap_settings;
+	struct adi_otp_pmc_settings prog_pmc_settings;
+	struct adi_otp_dap_settings read_dap_settings;
+	struct adi_otp_pmc_settings read_pmc_settings;
 
-	dap_settings.SBPI_DAP_CQ = ADRV906X_SBPI_DAP_CQ;
-	dap_settings.RQ_CQ_DAP_PROG_2 = ADRV906X_RQ_CQ_DAP_PROG_2;
-	dap_settings.RQ_CQ_DAP_PROG_1 = ADRV906X_RQ_CQ_DAP_PROG_1;
-	dap_settings.RQ_CQ_DAP_PROG_0 = ADRV906X_RQ_CQ_DAP_PROG_0;
+	prog_dap_settings.SBPI_DAP_CQ = ADRV906X_SBPI_DAP_CQ_PROG;
+	prog_dap_settings.RQ_CQ_DAP_PROG_2 = ADRV906X_RQ_CQ_DAP_PROG_2;
+	prog_dap_settings.RQ_CQ_DAP_PROG_1 = ADRV906X_RQ_CQ_DAP_PROG_1;
+	prog_dap_settings.RQ_CQ_DAP_PROG_0 = ADRV906X_RQ_CQ_DAP_PROG_0;
 
-	pmc_settings.SBPI_PMC_CQ = ADRV906X_SBPI_PMC_CQ;
-	pmc_settings.RQ_CQ_PMC_PROG_2 = ADRV906X_RQ_CQ_PMC_PROG_2;
-	pmc_settings.RQ_CQ_PMC_PROG_1 = ADRV906X_RQ_CQ_PMC_PROG_1;
-	pmc_settings.RQ_CQ_PMC_PROG_0 = ADRV906X_RQ_CQ_PMC_PROG_0;
+	prog_pmc_settings.SBPI_PMC_CQ = ADRV906X_SBPI_PMC_CQ_PROG;
+	prog_pmc_settings.RQ_CQ_PMC_PROG_2 = ADRV906X_RQ_CQ_PMC_PROG_2;
+	prog_pmc_settings.RQ_CQ_PMC_PROG_1 = ADRV906X_RQ_CQ_PMC_PROG_1;
+	prog_pmc_settings.RQ_CQ_PMC_PROG_0 = ADRV906X_RQ_CQ_PMC_PROG_0;
 
-	otp_init_driver(dap_settings, pmc_settings);
+	read_dap_settings.SBPI_DAP_CQ = ADRV906X_SBPI_DAP_CQ_READ;
+	read_dap_settings.RQ_CQ_DAP_PROG_2 = ADRV906X_RQ_CQ_DAP_READ_2;
+	read_dap_settings.RQ_CQ_DAP_PROG_1 = ADRV906X_RQ_CQ_DAP_READ_1;
+	read_dap_settings.RQ_CQ_DAP_PROG_0 = ADRV906X_RQ_CQ_DAP_READ_0;
+
+	read_pmc_settings.SBPI_PMC_CQ = ADRV906X_SBPI_PMC_CQ_READ;
+	read_pmc_settings.RQ_CQ_PMC_PROG_2 = ADRV906X_RQ_CQ_PMC_READ_2;
+	read_pmc_settings.RQ_CQ_PMC_PROG_1 = ADRV906X_RQ_CQ_PMC_READ_1;
+	read_pmc_settings.RQ_CQ_PMC_PROG_0 = ADRV906X_RQ_CQ_PMC_READ_0;
+
+	otp_init_driver(prog_dap_settings, prog_pmc_settings, read_dap_settings, read_pmc_settings);
 }
 
 int adrv906x_otp_get_product_id(const uintptr_t mem_ctrl_base, uint8_t *id)

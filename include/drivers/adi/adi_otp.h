@@ -32,7 +32,7 @@ struct adi_otp_pmc_settings {
 	uint32_t RQ_CQ_PMC_PROG_0;
 };
 
-void otp_init_driver(struct adi_otp_dap_settings dap_settings, struct adi_otp_pmc_settings pmc_settings);
+void otp_init_driver(struct adi_otp_dap_settings prog_dap_settings, struct adi_otp_pmc_settings prog_pmc_settings, struct adi_otp_dap_settings read_dap_settings, struct adi_otp_pmc_settings read_pmc_settings);
 int otp_read(const uintptr_t mem_ctrl_base, const uintptr_t addr, uint32_t *data, uint8_t ecc_state);
 int otp_read_burst(const uintptr_t mem_ctrl_base, const uintptr_t addr, uint32_t *buffer, size_t len, uint8_t ecc_state);
 int otp_write(const uintptr_t mem_ctrl_base, const uintptr_t addr, uint32_t data, uint8_t ecc_state);
