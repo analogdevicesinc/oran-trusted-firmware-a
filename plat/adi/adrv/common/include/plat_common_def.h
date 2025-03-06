@@ -100,7 +100,7 @@
  * HW_CONFIG defines.
  */
 #ifndef HW_CONFIG_MAX_SIZE
-#define HW_CONFIG_MAX_SIZE              UL(0x2000)                                      /* 8KB max for HW_CONFIG */
+#define HW_CONFIG_MAX_SIZE              UL(0x3000)                                      /* 12KB max for HW_CONFIG */
 #endif
 #define HW_CONFIG_BASE                  (NS_DRAM_BASE)                                  /* Place HW_CONFIG at the beginning of NS_DRAM */
 #define HW_CONFIG_LIMIT                 (HW_CONFIG_BASE + HW_CONFIG_MAX_SIZE)

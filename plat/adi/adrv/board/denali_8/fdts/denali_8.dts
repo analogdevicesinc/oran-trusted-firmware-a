@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "denali.dtsi"
+#include "adrv906x-dual-tile.dtsi"
 
 / {
 };

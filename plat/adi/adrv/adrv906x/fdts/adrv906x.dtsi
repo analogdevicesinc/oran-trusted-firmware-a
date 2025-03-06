@@ -43,6 +43,19 @@
 		reg = <0x0 0x0>;
 	};
 
+	aliases {
+
+		/* I2C buses */
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &i2c5;
+		i2c6 = &i2c6;
+		i2c7 = &i2c7;
+	};
+
 	firmware {
 		psci {
 			compatible = "arm,psci-1.0";
@@ -202,6 +215,70 @@
 		status = "disabled";
 		clocks = <&dwmac_clk PHY_INTERFACE_MODE_RGMII>;
 		clock-names = "dwmac_clk";
+	};
+
+	i2c0: i2c@I2C_0_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <I2C_0_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c0>;
+		status = "disabled";
+	};
+
+	i2c1: i2c@I2C_1_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <I2C_1_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c1>;
+		status = "disabled";
+	};
+
+	i2c2: i2c@I2C_2_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <I2C_2_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c2>;
+		status = "disabled";
+	};
+
+	i2c3: i2c@I2C_3_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <I2C_3_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c3>;
+		status = "disabled";
+	};
+
+	i2c4: i2c@I2C_4_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <I2C_4_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c4>;
+		status = "disabled";
+	};
+
+	i2c5: i2c@I2C_5_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <I2C_5_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c5>;
+		status = "disabled";
+	};
+
+	i2c6: i2c@I2C_6_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <I2C_6_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c6>;
+		status = "disabled";
+	};
+
+	i2c7: i2c@I2C_7_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <I2C_7_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c7>;
+		status = "disabled";
 	};
 };
 

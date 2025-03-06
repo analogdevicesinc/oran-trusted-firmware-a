@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2024, Analog Devices Incorporated, All Rights Reserved
+ */
+
+/ {
+	aliases {
+
+		/* I2C buses */
+		 i2c8 = &secondary_i2c0;
+		 i2c9 = &secondary_i2c1;
+		i2c10 = &secondary_i2c2;
+		i2c11 = &secondary_i2c3;
+		i2c12 = &secondary_i2c4;
+		i2c13 = &secondary_i2c5;
+		i2c14 = &secondary_i2c6;
+		i2c15 = &secondary_i2c7;
+	};
+
+	pinctrl_secondary: pinctrl@SEC_PINCTRL_BASE_UADDR {
+		reg = <SEC_PINCTRL_BASE 0x1000>;
+		compatible = "adi,adrv906x-pinctrl";
+	};
+
+	secondary_i2c0: i2c@SEC_I2C_0_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <SEC_I2C_0_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-default = <&pinctrl_secondary_i2c0>;
+		status = "disabled";
+	};
+
+	secondary_i2c1: i2c@SEC_I2C_1_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <SEC_I2C_1_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-default = <&pinctrl_secondary_i2c1>;
+		status = "disabled";
+	};
+
+	secondary_i2c2: i2c@SEC_I2C_2_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <SEC_I2C_2_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-default = <&pinctrl_secondary_i2c2>;
+		status = "disabled";
+	};
+
+	secondary_i2c3: i2c@SEC_I2C_3_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <SEC_I2C_3_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-default = <&pinctrl_secondary_i2c3>;
+		status = "disabled";
+	};
+
+	secondary_i2c4: i2c@SEC_I2C_4_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <SEC_I2C_4_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-default = <&pinctrl_secondary_i2c4>;
+		status = "disabled";
+	};
+
+	secondary_i2c5: i2c@SEC_I2C_5_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <SEC_I2C_5_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-default = <&pinctrl_secondary_i2c5>;
+		status = "disabled";
+	};
+
+	secondary_i2c6: i2c@SEC_I2C_6_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <SEC_I2C_6_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-default = <&pinctrl_secondary_i2c6>;
+		status = "disabled";
+	};
+
+	secondary_i2c7: i2c@SEC_I2C_7_BASE_UADDR {
+		compatible = "adi-i2c";
+		reg = <SEC_I2C_7_BASE 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-default = <&pinctrl_secondary_i2c7>;
+		status = "disabled";
+	};
+};
+
+#include "adrv906x-pinctrl-secondary.dtsi"
