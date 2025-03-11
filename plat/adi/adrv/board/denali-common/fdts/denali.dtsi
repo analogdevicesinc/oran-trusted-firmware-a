@@ -67,3 +67,60 @@
 		};
 	};
 };
+
+&pinctrl_hog {
+	adi,pins = <
+		/* Pins 66-73: Debug out signals */
+		GPIO_DEBUG_0_PIN	(ADI_CONFIG_NO_PULL  | ADI_CONFIG_DRIVE_STRENGTH_4)
+		GPIO_DEBUG_1_PIN	(ADI_CONFIG_NO_PULL  | ADI_CONFIG_DRIVE_STRENGTH_4)
+		GPIO_DEBUG_2_PIN	(ADI_CONFIG_NO_PULL  | ADI_CONFIG_DRIVE_STRENGTH_4)
+		GPIO_DEBUG_3_PIN	(ADI_CONFIG_NO_PULL  | ADI_CONFIG_DRIVE_STRENGTH_4)
+		GPIO_DEBUG_4_PIN	(ADI_CONFIG_NO_PULL  | ADI_CONFIG_DRIVE_STRENGTH_4)
+		GPIO_DEBUG_5_PIN	(ADI_CONFIG_NO_PULL  | ADI_CONFIG_DRIVE_STRENGTH_4)
+		GPIO_DEBUG_6_PIN	(ADI_CONFIG_NO_PULL  | ADI_CONFIG_DRIVE_STRENGTH_4)
+		GPIO_DEBUG_7_PIN	(ADI_CONFIG_NO_PULL  | ADI_CONFIG_DRIVE_STRENGTH_4)
+	>;
+};
+
+&gpio {
+	gpio_debug0 {
+		gpio-hog;
+		gpios = <GPIO_DEBUG_0_PIN GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+	gpio_debug1 {
+		gpio-hog;
+		gpios = <GPIO_DEBUG_1_PIN GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+	gpio_debug2 {
+		gpio-hog;
+		gpios = <GPIO_DEBUG_2_PIN GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+	gpio_debug3 {
+		gpio-hog;
+		gpios = <GPIO_DEBUG_3_PIN GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+	gpio_debug4 {
+		gpio-hog;
+		gpios = <GPIO_DEBUG_4_PIN GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+	gpio_debug5 {
+		gpio-hog;
+		gpios = <GPIO_DEBUG_5_PIN GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+	gpio_debug6 {
+		gpio-hog;
+		gpios = <GPIO_DEBUG_6_PIN GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+	gpio_debug7 {
+		gpio-hog;
+		gpios = <GPIO_DEBUG_7_PIN GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+};

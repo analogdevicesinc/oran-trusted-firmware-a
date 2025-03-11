@@ -133,6 +133,11 @@
 		compatible = "adi,adrv906x-pinctrl";
 		reg = <PINCTRL_BASE 0x1000>;
 		adi,pin-info = <ADI_ADRV906X_PIN_COUNT ADI_ADRV906X_DIO_PIN_COUNT ADI_ADRV906X_DIO_PIN_START>;	
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hog>;
+
+		pinctrl_hog: hog-grp {
+		};
 	};
 
 	gpio: gpio@GPIO_MODE_NONSECURE_BASE_UADDR {
