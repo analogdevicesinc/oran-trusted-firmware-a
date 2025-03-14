@@ -182,7 +182,7 @@ int adrv906x_load_secondary_image(void)
 		mmio_write_8(SEC_A55_SYS_CFG + SECONDARY_TE_HOST_BOOT_ENABLE, 0x1);
 
 		/* Give time for the mailbox to initialize */
-		mdelay(5);
+		mdelay(100);
 
 		/* Check if mailbox is now initialized on the secondary */
 		adi_enclave_mailbox_init(SEC_TE_MAILBOX_BASE);

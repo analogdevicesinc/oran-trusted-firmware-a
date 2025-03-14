@@ -95,7 +95,7 @@ void adi_enclave_mailbox_init(uintptr_t base_addr)
 {
 	uint8_t output_buf[16] = { 0 };
 	uint32_t output_buf_len = sizeof(output_buf);
-	uint32_t print_timeout;
+	uint32_t print_timeout, reg;
 
 	/* Wait for OpFw initialization to complete, will get a success response when it is running */
 	NOTICE("Waiting for Tiny Enclave initialization at address %lx\n", base_addr);
@@ -103,6 +103,11 @@ void adi_enclave_mailbox_init(uintptr_t base_addr)
 	while (adi_enclave_get_enclave_version(base_addr, output_buf, &output_buf_len) != 0) {
 		if (timeout_elapsed(print_timeout)) {
 			NOTICE("Still waiting\n");
+			reg = mmio_read_32(base_addr + MB_REGS_BOOT_FLOW1);
+			if (reg != 0x0) {
+				ERROR("TE @ %lx: OpFw failed with error code: %x\n", base_addr, reg);
+				plat_error_handler(-ETIMEDOUT);
+			}
 			print_timeout = timeout_init_us(TE_INIT_WAITING_TIMEOUT_US_1_S);
 		}
 	}
@@ -664,6 +669,13 @@ bool adi_enclave_is_host_boot_ready(uintptr_t base_addr)
 	uint32_t reg;
 
 	reg = mmio_read_32(base_addr + MB_REGS_BOOT_FLOW0);
+
+	if ((reg & MB_REGS_BOOT_FLOW0_BOOT_FAILED_BITM) == MB_REGS_BOOT_FLOW0_BOOT_FAILED_BITM) {
+		ERROR("TE @ %lx: Boot failed with error code: %x\n", base_addr, mmio_read_32(base_addr + MB_REGS_BOOT_FLOW1));
+		return false;
+	} else {
+		NOTICE("TE @ %lx: Boot status: %x\n", base_addr, reg);
+	}
 
 	/* TE is ready for host boot when its boot status indicates LOAD_AND_UNWRAP_KEYS has been performed */
 	if ((reg & MB_REGS_BOOT_FLOW0_LOAD_AND_UNWRAP_KEYS_BITM) == MB_REGS_BOOT_FLOW0_LOAD_AND_UNWRAP_KEYS_BITM)
