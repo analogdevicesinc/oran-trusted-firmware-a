@@ -163,6 +163,18 @@
 		status = "disabled";
 	};
 
+	spi0: spi@SPI_0_BASE_UADDR {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "adi,spi3";
+		reg = <SPI_MASTER0_BASE 0xff>;
+		clocks = <&sysclk>;
+		clock-names = "spi";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_spi0>;
+		status = "disabled";
+	};
+
 	mmc0_phy: phy@EMMC_0_PHY_BASE_UADDR {
 		compatible = "adi,sdhci-phy";
 		reg = <EMMC_0_PHY_BASE 0x100>;
