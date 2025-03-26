@@ -7,9 +7,13 @@
 #include <errno.h>
 
 #include <drivers/adi/adi_te_interface.h>
+#include <drivers/delay_timer.h>
 #include <plat_cli.h>
 #include <plat_err.h>
+#include <plat_rma.h>
 #include <platform_def.h>
+
+static bool initialized = false;
 
 static int plat_end_function(uint8_t *command_buffer, bool help)
 {
@@ -23,7 +27,26 @@ static void print_data(uint8_t *buf, uint8_t len)
 	printf("\n");
 }
 
-static int common_challenge_request_function(uint8_t *command_buffer, bool help)
+#pragma weak plat_prepare_mailboxes_function
+int plat_prepare_mailboxes_function(uint8_t *command_buffer, bool help)
+{
+	int status = 0;
+
+	if (help) {
+		printf("prepare                            ");
+		printf("Prepares TE mailbox for RMA functions.\n");
+		printf("                                   ");
+		printf("This command must be called before any other command.\n");
+	} else {
+		printf("Preparing TE mailbox\n");
+
+		adi_enclave_mailbox_init(TE_MAILBOX_BASE);
+	}
+	return status;
+}
+
+#pragma weak plat_challenge_request_function
+int plat_challenge_request_function(uint8_t *command_buffer, bool help)
 {
 	uint8_t challenge_buf[16] = { 0 };
 	uint32_t chal_buf_len = sizeof(challenge_buf);
@@ -71,8 +94,8 @@ static int common_challenge_request_function(uint8_t *command_buffer, bool help)
 	return status;
 }
 
-
-static int common_secure_debug_access_function(uint8_t *command_buffer, bool help)
+#pragma weak plat_secure_debug_access_function
+int plat_secure_debug_access_function(uint8_t *command_buffer, bool help)
 {
 	int status = 0;
 	uint8_t response_buf[64] = { 0 };
@@ -102,7 +125,8 @@ static int common_secure_debug_access_function(uint8_t *command_buffer, bool hel
 	return status;
 }
 
-static int common_rma_function(uint8_t *command_buffer, bool help)
+#pragma weak plat_rma_function
+int plat_rma_function(uint8_t *command_buffer, bool help)
 {
 	int status = 0;
 	uint8_t response_buf[64] = { 0 };
@@ -133,8 +157,9 @@ static int common_rma_function(uint8_t *command_buffer, bool help)
 }
 
 cli_command_t plat_command_list[] = {
-	{ "request", common_challenge_request_function	 },
-	{ "debug",   common_secure_debug_access_function },
-	{ "rma",     common_rma_function		 },
-	{ "end",     plat_end_function			 }
+	{ "debug",   plat_secure_debug_access_function },
+	{ "prepare", plat_prepare_mailboxes_function   },
+	{ "request", plat_challenge_request_function   },
+	{ "rma",     plat_rma_function		       },
+	{ "end",     plat_end_function		       }
 };

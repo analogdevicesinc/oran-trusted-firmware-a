@@ -35,6 +35,13 @@ PLAT_BL_COMMON_SOURCES	+=	drivers/adi/adrv906x/debug_xbar/debug_xbar.c \
 				plat/adi/adrv/adrv906x/adrv906x_status_reg.c \
 				plat/adi/adrv/adrv906x/adrv906x_tsgen.c
 
+ifeq (${RMA_CLI},1)
+BL1_SOURCES		+=	drivers/adi/c2cc/adi_c2cc.c \
+					plat/adi/adrv/adrv906x/adrv906x_dual.c \
+					plat/adi/adrv/adrv906x/adrv906x_rma.c \
+					plat/adi/adrv/adrv906x/aarch64/adrv906x_secondary_image.S
+endif
+
 BL1_SOURCES		+=	drivers/adi/adrv906x/clk/clk.c \
 				drivers/adi/adrv906x/clk/mcs.c \
 				drivers/adi/adrv906x/clk/zl30732.c \
@@ -53,6 +60,7 @@ BL1_SOURCES		+=	drivers/adi/adrv906x/clk/clk.c \
 				plat/adi/adrv/adrv906x/adrv906x_peripheral_clk_rst.c \
 				plat/adi/adrv/adrv906x/adrv906x_pinctrl_svc.c \
 				plat/adi/adrv/adrv906x/adrv906x_wdt.c
+
 
 BL2_SOURCES		+=	${DDR_SOURCES} \
 				drivers/adi/adrv906x/clk/clk.c \

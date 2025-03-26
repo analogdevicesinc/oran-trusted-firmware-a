@@ -10,7 +10,7 @@ BL2_CPPFLAGS += -march=armv8-a+crc
 BL31_CPPFLAGS += -march=armv8-a+crc
 
 ifeq (${RMA_CLI}, 1)
-BL1_CFLAGS += -DRMA_CLI
+$(eval $(call add_define,RMA_CLI))
 endif
 
 PLAT_PARTITION_MAX_ENTRIES := 32
