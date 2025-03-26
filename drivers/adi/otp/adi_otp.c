@@ -36,25 +36,15 @@
 /* Default DAP/PMC settings */
 /* Below values are taken from SBPI_TB__CQ_RQ_define.v */
 /* RQ_CQ_DAP_PROG = 112'h 0000_0000_0008_ee00_c000_0083_5d2a */
-#define DEFAULT_SBPI_DAP_CQ_PROG        0x0000
+#define DEFAULT_SBPI_DAP_CQ             0x0000
 #define DEFAULT_RQ_CQ_DAP_PROG_2        0x00000008
 #define DEFAULT_RQ_CQ_DAP_PROG_1        0xee00c000
 #define DEFAULT_RQ_CQ_DAP_PROG_0        0x00835d2a
 /* RQ_CQ_PMC_PROG = 112'h 4000_028c_1111_5f20_5f0f_df16_5f2a */
-#define DEFAULT_SBPI_PMC_CQ_PROG        0x4000
+#define DEFAULT_SBPI_PMC_CQ             0x4000
 #define DEFAULT_RQ_CQ_PMC_PROG_2        0x028c1111
 #define DEFAULT_RQ_CQ_PMC_PROG_1        0x5f205f0f
 #define DEFAULT_RQ_CQ_PMC_PROG_0        0xdf165f2a
-/* RQ_CQ_DAP_READ = 112'h 0000_0000_0008_ee00_c000_0003_5d2a */
-#define DEFAULT_SBPI_DAP_CQ_READ        0x0000
-#define DEFAULT_RQ_CQ_DAP_READ_2        0x00000008
-#define DEFAULT_RQ_CQ_DAP_READ_1        0xee00c000
-#define DEFAULT_RQ_CQ_DAP_READ_0        0x00835d2a
-/* RQ_CQ_PMC_READ = 112'h c000_0200_0511_0000_5d2a_5d0a_5d2a */
-#define DEFAULT_SBPI_PMC_CQ_READ        0xc000
-#define DEFAULT_RQ_CQ_PMC_READ_2        0x02000511
-#define DEFAULT_RQ_CQ_PMC_READ_1        0x00005d2a
-#define DEFAULT_RQ_CQ_PMC_READ_0        0x5d0a5d2a
 
 /* ECC */
 #define ECC_TYPE_ADI_SECDED             0
@@ -84,25 +74,15 @@
  * GLOBALS
  *------------------------------------------------------*/
 
-static uint32_t SBPI_DAP_CQ_PROG = DEFAULT_SBPI_DAP_CQ_PROG;
+static uint32_t SBPI_DAP_CQ = DEFAULT_SBPI_DAP_CQ;
 static uint32_t RQ_CQ_DAP_PROG_2 = DEFAULT_RQ_CQ_DAP_PROG_2;
 static uint32_t RQ_CQ_DAP_PROG_1 = DEFAULT_RQ_CQ_DAP_PROG_1;
 static uint32_t RQ_CQ_DAP_PROG_0 = DEFAULT_RQ_CQ_DAP_PROG_0;
 
-static uint32_t SBPI_PMC_CQ_PROG = DEFAULT_SBPI_PMC_CQ_PROG;
+static uint32_t SBPI_PMC_CQ = DEFAULT_SBPI_PMC_CQ;
 static uint32_t RQ_CQ_PMC_PROG_2 = DEFAULT_RQ_CQ_PMC_PROG_2;
 static uint32_t RQ_CQ_PMC_PROG_1 = DEFAULT_RQ_CQ_PMC_PROG_1;
 static uint32_t RQ_CQ_PMC_PROG_0 = DEFAULT_RQ_CQ_PMC_PROG_0;
-
-static uint32_t SBPI_DAP_CQ_READ = DEFAULT_SBPI_DAP_CQ_READ;
-static uint32_t RQ_CQ_DAP_READ_2 = DEFAULT_RQ_CQ_DAP_READ_2;
-static uint32_t RQ_CQ_DAP_READ_1 = DEFAULT_RQ_CQ_DAP_READ_1;
-static uint32_t RQ_CQ_DAP_READ_0 = DEFAULT_RQ_CQ_DAP_READ_0;
-
-static uint32_t SBPI_PMC_CQ_READ = DEFAULT_SBPI_PMC_CQ_READ;
-static uint32_t RQ_CQ_PMC_READ_2 = DEFAULT_RQ_CQ_PMC_READ_2;
-static uint32_t RQ_CQ_PMC_READ_1 = DEFAULT_RQ_CQ_PMC_READ_1;
-static uint32_t RQ_CQ_PMC_READ_0 = DEFAULT_RQ_CQ_PMC_READ_0;
 
 /*--------------------------------------------------------
  * INTERNAL FUNCTIONS PROTOTYPES
@@ -267,45 +247,12 @@ static int op_read_setup(const uintptr_t base, uint8_t ecc_state)
 	WRITE_MEM_CTRL_REGMAP_MC_CMD_EN_SBPI(base, 1);
 	WRITE_MEM_CTRL_REGMAP_MC_LOAD_QSR_QRR(base, 1);
 
-	/* 3 */
-	/* 3.1	Write DAP CQ values to mem ctrl regmap */
-	*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_DAP_CQ(base) = SBPI_DAP_CQ_READ;
-
-	/* 3.2	Write DAP RQ values to mem ctrl regmap */
-	*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_DAP_RQ0(base) = RQ_CQ_DAP_READ_0;
-	*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_DAP_RQ1(base) = RQ_CQ_DAP_READ_1;
-	if (ecc_state == OTP_ECC_ON)
-		*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_DAP_RQ2(base) = RQ_CQ_DAP_READ_2;
-	else
-		*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_DAP_RQ2(base) = RQ_CQ_DAP_READ_2 | 0x00090000;
-
-	/* 3.3	Write PMC CQ values to mem ctrl regmap */
-	if (ecc_state == OTP_ECC_ON)
-		*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_PMC_CQ(base) = SBPI_PMC_CQ_READ;
-	else
-		*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_PMC_CQ(base) = SBPI_PMC_CQ_READ | 0x000A;
-
-	/* 3.4	Write PMC RQ values to mem ctrl regmap */
-	*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_PMC_RQ0(base) = RQ_CQ_PMC_READ_0;
-	*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_PMC_RQ1(base) = RQ_CQ_PMC_READ_1;
-	*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_PMC_RQ2(base) = RQ_CQ_PMC_READ_2;
-
-	/* 3.5	Write DAP RQ/CQ values into Sidense Controller */
+	/* 2	Load DAP RQ with MR/MRR settings from BOOT */
 	WRITE_MEM_CTRL_REGMAP_MC_CMD_WR_DAP_RQ_REQ(base, 1);
-	WRITE_MEM_CTRL_REGMAP_MC_CMD_WR_DAP_CQ_REQ(base, 1);
 
-	/* 3.6	Wait for self-clear on request */
-	if (wait_for_WR_DAP_RQ_CQ_request_clear(base, WR_DAP_RQ_CQ_REQ_TIMEOUT_US) != ADI_OTP_SUCCESS) {
-		ERROR("%s: Write DAP RQ/CQ timeout\n", __func__);
-		return -ETIMEDOUT;
-	}
-
-	/* 3.7	Write PMC RQ/CQ values into Sidense Controller */
-	set_WR_PMC_RQ_CQ_request(base);
-
-	/* 3.8	Wait for self-clear on request */
-	if (wait_for_WR_PMC_RQ_CQ_request_clear(base, WR_PMC_RQ_CQ_REQ_TIMEOUT_US) != ADI_OTP_SUCCESS) {
-		ERROR("%s: Write PMC RQ/CQ timeout\n", __func__);
+	/* 3	Wait for self-clear on request */
+	if (wait_for_WR_DAP_RQ_request_clear(base, WR_DAP_RQ_REQ_TIMEOUT_US) != ADI_OTP_SUCCESS) {
+		ERROR("%s: Load DAP RQ timeout\n", __func__);
 		return -ETIMEDOUT;
 	}
 
@@ -411,7 +358,7 @@ static int op_program_setup(const uintptr_t base, uint8_t ecc_state)
 
 	/* 3 */
 	/* 3.1	Write DAP CQ values to mem ctrl regmap */
-	*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_DAP_CQ(base) = SBPI_DAP_CQ_PROG;
+	*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_DAP_CQ(base) = SBPI_DAP_CQ;
 
 	/* 3.2	Write DAP RQ values to mem ctrl regmap */
 	*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_DAP_RQ0(base) = RQ_CQ_DAP_PROG_0;
@@ -423,9 +370,9 @@ static int op_program_setup(const uintptr_t base, uint8_t ecc_state)
 
 	/* 3.3	Write PMC CQ values to mem ctrl regmap */
 	if (ecc_state == OTP_ECC_ON)
-		*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_PMC_CQ(base) = SBPI_PMC_CQ_PROG;
+		*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_PMC_CQ(base) = SBPI_PMC_CQ;
 	else
-		*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_PMC_CQ(base) = SBPI_PMC_CQ_PROG | 0x000A;
+		*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_PMC_CQ(base) = SBPI_PMC_CQ | 0x000A;
 
 	/* 3.4	Write PMC RQ values to mem ctrl regmap */
 	*pREG_MEM_CTRL_REGMAP_MEM_CTRL_REGMAP_MC_SBPI_PMC_RQ0(base) = RQ_CQ_PMC_PROG_0;
@@ -523,27 +470,17 @@ static int op_program(const uintptr_t base, const uintptr_t addr, uint32_t value
 /*--------------------------------------------------------
  * EXPORTED FUNCTIONS
  *------------------------------------------------------*/
-void otp_init_driver(struct adi_otp_dap_settings prog_dap_settings, struct adi_otp_pmc_settings prog_pmc_settings, struct adi_otp_dap_settings read_dap_settings, struct adi_otp_pmc_settings read_pmc_settings)
+void otp_init_driver(struct adi_otp_dap_settings dap_settings, struct adi_otp_pmc_settings pmc_settings)
 {
-	SBPI_DAP_CQ_PROG = prog_dap_settings.SBPI_DAP_CQ;
-	RQ_CQ_DAP_PROG_2 = prog_dap_settings.RQ_CQ_DAP_PROG_2;
-	RQ_CQ_DAP_PROG_1 = prog_dap_settings.RQ_CQ_DAP_PROG_1;
-	RQ_CQ_DAP_PROG_0 = prog_dap_settings.RQ_CQ_DAP_PROG_0;
+	SBPI_DAP_CQ = dap_settings.SBPI_DAP_CQ;
+	RQ_CQ_DAP_PROG_2 = dap_settings.RQ_CQ_DAP_PROG_2;
+	RQ_CQ_DAP_PROG_1 = dap_settings.RQ_CQ_DAP_PROG_1;
+	RQ_CQ_DAP_PROG_0 = dap_settings.RQ_CQ_DAP_PROG_0;
 
-	SBPI_PMC_CQ_PROG = prog_pmc_settings.SBPI_PMC_CQ;
-	RQ_CQ_PMC_PROG_2 = prog_pmc_settings.RQ_CQ_PMC_PROG_2;
-	RQ_CQ_PMC_PROG_1 = prog_pmc_settings.RQ_CQ_PMC_PROG_1;
-	RQ_CQ_PMC_PROG_0 = prog_pmc_settings.RQ_CQ_PMC_PROG_0;
-
-	SBPI_DAP_CQ_READ = read_dap_settings.SBPI_DAP_CQ;
-	RQ_CQ_DAP_READ_2 = read_dap_settings.RQ_CQ_DAP_PROG_2;
-	RQ_CQ_DAP_READ_1 = read_dap_settings.RQ_CQ_DAP_PROG_1;
-	RQ_CQ_DAP_READ_0 = read_dap_settings.RQ_CQ_DAP_PROG_0;
-
-	SBPI_PMC_CQ_READ = read_pmc_settings.SBPI_PMC_CQ;
-	RQ_CQ_PMC_READ_2 = read_pmc_settings.RQ_CQ_PMC_PROG_2;
-	RQ_CQ_PMC_READ_1 = read_pmc_settings.RQ_CQ_PMC_PROG_1;
-	RQ_CQ_PMC_READ_0 = read_pmc_settings.RQ_CQ_PMC_PROG_0;
+	SBPI_PMC_CQ = pmc_settings.SBPI_PMC_CQ;
+	RQ_CQ_PMC_PROG_2 = pmc_settings.RQ_CQ_PMC_PROG_2;
+	RQ_CQ_PMC_PROG_1 = pmc_settings.RQ_CQ_PMC_PROG_1;
+	RQ_CQ_PMC_PROG_0 = pmc_settings.RQ_CQ_PMC_PROG_0;
 }
 
 int otp_read(const uintptr_t base, const uintptr_t addr, uint32_t *value, uint8_t ecc_state)
