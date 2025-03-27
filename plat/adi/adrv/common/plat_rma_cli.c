@@ -13,8 +13,6 @@
 #include <plat_rma.h>
 #include <platform_def.h>
 
-static bool initialized = false;
-
 static int plat_end_function(uint8_t *command_buffer, bool help)
 {
 	return 0;
