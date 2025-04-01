@@ -244,6 +244,10 @@ static void init(void)
 				plat_set_dual_tile_disabled();
 		} else {
 			NOTICE("Enabled C2C hi-speed AXI bridge.\n");
+			if (!adrv906x_c2c_enable_hw_bg_cal())
+				plat_error_message("Failed to enable C2C hardware background calibration.");
+			else
+				NOTICE("Enabled C2C hardware background calibration.\n");
 		}
 	}
 

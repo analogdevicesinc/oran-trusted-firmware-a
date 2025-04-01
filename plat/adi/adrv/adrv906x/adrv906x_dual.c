@@ -57,6 +57,13 @@
 #define ADI_ADRV906X_C2C_S2P_RESP2CMD 0x2B
 #define ADI_ADRV906X_C2C_S2P_BLKTRF 0x50
 
+/* hw bg calibration parameters */
+#define ADI_ADRV906X_C2C_BGCAL_PERIOD 0x3c50
+#define ADI_ADRV906X_C2C_BGCAL_PATTERN_PERIOD 0x3c50
+#define ADI_ADRV906X_C2C_BGCAL_PATTERN_SIZE 0x80
+#define ADI_ADRV906X_C2C_BGCAL_TRANSITION_DELAY 0
+#define ADI_ADRV906X_C2C_BGCAL_MULTISAMPLE_DELAY 1
+
 #define SECONDARY_TE_HOST_BOOT_TIMEOUT_US 50000
 #define SECONDARY_TE_HOST_BOOT_ENABLE 0x1048
 
@@ -102,6 +109,14 @@ static struct adi_c2cc_training_settings adrv906x_c2c_training_params = {
 	},
 };
 
+static struct adi_c2cc_calibration_settings adrv906x_c2c_calibration_params = {
+	.period			= ADI_ADRV906X_C2C_BGCAL_PERIOD,
+	.pattern_period		= ADI_ADRV906X_C2C_BGCAL_PATTERN_PERIOD,
+	.pattern_size		= ADI_ADRV906X_C2C_BGCAL_PATTERN_SIZE,
+	.transition_delay	= ADI_ADRV906X_C2C_BGCAL_TRANSITION_DELAY,
+	.multisample_delay	= ADI_ADRV906X_C2C_BGCAL_MULTISAMPLE_DELAY,
+};
+
 bool adrv906x_c2c_enable(void)
 {
 	adi_c2cc_init(C2CC_BASE, SEC_C2CC_BASE, C2C_MODE_NORMAL);
@@ -111,6 +126,11 @@ bool adrv906x_c2c_enable(void)
 bool adrv906x_c2c_enable_high_speed(void)
 {
 	return adi_c2cc_enable_high_speed(&adrv906x_c2c_training_params);
+}
+
+bool adrv906x_c2c_enable_hw_bg_cal(void)
+{
+	return adi_c2cc_enable_hw_bg_cal(&adrv906x_c2c_calibration_params, &adrv906x_c2c_training_params.generator);
 }
 
 void adrv906x_release_secondary_reset(void)

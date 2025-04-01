@@ -70,6 +70,14 @@ struct adi_c2cc_trim_settings {
 	uint8_t s2p_trim_delays[ADI_C2C_LANE_COUNT];
 };
 
+struct adi_c2cc_calibration_settings {
+	uint32_t period;
+	uint32_t pattern_period;
+	uint32_t pattern_size;
+	uint8_t transition_delay;
+	uint8_t multisample_delay;
+};
+
 void adi_c2cc_init(uintptr_t pri_base, uintptr_t sec_base, c2c_mode_t mode);
 bool adi_c2cc_enable(void);
 bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params);
@@ -77,5 +85,6 @@ bool adi_c2cc_setup_train(struct adi_c2cc_training_settings *params);
 bool adi_c2cc_run_train(uint32_t *p2s_stats, uint32_t *s2p_stats);
 bool adi_c2cc_process_train_data_and_apply(size_t min_size, struct adi_c2cc_trim_settings *forced_trim, uint32_t *p2s_stats, uint32_t *s2p_stats, struct adi_c2cc_training_clock_settings *tx_clk);
 bool adi_c2cc_run_loopback_test();
+bool adi_c2cc_enable_hw_bg_cal(struct adi_c2cc_calibration_settings *params, struct adi_c2cc_training_generator_settings *prbs_params);
 
 #endif /* ADI_C2CC_H */

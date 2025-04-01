@@ -11,6 +11,7 @@
 
 bool adrv906x_c2c_enable(void);
 bool adrv906x_c2c_enable_high_speed(void);
+bool adrv906x_c2c_enable_hw_bg_cal(void);
 int adrv906x_enable_secondary_tile(void);
 void adrv906x_release_secondary_reset(void);
 void adrv906x_activate_secondary_reset(void);
