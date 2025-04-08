@@ -14,11 +14,4 @@
 	/* Enables Linux on the secondary tile */
 	secondary-linux-enabled;
 #endif
-
-	ddr-secondary {
-		physical-size = <0x10000000>; /* 256MB. Actual physical size of the secondary's DDR. */
-		logical-size = <0x10000000>; /* 256 MB. The size of the secondary's DDR we want Linux/U-Boot to utilize */
-		remap-size = <0x60000000>; /* 1.5 GB. How much of the 3GB of addressable space for the DDRs to be given to the secondary tile. 3-1.5 = 1.5GB will be given to the primary */
-		ecc; /* Enables the ECC functionality of DDR if present. To disable ECC, remove this property */
-	};
 };
