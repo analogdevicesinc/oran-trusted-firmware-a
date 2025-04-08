@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <denali_nor_flash_part_def.h>
+#include <platform_nor_flash_part_def.h>
 
 partition_entry_t nor_part_info_list[NOR_PART_COUNT] = {
 	{

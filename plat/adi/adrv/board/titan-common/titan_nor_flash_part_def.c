@@ -1,0 +1,1 @@
+../denali-common/denali_nor_flash_part_def.c

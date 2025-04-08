@@ -51,8 +51,8 @@
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
 
-		#include "denali-nor-flash-part.dtsi"
-       };
+		#include "plat-nor-flash-part.dtsi"
+	};
 };
 
 &emac0 {

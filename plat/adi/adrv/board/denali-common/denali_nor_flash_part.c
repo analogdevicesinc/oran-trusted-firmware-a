@@ -8,7 +8,7 @@
 #include <string.h>
 
 #include <plat_board.h>
-#include <denali_nor_flash_part_def.h>
+#include <platform_nor_flash_part_def.h>
 
 const partition_entry_t *plat_get_nor_part_entry(const char *name)
 {

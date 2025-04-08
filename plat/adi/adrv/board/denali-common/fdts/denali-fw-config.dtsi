@@ -48,7 +48,6 @@
 		/* Fill in the list with peripherals that should only be accessed from secure world.
 		   Note: that applies only to peripherals exposed in adrv906x_device_profile header file
 
-		   Denali board config:
 		   - I2C0: conected to the power sequencer (ADM12366). Production image only.
 		*/
 #if DEBUG == 1
@@ -62,7 +61,6 @@
 		         pin acting as a peripheral line of a secure peripheral or pin acting as a GPIO interrupt),
 		         this list shall explicitly include every physical pin intended to be used from the secure world.
 
-		   Denali config:
 		   - I2C0 peripheral line pins. Production image only.
 		   - A55_GPIO_S_102_PIN (reboot/shutdown signal to ADM12366)
 		   - GPINT_OUTPUT_0_PIN
