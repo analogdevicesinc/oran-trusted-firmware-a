@@ -187,31 +187,6 @@ bool plat_secure_pinctrl_get(plat_pinctrl_settings *settings, const bool secure_
 		return false;
 	}
 
-	/*
-	 * Verify that non-dedicated IO have a valid src mux specified
-	 */
-	if (!ADRV906X_IS_DIO_PIN(settings->pin_pad) && settings->src_mux >= ADRV906X_PINMUX_SRC_PER_PIN) {
-		plat_runtime_warn_message("PINCTRL: Invalid source mux value: %u specified for pin# %u", settings->src_mux, settings->pin_pad);
-		return false;
-	}
-
-	/*
-	 * Verify the incoming pin_source is withing range
-	 */
-	if (settings->src_mux >= ADRV906X_PINMUX_SRC_PER_PIN && settings->src_mux != ADRV906X_DIO_MUX_NONE) {
-		plat_runtime_warn_message("PINCTRL: Invalid source mux value: %u ", settings->src_mux);
-		return false;
-	}
-
-	/*
-	 * Verify that non-dedicated requested source is valid and not NO_SIGNAL
-	 */
-	if (!ADRV906X_IS_DIO_PIN(settings->pin_pad)) {
-		if ((pinmux_config[settings->pin_pad][settings->src_mux] >= ADRV906X_PINMUX_NUM_SRCS) || (pinmux_config[settings->pin_pad][settings->src_mux] == NO_SIGNAL)) {
-			plat_runtime_warn_message("PINCTRL: Invalid source %d requested ", pinmux_config[settings->pin_pad][settings->src_mux]);
-			return false;
-		}
-	}
 
 	/*
 	 * Prohibit normal world from configuring secure IO

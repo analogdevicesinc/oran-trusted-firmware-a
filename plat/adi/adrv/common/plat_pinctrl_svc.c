@@ -25,8 +25,8 @@
 
 /* SMC GET result defines*/
 #define ADI_GET_BITFIELD_1_PIN_CONFIGURED_BIT_POSITION (63U)
-#define ADI_GET_BITFIELD_1_PIN_NUM_BIT_POSITION (31U)
-#define ADI_GET_BITFIELD_1_MUX_SEL_BIT_POSITION (15U)
+#define ADI_GET_BITFIELD_1_PIN_NUM_SHIFT (16U)
+#define ADI_GET_BITFIELD_1_MUX_SEL_SHIFT (0U)
 
 /*
  * Bit Mask Info for ADI's Pinctrl Word
@@ -117,8 +117,8 @@ uintptr_t plat_pinctrl_smc_handler(unsigned int smc_fid,
 		result = plat_secure_pinctrl_get(&settings, is_caller_secure(flags), base_addr);
 
 		a2 = BIT(ADI_GET_BITFIELD_1_PIN_CONFIGURED_BIT_POSITION);
-		a2 |= settings.pin_pad << ADI_GET_BITFIELD_1_PIN_NUM_BIT_POSITION;
-		a2 |= settings.src_mux << ADI_GET_BITFIELD_1_MUX_SEL_BIT_POSITION;
+		a2 |= settings.pin_pad << ADI_GET_BITFIELD_1_PIN_NUM_SHIFT;
+		a2 |= settings.src_mux << ADI_GET_BITFIELD_1_MUX_SEL_SHIFT;
 
 		a3 = settings.drive_strength;
 		if (settings.schmitt_trigger_enable)
