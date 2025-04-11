@@ -130,7 +130,7 @@ int adrv906x_ddr_init(void)
 	NOTICE("DDR Logical Size: 0x%lx\n", plat_get_dram_size());
 	NOTICE("DDR Primary Remapping Size: 0x%lx\n", plat_get_primary_ddr_remap_window_size());
 
-	if (plat_get_dual_tile_enabled()) {
+	if (plat_get_dual_tile_enabled() && plat_is_secondary_phys_dram_present()) {
 		NOTICE("DDR Secondary Physical Size: 0x%lx\n", plat_get_secondary_dram_physical_size());
 		NOTICE("DDR Secondary Logical Size: 0x%lx\n", plat_get_secondary_dram_size());
 		NOTICE("DDR Secondary Remapping Size: 0x%lx\n", plat_get_secondary_ddr_remap_window_size());
@@ -145,16 +145,14 @@ int adrv906x_ddr_init(void)
 		return err;
 	}
 
-	if (plat_get_dual_tile_enabled()) {
-		if (plat_is_secondary_phys_dram_present()) {
-			NOTICE("Initializing secondary DDR.\n");
-			ecc = plat_is_secondary_ecc_enabled();
-			err = ddr_init(SEC_DDR_CTL_BASE, SEC_DDR_PHY_BASE, SEC_DDR_ADI_INTERFACE_BASE, SEC_CLK_CTL, plat_get_secondary_dram_base(), plat_get_secondary_dram_physical_size(), plat_get_secondary_ddr_remap_window_size(), ddr_dfi_pad_sequence, ddr_phy_pad_sequence, DDR_INIT_FULL, DDR_SECONDARY_CONFIGURATION, ecc);
-			if (err) {
-				plat_error_message("Failed to initialize secondary DDR %d", err);
-				plat_set_dual_tile_disabled();
-				return err;
-			}
+	if (plat_get_dual_tile_enabled() && plat_is_secondary_phys_dram_present()) {
+		NOTICE("Initializing secondary DDR.\n");
+		ecc = plat_is_secondary_ecc_enabled();
+		err = ddr_init(SEC_DDR_CTL_BASE, SEC_DDR_PHY_BASE, SEC_DDR_ADI_INTERFACE_BASE, SEC_CLK_CTL, plat_get_secondary_dram_base(), plat_get_secondary_dram_physical_size(), plat_get_secondary_ddr_remap_window_size(), ddr_dfi_pad_sequence, ddr_phy_pad_sequence, DDR_INIT_FULL, DDR_SECONDARY_CONFIGURATION, ecc);
+		if (err) {
+			plat_error_message("Failed to initialize secondary DDR %d", err);
+			plat_set_dual_tile_disabled();
+			return err;
 		}
 	}
 

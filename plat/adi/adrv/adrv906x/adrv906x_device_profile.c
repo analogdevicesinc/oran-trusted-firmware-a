@@ -45,6 +45,7 @@ static uint32_t clk_pll_freq_setting = 0U;
 static uint32_t orx_adc_freq_setting = 0U;
 static uint32_t eth_pll_freq_setting = 0U;
 static bool dual_tile_enabled = false;
+static bool secondary_dram_is_present = false;
 static bool secondary_linux_enabled = false;
 static bool ddr_primary_ecc_enabled = true;
 static bool ddr_secondary_ecc_enabled = true;
@@ -128,6 +129,17 @@ static int get_bootcfg_node(const char *node_name)
 	}
 
 	return node;
+}
+
+static bool fw_config_node_exists(const char *node_name)
+{
+	int node = -1;
+
+	node = get_fw_config_node(node_name, false);
+	if (node < 0)
+		return false;
+
+	return true;
 }
 
 static int fw_config_prop_exists(const char *node_name, const char *param_name, bool *value)
@@ -651,7 +663,9 @@ void plat_dprof_init(void)
 	if (err != 0)
 		handle_fw_config_read_error("Secondary linux configuration", err);
 
-	if (dual_tile_enabled) {
+	secondary_dram_is_present = fw_config_node_exists("/ddr-secondary");
+
+	if (dual_tile_enabled && secondary_dram_is_present) {
 		/* Get Secondary DRAM size */
 		err = get_fw_config_uint32("/ddr-secondary", "physical-size", &sec_dram_size, true);
 		if (err != 0)
@@ -865,7 +879,7 @@ size_t plat_get_secondary_ddr_remap_window_size(void)
  * for the secondary tile is assumed to mean that a physical DDR will not be present for the secondary tile.*/
 bool plat_is_secondary_phys_dram_present(void)
 {
-	return plat_get_secondary_dram_physical_size() != 0;
+	return secondary_dram_is_present;
 }
 
 /* Checks to make sure the combined primary + secondary tile sizes are not bigger than the 3GB max for Adrv906x*/
