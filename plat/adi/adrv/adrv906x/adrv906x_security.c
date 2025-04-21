@@ -460,6 +460,7 @@ static void adrv906x_spu_setup(void)
 	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_UART_1].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
 	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_UART_3].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
 	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_UART_4].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
+	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_A55INTRCTL0].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
 	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPICONFIG0].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
 	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPICONFIG1].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
 	plat_spu_a55mmr_peripherals[SPU_A55MMR_PERIPH_SPICONFIG2].flags |= ADI_SPU_PERIPHERAL_FLAGS_NO_SSEC;
