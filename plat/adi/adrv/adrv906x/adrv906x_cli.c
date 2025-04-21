@@ -146,6 +146,8 @@ static int ddr_iterative_init_pre_reset_command_function(uint8_t *command_buffer
 	} else {
 		/* Program CLK PLL */
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
+		if (plat_get_dual_tile_enabled())
+			clk_set_src(SEC_CLK_CTL, CLK_SRC_DEVCLK);
 		ret = clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
 		if (ret == false)
 			return -1;
@@ -155,6 +157,12 @@ static int ddr_iterative_init_pre_reset_command_function(uint8_t *command_buffer
 		result = adrv906x_ddr_iterative_init_pre_reset(DDR_CTL_BASE, DDR_PHY_BASE, DDR_ADI_INTERFACE_BASE, CLK_CTL, DRAM_BASE, DDR_PRIMARY_CONFIGURATION);
 		if (result)
 			printf("Error occurred while running DDR pre init:%d\n", result);
+		if (plat_get_dual_tile_enabled() && plat_is_secondary_phys_dram_present()) {
+			printf("Performing pre-reset init for the secondary DDR.\n");
+			result = adrv906x_ddr_iterative_init_pre_reset(SEC_DDR_CTL_BASE, SEC_DDR_PHY_BASE, SEC_DDR_ADI_INTERFACE_BASE, SEC_CLK_CTL, plat_get_secondary_dram_base(), DDR_SECONDARY_CONFIGURATION);
+			if (result)
+				printf("Error occurred while running secondary DDR pre init:%d\n", result);
+		}
 	}
 	return result;
 }
@@ -172,6 +180,12 @@ static int ddr_iterative_init_post_reset_command_function(uint8_t *command_buffe
 		result = adrv906x_ddr_iterative_init_post_reset(DDR_CTL_BASE, DDR_PHY_BASE, DDR_ADI_INTERFACE_BASE, CLK_CTL, DRAM_BASE, DDR_PRIMARY_CONFIGURATION);
 		if (result)
 			printf("Error occurred while running DDR post init:%d\n", result);
+		if (plat_get_dual_tile_enabled() && plat_is_secondary_phys_dram_present()) {
+			printf("Performing post-reset init for the secondary DDR.\n");
+			result = adrv906x_ddr_iterative_init_post_reset(SEC_DDR_CTL_BASE, SEC_DDR_PHY_BASE, SEC_DDR_ADI_INTERFACE_BASE, SEC_CLK_CTL, plat_get_secondary_dram_base(), DDR_SECONDARY_CONFIGURATION);
+			if (result)
+				printf("Error occurred while running secondary DDR post init:%d\n", result);
+		}
 	}
 	return result;
 }
@@ -189,6 +203,12 @@ static int ddr_iterative_init_remapping_command_function(uint8_t *command_buffer
 		result = adrv906x_ddr_iterative_init_remapping(DDR_CTL_BASE, DDR_PHY_BASE, DDR_ADI_INTERFACE_BASE, CLK_CTL, DRAM_BASE, DDR_PRIMARY_CONFIGURATION);
 		if (result)
 			printf("Error occurred while running DDR remapping init:%d\n", result);
+		if (plat_get_dual_tile_enabled() && plat_is_secondary_phys_dram_present()) {
+			printf("Performing secondary DDR pin and ECC remapping.\n");
+			result = adrv906x_ddr_iterative_init_remapping(SEC_DDR_CTL_BASE, SEC_DDR_PHY_BASE, SEC_DDR_ADI_INTERFACE_BASE, SEC_CLK_CTL, plat_get_secondary_dram_base(), DDR_SECONDARY_CONFIGURATION);
+			if (result)
+				printf("Error occurred while running secondary DDR remapping init:%d\n", result);
+		}
 	}
 	return result;
 }
@@ -205,6 +225,8 @@ static int ddr_init_command_function(uint8_t *command_buffer, bool help)
 	} else {
 		/* Program CLK PLL */
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
+		if (plat_get_dual_tile_enabled())
+			clk_set_src(SEC_CLK_CTL, CLK_SRC_DEVCLK);
 		ret = clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
 		if (ret == false)
 			return -1;
@@ -287,6 +309,8 @@ static int ddr_mem_test_command_function(uint8_t *command_buffer, bool help)
 
 		/* Initialize the DDR before attempting a memory test*/
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
+		if (plat_get_dual_tile_enabled())
+			clk_set_src(SEC_CLK_CTL, CLK_SRC_DEVCLK);
 		ret = clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
 		if (ret == false)
 			return -1;
@@ -335,6 +359,8 @@ static int ddr_extensive_mem_test_command_function(uint8_t *command_buffer, bool
 
 		/* Initialize the DDR before attempting a memory test*/
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
+		if (plat_get_dual_tile_enabled())
+			clk_set_src(SEC_CLK_CTL, CLK_SRC_DEVCLK);
 		ret = clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
 		if (ret == false)
 			return -1;
@@ -436,6 +462,8 @@ static int ddr_custom_training_test_command_function(uint8_t *command_buffer, bo
 
 		/* Initialize the clocks and the TZC in case user runs custom training without a normal DDR init */
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
+		if (plat_get_dual_tile_enabled())
+			clk_set_src(SEC_CLK_CTL, CLK_SRC_DEVCLK);
 		ret = clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true);
 		if (ret == false)
 			return -1;
@@ -450,6 +478,13 @@ static int ddr_custom_training_test_command_function(uint8_t *command_buffer, bo
 			printf("Error occurred during DDR training firmware custom test:%d\n", result);
 		else
 			printf("DDR training firmware custom test passed.\n");
+		if (plat_get_dual_tile_enabled() && plat_is_secondary_phys_dram_present()) {
+			result = adrv906x_ddr_custom_training_test(SEC_DDR_PHY_BASE, sequence_ctrl, train_2d);
+			if (result)
+				printf("Error occurred during secondary DDR training firmware custom test:%d\n", result);
+			else
+				printf("Secondary DDR training firmware custom test passed.\n");
+		}
 	}
 	return result;
 }
@@ -1150,6 +1185,7 @@ static int c2c_setup_command_function(uint8_t *command_buffer, bool help)
 
 		/* Set DEV_CLK */
 		clk_set_src(CLK_CTL, CLK_SRC_DEVCLK);
+		clk_set_src(SEC_CLK_CTL, CLK_SRC_DEVCLK);
 
 		/* Perform MCS */
 		if (!clk_do_mcs(plat_get_dual_tile_enabled(), plat_get_clkpll_freq_setting(), plat_get_orx_adc_freq_setting(), true))

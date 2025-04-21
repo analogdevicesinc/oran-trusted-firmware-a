@@ -193,7 +193,12 @@ int adrv906x_ddr_custom_training_test(uintptr_t base_addr_phy, uint16_t sequence
 	bool ecc;
 
 	ecc = plat_is_primary_ecc_enabled();
-	err = ddr_init(DDR_CTL_BASE, DDR_PHY_BASE, DDR_ADI_INTERFACE_BASE, CLK_CTL, DRAM_BASE, plat_get_dram_physical_size(), plat_get_primary_ddr_remap_window_size(), ddr_dfi_pad_sequence, ddr_phy_pad_sequence, DDR_CUSTOM_TRAINING, DDR_PRIMARY_CONFIGURATION, ecc);
+	if (base_addr_phy == SEC_DDR_PHY_BASE) {
+		ecc = plat_is_secondary_ecc_enabled();
+		err = ddr_init(SEC_DDR_CTL_BASE, SEC_DDR_PHY_BASE, SEC_DDR_ADI_INTERFACE_BASE, SEC_CLK_CTL, plat_get_secondary_dram_base(), plat_get_secondary_dram_physical_size(), plat_get_secondary_ddr_remap_window_size(), ddr_dfi_pad_sequence, ddr_phy_pad_sequence, DDR_CUSTOM_TRAINING, DDR_SECONDARY_CONFIGURATION, ecc);
+	} else {
+		err = ddr_init(DDR_CTL_BASE, DDR_PHY_BASE, DDR_ADI_INTERFACE_BASE, CLK_CTL, DRAM_BASE, plat_get_dram_physical_size(), plat_get_primary_ddr_remap_window_size(), ddr_dfi_pad_sequence, ddr_phy_pad_sequence, DDR_CUSTOM_TRAINING, DDR_PRIMARY_CONFIGURATION, ecc);
+	}
 	if (err)
 		return err;
 
