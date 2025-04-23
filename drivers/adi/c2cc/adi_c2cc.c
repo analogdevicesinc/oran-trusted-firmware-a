@@ -240,47 +240,6 @@ static bool adi_c2cc_s2p_gather_statistics(uintptr_t sec_base, uintptr_t pri_bas
 	return true;
 }
 
-static size_t adi_c2cc_find_largest_combined_window(uint32_t *stats, size_t *offset)
-{
-	size_t s = 0;
-	size_t o = 0;
-	int pos = -1;
-	size_t i = 0;
-
-	/* find largest contiguous window of trim values with no errors */
-	for (i = 0; i < ADI_C2C_TRIM_MAX; i++) {
-		switch (pos) {
-		case -1:
-			if (!stats[i])
-				pos = i;
-			break;
-		default:
-			if (stats[i]) {
-				size_t size = i - pos;
-				VERBOSE("%s: C2CC found candidate (offset=%d,size=%lu)\n", __func__, pos, size);
-				if (size > s) {
-					o = pos;
-					s = size;
-				}
-				pos = -1;
-			}
-			break;
-		}
-	}
-	if (!stats[ADI_C2C_TRIM_MAX - 1] && pos >= 0) {
-		size_t size = ADI_C2C_TRIM_MAX - pos;
-		VERBOSE("%s: C2CC found candidate (offset=%d,size=%lu)\n", __func__, pos, size);
-		if (size > s) {
-			o = pos;
-			s = size;
-		}
-	}
-
-	if (offset)
-		*offset = o;
-	return s;
-}
-
 static size_t adi_c2cc_find_lane_window_end(uint32_t *stats, size_t start, unsigned int lane)
 {
 	size_t i = 0;
@@ -301,7 +260,8 @@ static size_t adi_c2cc_find_next_window(uint32_t *stats, size_t start, size_t ma
 		uint8_t lane_stats[ADI_C2C_LANE_COUNT] = ADI_C2C_GET_LANE_STATS(stats, start - 1);
 		/* skip over any windows that started before 'start' */
 		for (j = 0; j < ADI_C2C_LANE_COUNT; j++)
-			skip_lanes[j] = (lane_stats[j] != 0);
+			if (!lane_stats[j])
+				skip_lanes[j] = true;
 	}
 
 	for (i = start; i < start + max_dist; i++) {
@@ -309,13 +269,14 @@ static size_t adi_c2cc_find_next_window(uint32_t *stats, size_t start, size_t ma
 		for (j = 0; j < ADI_C2C_LANE_COUNT; j++) {
 			if (skip_lanes[j]) {
 				/* stop skipping if the window closed */
-				skip_lanes[j] = (lane_stats[j] != 0);
+				if (lane_stats[j])
+					skip_lanes[j] = false;
 				continue;
 			}
 			if (lane_stats[j])
 				continue;
 			end = adi_c2cc_find_lane_window_end(stats, i, j);
-			VERBOSE("%s: C2CC found candidate (offset=%lu,size=%lu)\n", __func__, i, end - i);
+			VERBOSE("%s: C2CC found candidate (lane=%lu,offset=%lu,size=%lu)\n", __func__, j, i, end - i);
 			if (end - i < min_size) {
 				skip_lanes[j] = true;
 				continue;
@@ -362,6 +323,7 @@ static size_t adi_c2cc_find_next_lane_window(uint32_t *stats, size_t start, unsi
 		}
 		if (offset)
 			*offset = i;
+
 		return end - i;
 	}
 
@@ -445,19 +407,8 @@ static uint8_t adi_c2cc_find_optimal_trim(uint32_t *stats, size_t min_size, uint
 	size_t sizes[ADI_C2C_LANE_COUNT] = { 0 };
 	size_t i = 0;
 
-	target_size = adi_c2cc_find_largest_combined_window(stats, &target_offset);
-	if (target_size >= min_size) {
-		if (trim_delays)
-			for (i = 0; i < ADI_C2C_LANE_COUNT; i++)
-				trim_delays[i] = 0;
-		if (eye_width)
-			*eye_width = target_size;
-		return target_offset + (target_size / 2);
-	}
-	WARN("%s: C2CC failed to find suitable trim window. Re-attempting with delay to account for skew.\n", __func__);
-
 	if (!adi_c2cc_find_window_group(stats, ADI_C2C_TRIM_DELAY_MAX, min_size, offsets, sizes, &target_offset, &target_size)) {
-		WARN("%s: C2CC failed to find suitable trim window (with delay).\n", __func__);
+		WARN("%s: C2CC failed to find suitable trim window.\n", __func__);
 		return ADI_C2C_TRIM_MAX;
 	}
 
