@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2017-2018, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -35,13 +35,12 @@
 #define IPI_BUFFER_APU_BASE	(IPI_BUFFER_BASEADDR + 0x400U)
 #define IPI_BUFFER_PMU_BASE	(IPI_BUFFER_BASEADDR + 0xE00U)
 
-#define IPI_BUFFER_LOCAL_BASE	IPI_BUFFER_APU_BASE
 #define IPI_BUFFER_REMOTE_BASE	IPI_BUFFER_PMU_BASE
 
 #define IPI_BUFFER_TARGET_LOCAL_OFFSET	0x80U
 #define IPI_BUFFER_TARGET_REMOTE_OFFSET	0x1C0U
 
-#define IPI_BUFFER_MAX_WORDS	8
+#define IPI_BUFFER_MAX_WORDS	8U
 
 #define IPI_BUFFER_REQ_OFFSET	0x0U
 #define IPI_BUFFER_RESP_OFFSET	0x20U

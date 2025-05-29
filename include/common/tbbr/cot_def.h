@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2020, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2023, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -7,12 +7,19 @@
 #ifndef COT_DEF_H
 #define COT_DEF_H
 
+/*
+ * Guard here with availability of mbedtls config since PLAT=lx2162aqds
+ * uses custom tbbr from 'drivers/nxp/auth/tbbr/tbbr_cot.c'  and also may
+ * build without mbedtls folder only with TRUSTED_BOOT enabled.
+ */
 #ifdef MBEDTLS_CONFIG_FILE
-#include MBEDTLS_CONFIG_FILE
+#include <mbedtls/version.h>
 #endif
 
 /* TBBR CoT definitions */
 #if defined(SPD_spmd)
+#define COT_MAX_VERIFIED_PARAMS		8
+#elif defined(ARM_COT_cca)
 #define COT_MAX_VERIFIED_PARAMS		8
 #else
 #define COT_MAX_VERIFIED_PARAMS		4
@@ -39,7 +46,7 @@
 #error "Invalid value for TF_MBEDTLS_KEY_SIZE"
 #endif
 #else /* Only using ECDSA keys. */
-#define PK_DER_LEN                      91
+#define PK_DER_LEN                      92
 #endif
 
 #if TF_MBEDTLS_HASH_ALG_ID == TF_MBEDTLS_SHA256

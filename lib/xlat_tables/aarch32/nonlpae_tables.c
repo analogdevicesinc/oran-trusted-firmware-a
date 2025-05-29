@@ -138,10 +138,10 @@ static unsigned long long xlat_max_pa;
 static uintptr_t xlat_max_va;
 
 static uint32_t mmu_l1_base[NUM_1MB_IN_4GB]
-	__aligned(MMU32B_L1_TABLE_ALIGN) __attribute__((section("xlat_table")));
+	__aligned(MMU32B_L1_TABLE_ALIGN) __attribute__((section(".xlat_table")));
 
 static uint32_t mmu_l2_base[MAX_XLAT_TABLES][NUM_4K_IN_1MB]
-	__aligned(MMU32B_L2_TABLE_ALIGN) __attribute__((section("xlat_table")));
+	__aligned(MMU32B_L2_TABLE_ALIGN) __attribute__((section(".xlat_table")));
 
 /*
  * Array of all memory regions stored in order of ascending base address.
@@ -272,7 +272,7 @@ void mmap_add_region(unsigned long long base_pa, uintptr_t base_va,
 	/* Make room for new region by moving other regions up by one place */
 	(void)memmove(mm + 1, mm, (uintptr_t)mm_last - (uintptr_t)mm);
 
-	/* Check we haven't lost the empty sentinal from the end of the array */
+	/* Check we haven't lost the empty sentinel from the end of the array */
 	assert(mm_last->size == 0U);
 
 	mm->base_pa = base_pa;
@@ -518,9 +518,9 @@ void enable_mmu_svc_mon(unsigned int flags)
 	/* Enable Access flag (simplified access permissions) and TEX remap */
 	write_sctlr(read_sctlr() | SCTLR_AFE_BIT | SCTLR_TRE_BIT);
 
-	prrr = MMU32B_PRRR_IDX(MMU32B_ATTR_DEVICE_INDEX, 1, 0) \
+	prrr = MMU32B_PRRR_IDX(MMU32B_ATTR_DEVICE_INDEX, 1, 0)
 			| MMU32B_PRRR_IDX(MMU32B_ATTR_IWBWA_OWBWA_INDEX, 2, 1);
-	nmrr = MMU32B_NMRR_IDX(MMU32B_ATTR_DEVICE_INDEX, 0, 0) \
+	nmrr = MMU32B_NMRR_IDX(MMU32B_ATTR_DEVICE_INDEX, 0, 0)
 			| MMU32B_NMRR_IDX(MMU32B_ATTR_IWBWA_OWBWA_INDEX, 1, 1);
 
 	prrr |= MMU32B_PRRR_NS1 | MMU32B_PRRR_DS1;

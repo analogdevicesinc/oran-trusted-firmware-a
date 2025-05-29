@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2018-2023, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -22,10 +22,11 @@
 
 /* SID Version values for RD-N2 variants */
 #define RD_N2_CFG1_SID_VER_PART_NUM		0x07B6
+#define RD_N2_CFG3_SID_VER_PART_NUM		0x07F1
 
-/* SID Version values for RD-Edmunds */
-#define RD_EDMUNDS_SID_VER_PART_NUM		0x07F2
-#define RD_EDMUNDS_CONFIG_ID			0x1
+/* SID Version values for RD-V2 */
+#define RD_V2_SID_VER_PART_NUM			0x07F2
+#define RD_V2_CONFIG_ID				0x1
 
 /* Structure containing SGI platform variant information */
 typedef struct sgi_platform_info {

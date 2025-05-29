@@ -9,8 +9,16 @@
 
 #include <stdbool.h>
 
-bool spe_supported(void);
+#if ENABLE_SPE_FOR_NS
 void spe_enable(bool el2_unused);
 void spe_disable(void);
+#else
+static inline void spe_enable(bool el2_unused)
+{
+}
+static inline void spe_disable(void)
+{
+}
+#endif
 
 #endif /* SPE_H */

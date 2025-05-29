@@ -27,6 +27,14 @@ static inline u_register_t read_ ## _name(void)			\
 	return v;						\
 }
 
+#define _DEFINE_SYSREG_READ_FUNC_NV(_name, _reg_name)		\
+static inline u_register_t read_ ## _name(void)			\
+{								\
+	u_register_t v;						\
+	__asm__ ("mrs %0, " #_reg_name : "=r" (v));		\
+	return v;						\
+}
+
 #define _DEFINE_SYSREG_WRITE_FUNC(_name, _reg_name)			\
 static inline void write_ ## _name(u_register_t v)			\
 {									\
@@ -57,6 +65,14 @@ static inline void write_ ## _name(u_register_t v)			\
 /* Define write function for renamed system register */
 #define DEFINE_RENAME_SYSREG_WRITE_FUNC(_name, _reg_name)	\
 	_DEFINE_SYSREG_WRITE_FUNC(_name, _reg_name)
+
+/* Define read function for ID register (w/o volatile qualifier) */
+#define DEFINE_IDREG_READ_FUNC(_name)			\
+	_DEFINE_SYSREG_READ_FUNC_NV(_name, _name)
+
+/* Define read function for renamed ID register (w/o volatile qualifier) */
+#define DEFINE_RENAME_IDREG_READ_FUNC(_name, _reg_name)	\
+	_DEFINE_SYSREG_READ_FUNC_NV(_name, _reg_name)
 
 /**********************************************************************
  * Macros to create inline functions for system instructions
@@ -247,13 +263,14 @@ void disable_mpu_icache_el2(void);
 #define write_daifset(val) SYSREG_WRITE_CONST(daifset, val)
 
 DEFINE_SYSREG_RW_FUNCS(par_el1)
-DEFINE_SYSREG_READ_FUNC(id_pfr1_el1)
-DEFINE_SYSREG_READ_FUNC(id_aa64isar0_el1)
-DEFINE_SYSREG_READ_FUNC(id_aa64isar1_el1)
-DEFINE_SYSREG_READ_FUNC(id_aa64pfr0_el1)
-DEFINE_SYSREG_READ_FUNC(id_aa64pfr1_el1)
-DEFINE_SYSREG_READ_FUNC(id_aa64dfr0_el1)
-DEFINE_SYSREG_READ_FUNC(id_afr0_el1)
+DEFINE_IDREG_READ_FUNC(id_pfr1_el1)
+DEFINE_IDREG_READ_FUNC(id_aa64isar0_el1)
+DEFINE_IDREG_READ_FUNC(id_aa64isar1_el1)
+DEFINE_RENAME_IDREG_READ_FUNC(id_aa64isar2_el1, ID_AA64ISAR2_EL1)
+DEFINE_IDREG_READ_FUNC(id_aa64pfr0_el1)
+DEFINE_IDREG_READ_FUNC(id_aa64pfr1_el1)
+DEFINE_IDREG_READ_FUNC(id_aa64dfr0_el1)
+DEFINE_IDREG_READ_FUNC(id_afr0_el1)
 DEFINE_SYSREG_READ_FUNC(CurrentEl)
 DEFINE_SYSREG_READ_FUNC(ctr_el0)
 DEFINE_SYSREG_RW_FUNCS(daif)
@@ -266,6 +283,8 @@ DEFINE_SYSREG_RW_FUNCS(elr_el3)
 DEFINE_SYSREG_RW_FUNCS(mdccsr_el0)
 DEFINE_SYSREG_RW_FUNCS(dbgdtrrx_el0)
 DEFINE_SYSREG_RW_FUNCS(dbgdtrtx_el0)
+DEFINE_SYSREG_RW_FUNCS(sp_el1)
+DEFINE_SYSREG_RW_FUNCS(sp_el2)
 
 DEFINE_SYSOP_FUNC(wfi)
 DEFINE_SYSOP_FUNC(wfe)
@@ -364,10 +383,10 @@ void __dead2 smc(uint64_t x0, uint64_t x1, uint64_t x2, uint64_t x3,
 /*******************************************************************************
  * System register accessor prototypes
  ******************************************************************************/
-DEFINE_SYSREG_READ_FUNC(midr_el1)
+DEFINE_IDREG_READ_FUNC(midr_el1)
 DEFINE_SYSREG_READ_FUNC(mpidr_el1)
-DEFINE_SYSREG_READ_FUNC(id_aa64mmfr0_el1)
-DEFINE_SYSREG_READ_FUNC(id_aa64mmfr1_el1)
+DEFINE_IDREG_READ_FUNC(id_aa64mmfr0_el1)
+DEFINE_IDREG_READ_FUNC(id_aa64mmfr1_el1)
 
 DEFINE_SYSREG_RW_FUNCS(scr_el3)
 DEFINE_SYSREG_RW_FUNCS(hcr_el2)
@@ -492,6 +511,7 @@ DEFINE_RENAME_SYSREG_WRITE_FUNC(icc_eoir0_el1, ICC_EOIR0_EL1)
 DEFINE_RENAME_SYSREG_WRITE_FUNC(icc_eoir1_el1, ICC_EOIR1_EL1)
 DEFINE_RENAME_SYSREG_WRITE_FUNC(icc_sgi0r_el1, ICC_SGI0R_EL1)
 DEFINE_RENAME_SYSREG_RW_FUNCS(icc_sgi1r, ICC_SGI1R)
+DEFINE_RENAME_SYSREG_RW_FUNCS(icc_asgi1r, ICC_ASGI1R)
 
 DEFINE_RENAME_SYSREG_READ_FUNC(amcfgr_el0, AMCFGR_EL0)
 DEFINE_RENAME_SYSREG_READ_FUNC(amcgcr_el0, AMCGCR_EL0)
@@ -502,17 +522,12 @@ DEFINE_RENAME_SYSREG_RW_FUNCS(amcntenset0_el0, AMCNTENSET0_EL0)
 DEFINE_RENAME_SYSREG_RW_FUNCS(amcntenclr1_el0, AMCNTENCLR1_EL0)
 DEFINE_RENAME_SYSREG_RW_FUNCS(amcntenset1_el0, AMCNTENSET1_EL0)
 
-DEFINE_RENAME_SYSREG_READ_FUNC(mpamidr_el1, MPAMIDR_EL1)
-DEFINE_RENAME_SYSREG_RW_FUNCS(mpam3_el3, MPAM3_EL3)
-DEFINE_RENAME_SYSREG_RW_FUNCS(mpam2_el2, MPAM2_EL2)
-DEFINE_RENAME_SYSREG_RW_FUNCS(mpamhcr_el2, MPAMHCR_EL2)
-
 DEFINE_RENAME_SYSREG_RW_FUNCS(pmblimitr_el1, PMBLIMITR_EL1)
 
 DEFINE_RENAME_SYSREG_WRITE_FUNC(zcr_el3, ZCR_EL3)
 DEFINE_RENAME_SYSREG_WRITE_FUNC(zcr_el2, ZCR_EL2)
 
-DEFINE_RENAME_SYSREG_READ_FUNC(id_aa64smfr0_el1, ID_AA64SMFR0_EL1)
+DEFINE_RENAME_IDREG_READ_FUNC(id_aa64smfr0_el1, ID_AA64SMFR0_EL1)
 DEFINE_RENAME_SYSREG_RW_FUNCS(smcr_el3, SMCR_EL3)
 
 DEFINE_RENAME_SYSREG_READ_FUNC(erridr_el1, ERRIDR_EL1)
@@ -525,8 +540,33 @@ DEFINE_RENAME_SYSREG_READ_FUNC(erxaddr_el1, ERXADDR_EL1)
 DEFINE_RENAME_SYSREG_READ_FUNC(erxmisc0_el1, ERXMISC0_EL1)
 DEFINE_RENAME_SYSREG_READ_FUNC(erxmisc1_el1, ERXMISC1_EL1)
 
-/* Armv8.2 Registers */
-DEFINE_RENAME_SYSREG_READ_FUNC(id_aa64mmfr2_el1, ID_AA64MMFR2_EL1)
+DEFINE_RENAME_SYSREG_RW_FUNCS(scxtnum_el2, SCXTNUM_EL2)
+
+/* Armv8.1 VHE Registers */
+DEFINE_RENAME_SYSREG_RW_FUNCS(contextidr_el2, CONTEXTIDR_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(ttbr1_el2, TTBR1_EL2)
+
+/* Armv8.2 ID Registers */
+DEFINE_RENAME_IDREG_READ_FUNC(id_aa64mmfr2_el1, ID_AA64MMFR2_EL1)
+
+/* Armv8.2 RAS Registers */
+DEFINE_RENAME_SYSREG_RW_FUNCS(vdisr_el2, VDISR_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(vsesr_el2, VSESR_EL2)
+
+/* Armv8.2 MPAM Registers */
+DEFINE_RENAME_SYSREG_READ_FUNC(mpamidr_el1, MPAMIDR_EL1)
+DEFINE_RENAME_SYSREG_RW_FUNCS(mpam3_el3, MPAM3_EL3)
+DEFINE_RENAME_SYSREG_RW_FUNCS(mpam2_el2, MPAM2_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(mpamhcr_el2, MPAMHCR_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(mpamvpm0_el2, MPAMVPM0_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(mpamvpm1_el2, MPAMVPM1_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(mpamvpm2_el2, MPAMVPM2_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(mpamvpm3_el2, MPAMVPM3_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(mpamvpm4_el2, MPAMVPM4_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(mpamvpm5_el2, MPAMVPM5_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(mpamvpm6_el2, MPAMVPM6_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(mpamvpm7_el2, MPAMVPM7_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(mpamvpmv_el2, MPAMVPMV_EL2)
 
 /* Armv8.3 Pointer Authentication Registers */
 DEFINE_RENAME_SYSREG_RW_FUNCS(apiakeyhi_el1, APIAKeyHi_EL1)
@@ -535,6 +575,10 @@ DEFINE_RENAME_SYSREG_RW_FUNCS(apiakeylo_el1, APIAKeyLo_EL1)
 /* Armv8.4 Data Independent Timing Register */
 DEFINE_RENAME_SYSREG_RW_FUNCS(dit, DIT)
 
+/* Armv8.4 FEAT_TRF Register */
+DEFINE_RENAME_SYSREG_RW_FUNCS(trfcr_el2, TRFCR_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(vncr_el2, VNCR_EL2)
+
 /* Armv8.5 MTE Registers */
 DEFINE_RENAME_SYSREG_RW_FUNCS(tfsre0_el1, TFSRE0_EL1)
 DEFINE_RENAME_SYSREG_RW_FUNCS(tfsr_el1, TFSR_EL1)
@@ -542,11 +586,40 @@ DEFINE_RENAME_SYSREG_RW_FUNCS(rgsr_el1, RGSR_EL1)
 DEFINE_RENAME_SYSREG_RW_FUNCS(gcr_el1, GCR_EL1)
 
 /* Armv8.5 FEAT_RNG Registers */
-DEFINE_SYSREG_READ_FUNC(rndr)
-DEFINE_SYSREG_READ_FUNC(rndrrs)
+DEFINE_RENAME_SYSREG_READ_FUNC(rndr, RNDR)
+DEFINE_RENAME_SYSREG_READ_FUNC(rndrrs, RNDRRS)
+
+/* Armv8.6 FEAT_FGT Registers */
+DEFINE_RENAME_SYSREG_RW_FUNCS(hdfgrtr_el2, HDFGRTR_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(hafgrtr_el2, HAFGRTR_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(hdfgwtr_el2, HDFGWTR_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(hfgitr_el2, HFGITR_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(hfgrtr_el2, HFGRTR_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(hfgwtr_el2, HFGWTR_EL2)
+
+/* ARMv8.6 FEAT_ECV Register */
+DEFINE_RENAME_SYSREG_RW_FUNCS(cntpoff_el2, CNTPOFF_EL2)
 
 /* FEAT_HCX Register */
 DEFINE_RENAME_SYSREG_RW_FUNCS(hcrx_el2, HCRX_EL2)
+
+/* Armv8.9 system registers */
+DEFINE_RENAME_IDREG_READ_FUNC(id_aa64mmfr3_el1, ID_AA64MMFR3_EL1)
+
+/* FEAT_TCR2 Register */
+DEFINE_RENAME_SYSREG_RW_FUNCS(tcr2_el2, TCR2_EL2)
+
+/* FEAT_SxPIE Registers */
+DEFINE_RENAME_SYSREG_RW_FUNCS(pire0_el2, PIRE0_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(pir_el2, PIR_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(s2pir_el2, S2PIR_EL2)
+
+/* FEAT_SxPOE Registers */
+DEFINE_RENAME_SYSREG_RW_FUNCS(por_el2, POR_EL2)
+
+/* FEAT_GCS Registers */
+DEFINE_RENAME_SYSREG_RW_FUNCS(gcscr_el2, GCSCR_EL2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(gcspr_el2, GCSPR_EL2)
 
 /* DynamIQ Shared Unit power management */
 DEFINE_RENAME_SYSREG_RW_FUNCS(clusterpwrdn_el1, CLUSTERPWRDN_EL1)
@@ -661,7 +734,7 @@ void gpt_tlbi_by_pa_ll(uint64_t pa, size_t size);
 	isb();	\
 }
 #else
-#define AT(_at_inst, _va)	_at_inst(_va);
+#define AT(_at_inst, _va)	_at_inst(_va)
 #endif
 
 #endif /* ARCH_HELPERS_H */

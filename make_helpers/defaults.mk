@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016-2022, Arm Limited. All rights reserved.
+# Copyright (c) 2016-2023, Arm Limited. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -30,13 +30,13 @@ ARM_ARCH_MINOR			:= 0
 BASE_COMMIT			:= origin/master
 
 # Execute BL2 at EL3
-BL2_AT_EL3			:= 0
+RESET_TO_BL2			:= 0
 
 # Only use SP packages if SP layout JSON is defined
 BL2_ENABLE_SP_LOAD		:= 0
 
 # BL2 image is stored in XIP memory, for now, this option is only supported
-# when BL2_AT_EL3 is 1.
+# when RESET_TO_BL2 is 1.
 BL2_IN_XIP_MEM			:= 0
 
 # Do dcache invalidate upon BL2 entry at EL3
@@ -133,9 +133,6 @@ ENABLE_BTI			:= 0
 # Use BRANCH_PROTECTION to enable PAUTH.
 ENABLE_PAUTH			:= 0
 
-# Flag to enable access to the HAFGRTR_EL2 register
-ENABLE_FEAT_AMUv1		:= 0
-
 # Flag to enable AMUv1p1 extension.
 ENABLE_FEAT_AMUv1p1		:= 0
 
@@ -160,6 +157,10 @@ ENABLE_FEAT_PAN			:= 0
 # Flag to enable access to the Random Number Generator registers
 ENABLE_FEAT_RNG			:= 0
 
+# Flag to enable support for EL3 trapping of reads of the RNDR and RNDRRS
+# registers, by setting SCR_EL3.TRNDR.
+ENABLE_FEAT_RNG_TRAP		:= 0
+
 # Flag to enable Speculation Barrier Instruction
 ENABLE_FEAT_SB			:= 0
 
@@ -171,6 +172,24 @@ ENABLE_FEAT_VHE 		:= 0
 
 # Flag to enable delayed trapping of WFE instruction (FEAT_TWED)
 ENABLE_FEAT_TWED		:= 0
+
+# Flag to enable access to TCR2 (FEAT_TCR2)
+ENABLE_FEAT_TCR2		:= 0
+
+# Flag to enable access to Stage 2 Permission Indirection (FEAT_S2PIE)
+ENABLE_FEAT_S2PIE		:= 0
+
+# Flag to enable access to Stage 1 Permission Indirection (FEAT_S1PIE)
+ENABLE_FEAT_S1PIE		:= 0
+
+# Flag to enable access to Stage 2 Permission Overlay (FEAT_S2POE)
+ENABLE_FEAT_S2POE		:= 0
+
+# Flag to enable access to Stage 1 Permission Overlay (FEAT_S1POE)
+ENABLE_FEAT_S1POE		:= 0
+
+# Flag to enable access to Guarded Control Stack (FEAT_GCS)
+ENABLE_FEAT_GCS			:= 0
 
 # By default BL31 encryption disabled
 ENCRYPT_BL31			:= 0
@@ -212,9 +231,9 @@ GENERATE_COT			:= 0
 # default, they are for Secure EL1.
 GICV2_G0_FOR_EL3		:= 0
 
-# Route External Aborts to EL3. Disabled by default; External Aborts are handled
+# Route NS External Aborts to EL3. Disabled by default; External Aborts are handled
 # by lower ELs.
-HANDLE_EA_EL3_FIRST		:= 0
+HANDLE_EA_EL3_FIRST_NS		:= 0
 
 # Secure hash algorithm flag, accepts 3 values: sha256, sha384 and sha512.
 # The default value is sha256.
@@ -223,6 +242,9 @@ HASH_ALG			:= sha256
 # Whether system coherency is managed in hardware, without explicit software
 # operations.
 HW_ASSISTED_COHERENCY		:= 0
+
+# Flag to enable trapping of implementation defined sytem registers
+IMPDEF_SYSREG_TRAP		:= 0
 
 # Set the default algorithm for the generation of Trusted Board Boot keys
 KEY_ALG				:= rsa
@@ -251,14 +273,15 @@ PROGRAMMABLE_RESET_ADDRESS	:= 0
 # Flag used to choose the power state format: Extended State-ID or Original
 PSCI_EXTENDED_STATE_ID		:= 0
 
-# Enable RAS support
-RAS_EXTENSION			:= 0
+# Enable PSCI OS-initiated mode support
+PSCI_OS_INIT_MODE		:= 0
+
+# Enable RAS Support
+ENABLE_FEAT_RAS			:= 0
+RAS_FFH_SUPPORT			:= 0
 
 # By default, BL1 acts as the reset handler, not BL31
 RESET_TO_BL31			:= 0
-
-# By default, clear the input registers when RESET_TO_BL31 is enabled
-RESET_TO_BL31_WITH_PARAMS	:= 0
 
 # For Chain of Trust
 SAVE_KEYS			:= 0
@@ -266,8 +289,14 @@ SAVE_KEYS			:= 0
 # Software Delegated Exception support
 SDEI_SUPPORT			:= 0
 
-# True Random Number firmware Interface
+# True Random Number firmware Interface support
 TRNG_SUPPORT			:= 0
+
+# Check to see if Errata ABI is supported
+ERRATA_ABI_SUPPORT		:= 0
+
+# Check to enable Errata ABI for platforms with non-arm interconnect
+ERRATA_NON_ARM_INTERCONNECT	:= 0
 
 # SMCCC PCI support
 SMC_PCI_SUPPORT			:= 0
@@ -348,11 +377,11 @@ V				:= 0
 WARMBOOT_ENABLE_DCACHE_EARLY	:= 0
 
 # Build option to enable/disable the Statistical Profiling Extensions
-ENABLE_SPE_FOR_LOWER_ELS	:= 1
+ENABLE_SPE_FOR_NS		:= 2
 
 # SPE is only supported on AArch64 so disable it on AArch32.
 ifeq (${ARCH},aarch32)
-	override ENABLE_SPE_FOR_LOWER_ELS := 0
+	override ENABLE_SPE_FOR_NS := 0
 endif
 
 # Include Memory Tagging Extension registers in cpu context. This must be set
@@ -360,28 +389,26 @@ endif
 # enabled at ELX.
 CTX_INCLUDE_MTE_REGS		:= 0
 
-ENABLE_AMU			:= 0
+ENABLE_FEAT_AMU			:= 0
 ENABLE_AMU_AUXILIARY_COUNTERS	:= 0
 ENABLE_AMU_FCONF		:= 0
 AMU_RESTRICT_COUNTERS		:= 0
 
 # Enable SVE for non-secure world by default
-ENABLE_SVE_FOR_NS		:= 1
+ENABLE_SVE_FOR_NS		:= 2
 # SVE is only supported on AArch64 so disable it on AArch32.
 ifeq (${ARCH},aarch32)
 	override ENABLE_SVE_FOR_NS	:= 0
 endif
 ENABLE_SVE_FOR_SWD		:= 0
 
+# Default SVE vector length to maximum architected value
+SVE_VECTOR_LEN			:= 2048
+
 # SME defaults to disabled
 ENABLE_SME_FOR_NS		:= 0
 ENABLE_SME_FOR_SWD		:= 0
-
-# If SME is enabled then force SVE off
-ifeq (${ENABLE_SME_FOR_NS},1)
-	override ENABLE_SVE_FOR_NS	:= 0
-	override ENABLE_SVE_FOR_SWD	:= 0
-endif
+ENABLE_SME2_FOR_NS		:= 0
 
 SANITIZE_UB := off
 
@@ -393,9 +420,10 @@ USE_SPINLOCK_CAS := 0
 # Enable Link Time Optimization
 ENABLE_LTO			:= 0
 
-# Build flag to include EL2 registers in cpu context save and restore during
-# S-EL2 firmware entry/exit. This flag is to be used with SPD=spmd option.
-# Default is 0.
+# This option will include EL2 registers in cpu context save and restore during
+# EL2 firmware entry/exit. Internal flag not meant for direct setting.
+# Use SPD=spmd and SPMD_SPM_AT_SEL2=1 or ENABLE_RME=1 to enable
+# CTX_INCLUDE_EL2_REGS.
 CTX_INCLUDE_EL2_REGS		:= 0
 
 # Enable Memory tag extension which is supported for architecture greater
@@ -406,14 +434,21 @@ SUPPORT_STACK_MEMTAG		:= no
 # Select workaround for AT speculative behaviour.
 ERRATA_SPECULATIVE_AT		:= 0
 
-# Trap RAS error record access from lower EL
-RAS_TRAP_LOWER_EL_ERR_ACCESS	:= 0
+# Trap RAS error record access from Non secure
+RAS_TRAP_NS_ERR_REC_ACCESS	:= 0
 
 # Build option to create cot descriptors using fconf
 COT_DESC_IN_DTB			:= 0
 
-# Build option to provide openssl directory path
+# Build option to provide OpenSSL directory path
 OPENSSL_DIR			:= /usr
+
+# Select the openssl binary provided in OPENSSL_DIR variable
+ifeq ("$(wildcard ${OPENSSL_DIR}/bin)", "")
+    OPENSSL_BIN_PATH = ${OPENSSL_DIR}/apps
+else
+    OPENSSL_BIN_PATH = ${OPENSSL_DIR}/bin
+endif
 
 # Build option to use the SP804 timer instead of the generic one
 USE_SP804_TIMER			:= 0
@@ -466,3 +501,7 @@ PLAT_RSS_NOT_SUPPORTED		:= 0
 
 # Dynamic Root of Trust for Measurement support
 DRTM_SUPPORT			:= 0
+
+# Check platform if cache management operations should be performed.
+# Disabled by default.
+CONDITIONAL_CMO			:= 0

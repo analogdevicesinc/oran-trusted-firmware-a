@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022, Arm Limited. All rights reserved.
+ * Copyright (c) 2019-2023, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -8,14 +8,13 @@
 #ifndef PSA_MANIFEST_SID_H
 #define PSA_MANIFEST_SID_H
 
-/******** PSA_SP_INITIAL_ATTESTATION ********/
-#define RSS_ATTESTATION_SERVICE_SID			(0x00000020U)
-#define RSS_ATTESTATION_SERVICE_VERSION			(1U)
-#define RSS_ATTESTATION_SERVICE_HANDLE			(0x40000103U)
+/******** RSS_SP_PLATFORM ********/
+#define RSS_PLATFORM_SERVICE_HANDLE			(0x40000105U)
 
 /******** PSA_SP_MEASURED_BOOT ********/
-#define RSS_MEASURED_BOOT_SID				(0x000000E0U)
-#define RSS_MEASURED_BOOT_VERSION			(1U)
-#define RSS_MEASURED_BOOT_HANDLE			(0x40000104U)
+#define RSS_MEASURED_BOOT_HANDLE			(0x40000110U)
+
+/******** PSA_SP_DELAGATED_ATTESTATION ********/
+#define RSS_DELEGATED_SERVICE_HANDLE			(0x40000111U)
 
 #endif /* PSA_MANIFEST_SID_H */

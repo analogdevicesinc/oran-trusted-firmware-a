@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2021, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2023, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -7,9 +7,8 @@
 #include <assert.h>
 #include <string.h>
 
-#include <platform_def.h>
-
 #include <arch_helpers.h>
+#include <bl32/sp_min/platform_sp_min.h>
 #include <common/bl_common.h>
 #include <common/debug.h>
 #include <context.h>
@@ -27,7 +26,7 @@
 #include <lib/xlat_tables/xlat_tables_v2.h>
 #include <plat/common/platform.h>
 
-#include <platform_sp_min.h>
+#include <platform_def.h>
 
 /******************************************************************************
  * Placeholder variables for copying the arguments that have been passed to
@@ -40,6 +39,8 @@ static entry_point_info_t bl33_image_ep_info;
  ******************************************************************************/
 void sp_min_plat_fiq_handler(uint32_t id)
 {
+	(void)plat_crash_console_init();
+
 	switch (id & INT_ID_MASK) {
 	case STM32MP1_IRQ_TZC400:
 		tzc400_init(STM32MP1_TZC_BASE);
@@ -51,7 +52,7 @@ void sp_min_plat_fiq_handler(uint32_t id)
 		panic();
 		break;
 	default:
-		ERROR("SECURE IT handler not define for it : %u", id);
+		ERROR("SECURE IT handler not define for it : %u\n", id);
 		break;
 	}
 }
@@ -113,11 +114,9 @@ void sp_min_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 				  u_register_t arg2, u_register_t arg3)
 {
 	bl_params_t *params_from_bl2 = (bl_params_t *)arg0;
-#if STM32MP_USE_STM32IMAGE
-	uintptr_t dt_addr = STM32MP_DTB_BASE;
-#else
 	uintptr_t dt_addr = arg1;
-#endif
+
+	stm32mp_setup_early_console();
 
 	/* Imprecise aborts can be masked in NonSecure */
 	write_scr(read_scr() | SCR_AW_BIT);
@@ -181,7 +180,7 @@ void sp_min_platform_setup(void)
 {
 	generic_delay_timer_init();
 
-	stm32mp1_gic_init();
+	stm32mp_gic_init();
 
 	if (stm32_iwdg_init() < 0) {
 		panic();

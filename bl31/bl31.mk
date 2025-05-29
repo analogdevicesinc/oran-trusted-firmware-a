@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013-2022, ARM Limited and Contributors. All rights reserved.
+# Copyright (c) 2013-2023, Arm Limited and Contributors. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -42,6 +42,7 @@ BL31_SOURCES		+=	bl31/bl31_main.c				\
 				bl31/aarch64/ea_delegate.S			\
 				bl31/aarch64/runtime_exceptions.S		\
 				bl31/bl31_context_mgmt.c			\
+				bl31/bl31_traps.c				\
 				common/runtime_svc.c				\
 				lib/cpus/aarch64/dsu_helpers.S			\
 				plat/common/aarch64/platform_mp_stack.S		\
@@ -86,11 +87,15 @@ BL31_SOURCES		+=	services/std_svc/trng/trng_main.c	\
 				services/std_svc/trng/trng_entropy_pool.c
 endif
 
-ifeq (${ENABLE_SPE_FOR_LOWER_ELS},1)
+ifneq (${ENABLE_SPE_FOR_NS},0)
 BL31_SOURCES		+=	lib/extensions/spe/spe.c
 endif
 
-ifeq (${ENABLE_AMU},1)
+ifeq (${ERRATA_ABI_SUPPORT},1)
+BL31_SOURCES		+=	services/std_svc/errata_abi/errata_abi_main.c
+endif
+
+ifneq (${ENABLE_FEAT_AMU},0)
 BL31_SOURCES		+=	${AMU_SOURCES}
 endif
 
@@ -98,32 +103,30 @@ ifeq (${ENABLE_MPMM},1)
 BL31_SOURCES		+=	${MPMM_SOURCES}
 endif
 
-ifeq (${ENABLE_SME_FOR_NS},1)
+ifneq (${ENABLE_SME_FOR_NS},0)
 BL31_SOURCES		+=	lib/extensions/sme/sme.c
-BL31_SOURCES		+=	lib/extensions/sve/sve.c
-else
-ifeq (${ENABLE_SVE_FOR_NS},1)
-BL31_SOURCES		+=	lib/extensions/sve/sve.c
 endif
+ifneq (${ENABLE_SVE_FOR_NS},0)
+BL31_SOURCES		+=	lib/extensions/sve/sve.c
 endif
 
-ifeq (${ENABLE_MPAM_FOR_LOWER_ELS},1)
+ifneq (${ENABLE_MPAM_FOR_LOWER_ELS},0)
 BL31_SOURCES		+=	lib/extensions/mpam/mpam.c
 endif
 
-ifeq (${ENABLE_TRBE_FOR_NS},1)
+ifneq (${ENABLE_TRBE_FOR_NS},0)
 BL31_SOURCES		+=	lib/extensions/trbe/trbe.c
 endif
 
-ifeq (${ENABLE_BRBE_FOR_NS},1)
+ifneq (${ENABLE_BRBE_FOR_NS},0)
 BL31_SOURCES		+=	lib/extensions/brbe/brbe.c
 endif
 
-ifeq (${ENABLE_SYS_REG_TRACE_FOR_NS},1)
+ifneq (${ENABLE_SYS_REG_TRACE_FOR_NS},0)
 BL31_SOURCES		+=      lib/extensions/sys_reg_trace/aarch64/sys_reg_trace.c
 endif
 
-ifeq (${ENABLE_TRF_FOR_NS},1)
+ifneq (${ENABLE_TRF_FOR_NS},0)
 BL31_SOURCES		+=	lib/extensions/trf/aarch64/trf.c
 endif
 
@@ -147,7 +150,22 @@ ifeq ($(FEATURE_DETECTION),1)
 BL31_SOURCES		+=	common/feat_detect.c
 endif
 
-BL31_LINKERFILE		:=	bl31/bl31.ld.S
+ifeq (${DRTM_SUPPORT},1)
+BL31_SOURCES		+=	services/std_svc/drtm/drtm_main.c		\
+				services/std_svc/drtm/drtm_dma_prot.c		\
+				services/std_svc/drtm/drtm_res_address_map.c	\
+				services/std_svc/drtm/drtm_measurements.c	\
+				services/std_svc/drtm/drtm_remediation.c	\
+				${MBEDTLS_SOURCES}
+endif
+
+BL31_DEFAULT_LINKER_SCRIPT_SOURCE := bl31/bl31.ld.S
+
+ifneq ($(findstring gcc,$(notdir $(LD))),)
+        BL31_LDFLAGS	+=	-Wl,--sort-section=alignment
+else ifneq ($(findstring ld,$(notdir $(LD))),)
+        BL31_LDFLAGS	+=	--sort-section=alignment
+endif
 
 # Flag used to indicate if Crash reporting via console should be included
 # in BL31. This defaults to being present in DEBUG builds only

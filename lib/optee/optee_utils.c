@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2017-2023, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -9,41 +9,7 @@
 #include <common/debug.h>
 #include <lib/optee_utils.h>
 
-/*
- * load_addr_hi and load_addr_lo: image load address.
- * image_id: 0 - pager, 1 - paged
- * size: image size in bytes.
- */
-typedef struct optee_image {
-	uint32_t load_addr_hi;
-	uint32_t load_addr_lo;
-	uint32_t image_id;
-	uint32_t size;
-} optee_image_t;
-
-#define OPTEE_PAGER_IMAGE_ID		0
-#define OPTEE_PAGED_IMAGE_ID		1
-
-#define OPTEE_MAX_NUM_IMAGES		2u
-
-#define TEE_MAGIC_NUM_OPTEE		0x4554504f
-/*
- * magic: header magic number.
- * version: OPTEE header version:
- *		1 - not supported
- *		2 - supported
- * arch: OPTEE os architecture type: 0 - AARCH32, 1 - AARCH64.
- * flags: unused currently.
- * nb_images: number of images.
- */
-typedef struct optee_header {
-	uint32_t magic;
-	uint8_t version;
-	uint8_t arch;
-	uint16_t flags;
-	uint32_t nb_images;
-	optee_image_t optee_image_list[];
-} optee_header_t;
+#include <platform_def.h>
 
 /*******************************************************************************
  * Check if it is a valid tee header
@@ -192,8 +158,17 @@ int parse_optee_header(entry_point_info_t *header_ep,
 				&header->optee_image_list[num]);
 		} else if (header->optee_image_list[num].image_id ==
 				OPTEE_PAGED_IMAGE_ID) {
-			ret = parse_optee_image(paged_image_info,
-				&header->optee_image_list[num]);
+			if (paged_image_info == NULL) {
+				if (header->optee_image_list[num].size != 0U) {
+					ERROR("Paged image is not supported\n");
+					return -1;
+				}
+
+				continue;
+			} else {
+				ret = parse_optee_image(paged_image_info,
+							&header->optee_image_list[num]);
+			}
 		} else {
 			ERROR("Parse optee image failed.\n");
 			return -1;
@@ -205,7 +180,7 @@ int parse_optee_header(entry_point_info_t *header_ep,
 
 	/*
 	 * Update "pc" value which should comes from pager image. After the
-	 * header image is parsed, it will be unuseful, and the actual
+	 * header image is parsed, it will be useless, and the actual
 	 * execution image after BL31 is pager image.
 	 */
 	header_ep->pc =	pager_image_info->image_base;
@@ -215,8 +190,10 @@ int parse_optee_header(entry_point_info_t *header_ep,
 	 * header image arguments so that can be read by the
 	 * BL32 SPD.
 	 */
-	header_ep->args.arg1 = paged_image_info->image_base;
-	header_ep->args.arg2 = paged_image_info->image_size;
+	if (paged_image_info != NULL) {
+		header_ep->args.arg1 = paged_image_info->image_base;
+		header_ep->args.arg2 = paged_image_info->image_size;
+	}
 
 	/* Set OPTEE runtime arch - aarch32/aarch64 */
 	if (header->arch == 0) {

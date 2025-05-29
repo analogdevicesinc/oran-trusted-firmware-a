@@ -1,13 +1,13 @@
-# Copyright (c) 2020-2021, ARM Limited and Contributors. All rights reserved.
+# Copyright (c) 2020-2023, Arm Limited and Contributors. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
-RD_N2_VARIANTS	:= 0 1 2
+RD_N2_VARIANTS	:= 0 1 2 3
 ifneq ($(CSS_SGI_PLATFORM_VARIANT),\
 	$(filter $(CSS_SGI_PLATFORM_VARIANT),$(RD_N2_VARIANTS)))
- $(error "CSS_SGI_PLATFORM_VARIANT for RD-N2 should be 0, 1 or 2, currently set \
-     to ${CSS_SGI_PLATFORM_VARIANT}.")
+ $(error "CSS_SGI_PLATFORM_VARIANT for RD-N2 should be 0, 1, 2 or 3, currently \
+	set to ${CSS_SGI_PLATFORM_VARIANT}.")
 endif
 
 $(eval $(call CREATE_SEQ,SEQ,4))
@@ -18,11 +18,15 @@ endif
 
 # RD-N2 platform uses GIC-700 which is based on GICv4.1
 GIC_ENABLE_V4_EXTN	:=	1
+GIC_EXT_INTID		:=	1
 
 #Enable GIC Multichip Extension only for Multichip Platforms
 ifeq (${CSS_SGI_PLATFORM_VARIANT}, 2)
 GICV3_IMPL_GIC600_MULTICHIP	:=	1
 endif
+
+override CSS_SYSTEM_GRACEFUL_RESET	:= 1
+override EL3_EXCEPTION_HANDLING		:= 1
 
 include plat/arm/css/sgi/sgi-common.mk
 
@@ -31,7 +35,7 @@ RDN2_BASE		=	plat/arm/board/rdn2
 PLAT_INCLUDES		+=	-I${RDN2_BASE}/include/
 
 SGI_CPU_SOURCES		:=	lib/cpus/aarch64/neoverse_n2.S \
-				lib/cpus/aarch64/neoverse_demeter.S
+				lib/cpus/aarch64/neoverse_v2.S
 
 PLAT_BL_COMMON_SOURCES	+=	${CSS_ENT_BASE}/sgi_plat_v2.c
 
@@ -83,4 +87,4 @@ NT_FW_CONFIG		:=	${BUILD_PLAT}/fdts/${PLAT}_nt_fw_config.dtb
 $(eval $(call TOOL_ADD_PAYLOAD,${NT_FW_CONFIG},--nt-fw-config))
 
 override CTX_INCLUDE_AARCH32_REGS	:= 0
-override ENABLE_AMU			:= 1
+override ENABLE_FEAT_AMU		:= 1

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2020-2023, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -16,10 +16,14 @@
 #include <bl31/interrupt_mgmt.h>
 #include <common/debug.h>
 #include <common/runtime_svc.h>
+#include <common/tbbr/tbbr_img_def.h>
 #include <lib/el3_runtime/context_mgmt.h>
+#include <lib/fconf/fconf.h>
+#include <lib/fconf/fconf_dyn_cfg_getter.h>
 #include <lib/smccc.h>
 #include <lib/spinlock.h>
 #include <lib/utils.h>
+#include <lib/xlat_tables/xlat_tables_v2.h>
 #include <plat/common/common_def.h>
 #include <plat/common/platform.h>
 #include <platform_def.h>
@@ -246,6 +250,160 @@ static uint64_t spmd_secure_interrupt_handler(uint32_t id,
 }
 
 /*******************************************************************************
+ * spmd_group0_interrupt_handler_nwd
+ * Group0 secure interrupt in the normal world are trapped to EL3. Delegate the
+ * handling of the interrupt to the platform handler, and return only upon
+ * successfully handling the Group0 interrupt.
+ ******************************************************************************/
+static uint64_t spmd_group0_interrupt_handler_nwd(uint32_t id,
+						  uint32_t flags,
+						  void *handle,
+						  void *cookie)
+{
+	uint32_t intid;
+
+	/* Sanity check the security state when the exception was generated. */
+	assert(get_interrupt_src_ss(flags) == NON_SECURE);
+
+	/* Sanity check the pointer to this cpu's context. */
+	assert(handle == cm_get_context(NON_SECURE));
+
+	assert(id == INTR_ID_UNAVAILABLE);
+
+	assert(plat_ic_get_pending_interrupt_type() == INTR_TYPE_EL3);
+
+	intid = plat_ic_get_pending_interrupt_id();
+
+	if (plat_spmd_handle_group0_interrupt(intid) < 0) {
+		ERROR("Group0 interrupt %u not handled\n", intid);
+		panic();
+	}
+
+	return 0U;
+}
+
+/*******************************************************************************
+ * spmd_handle_group0_intr_swd
+ * SPMC delegates handling of Group0 secure interrupt to EL3 firmware using
+ * FFA_EL3_INTR_HANDLE SMC call. Further, SPMD delegates the handling of the
+ * interrupt to the platform handler, and returns only upon successfully
+ * handling the Group0 interrupt.
+ ******************************************************************************/
+static uint64_t spmd_handle_group0_intr_swd(void *handle)
+{
+	uint32_t intid;
+
+	/* Sanity check the pointer to this cpu's context */
+	assert(handle == cm_get_context(SECURE));
+
+	assert(plat_ic_get_pending_interrupt_type() == INTR_TYPE_EL3);
+
+	intid = plat_ic_get_pending_interrupt_id();
+
+	/*
+	 * TODO: Currently due to a limitation in SPMD implementation, the
+	 * platform handler is expected to not delegate handling to NWd while
+	 * processing Group0 secure interrupt.
+	 */
+	if (plat_spmd_handle_group0_interrupt(intid) < 0) {
+		/* Group0 interrupt was not handled by the platform. */
+		ERROR("Group0 interrupt %u not handled\n", intid);
+		panic();
+	}
+
+	/* Return success. */
+	SMC_RET8(handle, FFA_SUCCESS_SMC32, FFA_PARAM_MBZ, FFA_PARAM_MBZ,
+		 FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ,
+		 FFA_PARAM_MBZ);
+}
+
+#if ENABLE_RME && SPMD_SPM_AT_SEL2 && !RESET_TO_BL31
+static int spmd_dynamic_map_mem(uintptr_t base_addr, size_t size,
+				 unsigned int attr, uintptr_t *align_addr,
+				 size_t *align_size)
+{
+	uintptr_t base_addr_align;
+	size_t mapped_size_align;
+	int rc;
+
+	/* Page aligned address and size if necessary */
+	base_addr_align = page_align(base_addr, DOWN);
+	mapped_size_align = page_align(size, UP);
+
+	if ((base_addr != base_addr_align) &&
+	    (size == mapped_size_align)) {
+		mapped_size_align += PAGE_SIZE;
+	}
+
+	/*
+	 * Map dynamically given region with its aligned base address and
+	 * size
+	 */
+	rc = mmap_add_dynamic_region((unsigned long long)base_addr_align,
+				     base_addr_align,
+				     mapped_size_align,
+				     attr);
+	if (rc == 0) {
+		*align_addr = base_addr_align;
+		*align_size = mapped_size_align;
+	}
+
+	return rc;
+}
+
+static void spmd_do_sec_cpy(uintptr_t root_base_addr, uintptr_t sec_base_addr,
+			    size_t size)
+{
+	uintptr_t root_base_addr_align, sec_base_addr_align;
+	size_t root_mapped_size_align, sec_mapped_size_align;
+	int rc;
+
+	assert(root_base_addr != 0UL);
+	assert(sec_base_addr != 0UL);
+	assert(size != 0UL);
+
+	/* Map the memory with required attributes */
+	rc = spmd_dynamic_map_mem(root_base_addr, size, MT_RO_DATA | MT_ROOT,
+				  &root_base_addr_align,
+				  &root_mapped_size_align);
+	if (rc != 0) {
+		ERROR("%s %s %lu (%d)\n", "Error while mapping", "root region",
+		      root_base_addr, rc);
+		panic();
+	}
+
+	rc = spmd_dynamic_map_mem(sec_base_addr, size, MT_RW_DATA | MT_SECURE,
+				  &sec_base_addr_align, &sec_mapped_size_align);
+	if (rc != 0) {
+		ERROR("%s %s %lu (%d)\n", "Error while mapping",
+		      "secure region", sec_base_addr, rc);
+		panic();
+	}
+
+	/* Do copy operation */
+	(void)memcpy((void *)sec_base_addr, (void *)root_base_addr, size);
+
+	/* Unmap root memory region */
+	rc = mmap_remove_dynamic_region(root_base_addr_align,
+					root_mapped_size_align);
+	if (rc != 0) {
+		ERROR("%s %s %lu (%d)\n", "Error while unmapping",
+		      "root region", root_base_addr_align, rc);
+		panic();
+	}
+
+	/* Unmap secure memory region */
+	rc = mmap_remove_dynamic_region(sec_base_addr_align,
+					sec_mapped_size_align);
+	if (rc != 0) {
+		ERROR("%s %s %lu (%d)\n", "Error while unmapping",
+		      "secure region", sec_base_addr_align, rc);
+		panic();
+	}
+}
+#endif /* ENABLE_RME && SPMD_SPM_AT_SEL2 && !RESET_TO_BL31 */
+
+/*******************************************************************************
  * Loads SPMC manifest and inits SPMC.
  ******************************************************************************/
 static int spmd_spmc_init(void *pm_addr)
@@ -254,6 +412,7 @@ static int spmd_spmc_init(void *pm_addr)
 	unsigned int core_id;
 	uint32_t ep_attr, flags;
 	int rc;
+	const struct dyn_cfg_dtb_info_t *image_info __unused;
 
 	/* Load the SPM Core manifest */
 	rc = plat_spm_core_manifest_load(&spmc_attrs, pm_addr);
@@ -308,7 +467,7 @@ static int spmd_spmc_init(void *pm_addr)
 	 * Check if S-EL2 is supported on this system if S-EL2
 	 * is required for SPM
 	 */
-	if (!is_armv8_4_sel2_present()) {
+	if (!is_feat_sel2_supported()) {
 		WARN("SPM Core run time S-EL2 is not supported.\n");
 		return -EINVAL;
 	}
@@ -343,6 +502,26 @@ static int spmd_spmc_init(void *pm_addr)
 					     MODE_SP_ELX,
 					     DISABLE_ALL_EXCEPTIONS);
 	}
+
+#if ENABLE_RME && SPMD_SPM_AT_SEL2 && !RESET_TO_BL31
+	image_info = FCONF_GET_PROPERTY(dyn_cfg, dtb, TOS_FW_CONFIG_ID);
+	assert(image_info != NULL);
+
+	if ((image_info->config_addr == 0UL) ||
+	    (image_info->secondary_config_addr == 0UL) ||
+	    (image_info->config_max_size == 0UL)) {
+		return -EINVAL;
+	}
+
+	/* Copy manifest from root->secure region */
+	spmd_do_sec_cpy(image_info->config_addr,
+			image_info->secondary_config_addr,
+			image_info->config_max_size);
+
+	/* Update ep info of BL32 */
+	assert(spmc_ep_info != NULL);
+	spmc_ep_info->args.arg0 = image_info->secondary_config_addr;
+#endif /* ENABLE_RME && SPMD_SPM_AT_SEL2 && !RESET_TO_BL31 */
 
 	/* Set an initial SPMC context state for all cores. */
 	for (core_id = 0U; core_id < PLATFORM_CORE_COUNT; core_id++) {
@@ -381,6 +560,16 @@ static int spmd_spmc_init(void *pm_addr)
 		panic();
 	}
 
+	/*
+	 * Register an interrupt handler routing Group0 interrupts to SPMD
+	 * while the NWd is running.
+	 */
+	rc = register_interrupt_type_handler(INTR_TYPE_EL3,
+					     spmd_group0_interrupt_handler_nwd,
+					     flags);
+	if (rc != 0) {
+		panic();
+	}
 	return 0;
 }
 
@@ -402,15 +591,15 @@ int spmd_setup(void)
 
 		rc = spmc_setup();
 		if (rc != 0) {
-			ERROR("SPMC initialisation failed 0x%x.\n", rc);
+			WARN("SPMC initialisation failed 0x%x.\n", rc);
 		}
-		return rc;
+		return 0;
 	}
 
 	spmc_ep_info = bl31_plat_get_next_image_ep_info(SECURE);
 	if (spmc_ep_info == NULL) {
 		WARN("No SPM Core image provided by BL2 boot loader.\n");
-		return -EINVAL;
+		return 0;
 	}
 
 	/* Under no circumstances will this parameter be 0 */
@@ -422,8 +611,8 @@ int spmd_setup(void)
 	 */
 	spmc_manifest = (void *)spmc_ep_info->args.arg0;
 	if (spmc_manifest == NULL) {
-		ERROR("Invalid or absent SPM Core manifest.\n");
-		return -EINVAL;
+		WARN("Invalid or absent SPM Core manifest.\n");
+		return 0;
 	}
 
 	/* Load manifest, init SPMC */
@@ -432,7 +621,7 @@ int spmd_setup(void)
 		WARN("Booting device without SPM initialization.\n");
 	}
 
-	return rc;
+	return 0;
 }
 
 /*******************************************************************************
@@ -470,10 +659,40 @@ uint64_t spmd_smc_switch_state(uint32_t smc_fid,
 #endif
 	cm_set_next_eret_context(secure_state_out);
 
+#if SPMD_SPM_AT_SEL2
+	/*
+	 * If SPMC is at SEL2, save additional registers x8-x17, which may
+	 * be used in FF-A calls such as FFA_PARTITION_INFO_GET_REGS.
+	 * Note that technically, all SPMCs can support this, but this code is
+	 * under ifdef to minimize breakage in case other SPMCs do not save
+	 * and restore x8-x17.
+	 * We also need to pass through these registers since not all FF-A ABIs
+	 * modify x8-x17, in which case, SMCCC requires that these registers be
+	 * preserved, so the SPMD passes through these registers and expects the
+	 * SPMC to save and restore (potentially also modify) them.
+	 */
+	SMC_RET18(cm_get_context(secure_state_out), smc_fid, x1, x2, x3, x4,
+			SMC_GET_GP(handle, CTX_GPREG_X5),
+			SMC_GET_GP(handle, CTX_GPREG_X6),
+			SMC_GET_GP(handle, CTX_GPREG_X7),
+			SMC_GET_GP(handle, CTX_GPREG_X8),
+			SMC_GET_GP(handle, CTX_GPREG_X9),
+			SMC_GET_GP(handle, CTX_GPREG_X10),
+			SMC_GET_GP(handle, CTX_GPREG_X11),
+			SMC_GET_GP(handle, CTX_GPREG_X12),
+			SMC_GET_GP(handle, CTX_GPREG_X13),
+			SMC_GET_GP(handle, CTX_GPREG_X14),
+			SMC_GET_GP(handle, CTX_GPREG_X15),
+			SMC_GET_GP(handle, CTX_GPREG_X16),
+			SMC_GET_GP(handle, CTX_GPREG_X17)
+			);
+
+#else
 	SMC_RET8(cm_get_context(secure_state_out), smc_fid, x1, x2, x3, x4,
 			SMC_GET_GP(handle, CTX_GPREG_X5),
 			SMC_GET_GP(handle, CTX_GPREG_X6),
 			SMC_GET_GP(handle, CTX_GPREG_X7));
+#endif
 }
 
 /*******************************************************************************
@@ -803,6 +1022,14 @@ uint64_t spmd_smc_handler(uint32_t smc_fid,
 		break; /* not reached */
 
 	case FFA_MSG_SEND_DIRECT_REQ_SMC32:
+	case FFA_MSG_SEND_DIRECT_REQ_SMC64:
+		if (!secure_origin) {
+			/* Validate source endpoint is non-secure for non-secure caller. */
+			if (ffa_is_secure_world_id(ffa_endpoint_source(x1))) {
+				return spmd_ffa_error_return(handle,
+						FFA_ERROR_INVALID_PARAMETER);
+			}
+		}
 		if (secure_origin && spmd_is_spmc_message(x1)) {
 			ret = spmd_handle_spmc_message(x3, x4,
 				SMC_GET_GP(handle, CTX_GPREG_X5),
@@ -860,9 +1087,9 @@ uint64_t spmd_smc_handler(uint32_t smc_fid,
 						     FFA_ERROR_NOT_SUPPORTED);
 		}
 
-		/* Fall through to forward the call to the other world */
+		/* Forward the call to the other world */
+		/* fallthrough */
 	case FFA_MSG_SEND:
-	case FFA_MSG_SEND_DIRECT_REQ_SMC64:
 	case FFA_MSG_SEND_DIRECT_RESP_SMC64:
 	case FFA_MEM_DONATE_SMC32:
 	case FFA_MEM_DONATE_SMC64:
@@ -901,7 +1128,8 @@ uint64_t spmd_smc_handler(uint32_t smc_fid,
 			spmd_spm_core_sync_exit(0ULL);
 		}
 
-		/* Fall through to forward the call to the other world */
+		/* Forward the call to the other world */
+		/* fallthrough */
 	case FFA_INTERRUPT:
 	case FFA_MSG_YIELD:
 		/* This interface must be invoked only by the Secure world */
@@ -922,7 +1150,29 @@ uint64_t spmd_smc_handler(uint32_t smc_fid,
 			return spmd_ffa_error_return(handle, FFA_ERROR_DENIED);
 		}
 		break; /* Not reached */
+#if MAKE_FFA_VERSION(1, 1) <= FFA_VERSION_COMPILED
+	case FFA_PARTITION_INFO_GET_REGS_SMC64:
+		if (secure_origin) {
+			/* TODO: Future patches to enable support for this */
+			return spmd_ffa_error_return(handle, FFA_ERROR_NOT_SUPPORTED);
+		}
 
+		/* Call only supported with SMCCC 1.2+ */
+		if (MAKE_SMCCC_VERSION(SMCCC_MAJOR_VERSION, SMCCC_MINOR_VERSION) < 0x10002) {
+			return spmd_ffa_error_return(handle, FFA_ERROR_NOT_SUPPORTED);
+		}
+
+		return spmd_smc_forward(smc_fid, secure_origin,
+					x1, x2, x3, x4, cookie,
+					handle, flags);
+		break; /* Not reached */
+#endif
+	case FFA_EL3_INTR_HANDLE:
+		if (secure_origin) {
+			return spmd_handle_group0_intr_swd(handle);
+		} else {
+			return spmd_ffa_error_return(handle, FFA_ERROR_DENIED);
+		}
 	default:
 		WARN("SPM: Unsupported call 0x%08x\n", smc_fid);
 		return spmd_ffa_error_return(handle, FFA_ERROR_NOT_SUPPORTED);

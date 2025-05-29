@@ -150,9 +150,6 @@ SPMC located at S-EL1, S-EL2 or EL3:
   at EL3.
 - If neither ``SPMD_SPM_AT_SEL2`` or ``SPMC_AT_EL3`` are enabled the SPMC
   exception level is set to S-EL1.
-- **CTX_INCLUDE_EL2_REGS**: this option permits saving (resp.
-  restoring) the EL2 system register context before entering (resp.
-  after leaving) the SPMC. It is mandatorily enabled when
   ``SPMD_SPM_AT_SEL2`` is enabled. The context save/restore routine
   and exhaustive list of registers is visible at `[4]`_.
 - **SP_LAYOUT_FILE**: this option specifies a text description file
@@ -161,16 +158,16 @@ SPMC located at S-EL1, S-EL2 or EL3:
   is required when ``SPMD_SPM_AT_SEL2`` is enabled hence when multiple
   secure partitions are to be loaded by BL2 on behalf of the SPMC.
 
-+---------------+----------------------+------------------+-------------+
-|               | CTX_INCLUDE_EL2_REGS | SPMD_SPM_AT_SEL2 | SPMC_AT_EL3 |
-+---------------+----------------------+------------------+-------------+
-| SPMC at S-EL1 |         0            |        0         |      0      |
-+---------------+----------------------+------------------+-------------+
-| SPMC at S-EL2 |         1            | 1 (default when  |      0      |
-|               |                      |    SPD=spmd)     |             |
-+---------------+----------------------+------------------+-------------+
-| SPMC at EL3   |         0            |        0         |      1      |
-+---------------+----------------------+------------------+-------------+
++---------------+------------------+-------------+-------------------------+
+|               | SPMD_SPM_AT_SEL2 | SPMC_AT_EL3 | CTX_INCLUDE_EL2_REGS(*) |
++---------------+------------------+-------------+-------------------------+
+| SPMC at S-EL1 |        0         |      0      |             0           |
++---------------+------------------+-------------+-------------------------+
+| SPMC at S-EL2 | 1 (default when  |      0      |             1           |
+|               |    SPD=spmd)     |             |                         |
++---------------+------------------+-------------+-------------------------+
+| SPMC at EL3   |        0         |      1      |             0           |
++---------------+------------------+-------------+-------------------------+
 
 Other combinations of such build options either break the build or are not
 supported.
@@ -181,9 +178,9 @@ Notes:
   stack.
 - When ``SPMD_SPM_AT_SEL2=1``, the reference software stack assumes enablement
   of FEAT_PAuth, FEAT_BTI and FEAT_MTE architecture extensions.
-- The ``CTX_INCLUDE_EL2_REGS`` option provides the generic support for
-  barely saving/restoring EL2 registers from an Arm arch perspective. As such
-  it is decoupled from the ``SPD=spmd`` option.
+- ``(*) CTX_INCLUDE_EL2_REGS``, this flag is |TF-A| internal and informational
+  in this table. When set, it provides the generic support for saving/restoring
+  EL2 registers required when S-EL2 firmware is present.
 - BL32 option is re-purposed to specify the SPMC image. It can specify either
   the Hafnium binary path (built for the secure world) or the path to a TEE
   binary implementing FF-A interfaces.
@@ -212,7 +209,6 @@ implemented and the SPMC is located at S-EL2:
     CROSS_COMPILE=aarch64-none-elf- \
     PLAT=fvp \
     SPD=spmd \
-    CTX_INCLUDE_EL2_REGS=1 \
     ARM_ARCH_MINOR=5 \
     BRANCH_PROTECTION=1 \
     CTX_INCLUDE_PAUTH_REGS=1 \
@@ -230,7 +226,6 @@ implemented, the SPMC is located at S-EL2, and enabling secure boot:
     CROSS_COMPILE=aarch64-none-elf- \
     PLAT=fvp \
     SPD=spmd \
-    CTX_INCLUDE_EL2_REGS=1 \
     ARM_ARCH_MINOR=5 \
     BRANCH_PROTECTION=1 \
     CTX_INCLUDE_PAUTH_REGS=1 \
@@ -466,8 +461,15 @@ A sample can be found at `[7]`_:
 - *cpus* node provide the platform topology and allows MPIDR to VMPIDR mapping.
   Note the primary core is declared first, then secondary cores are declared
   in reverse order.
-- The *memory* node provides platform information on the ranges of memory
-  available to the SPMC.
+- The *memory* nodes provide platform information on the ranges of memory
+  available for use by SPs at runtime. These ranges relate to either
+  secure or non-secure memory, depending on the *device_type* field.
+  If the field specifies "memory" the range is secure, else if it specifies
+  "ns-memory" the memory is non-secure. The system integrator must exclude
+  the memory used by other components that are not SPs, such as the monitor,
+  or the SPMC itself, the OS Kernel/Hypervisor, or other NWd VMs. The SPMC
+  limits the SP's address space such that they do not access memory outside
+  of those ranges.
 
 SPMC boot
 ~~~~~~~~~
@@ -567,7 +569,12 @@ an S-EL2 SPMC:
 - Memory regions are mapped in the SP EL1&0 Stage-2 translation regime at
   load time (or EL1&0 Stage-1 for an S-EL1 SPMC). A memory region node can
   specify RX/TX buffer regions in which case it is not necessary for an SP
-  to explicitly invoke the ``FFA_RXTX_MAP`` interface.
+  to explicitly invoke the ``FFA_RXTX_MAP`` interface. The memory referred
+  shall be contained within the memory ranges defined in SPMC manifest. The
+  NS bit in the attributes field should be consistent with the security
+  state of the range that it relates to. I.e. non-secure memory shall be
+  part of a non-secure memory range, and secure memory shall be contained
+  in a secure memory range of a given platform.
 - Device regions are mapped in the SP EL1&0 Stage-2 translation regime (or
   EL1&0 Stage-1 for an S-EL1 SPMC) as peripherals and possibly allocate
   additional resources (e.g. interrupts).
@@ -794,6 +801,8 @@ As part of the FF-A v1.1 support, the following interfaces were added:
  - ``FFA_SECONDARY_EP_REGISTER``
  - ``FFA_MEM_PERM_GET``
  - ``FFA_MEM_PERM_SET``
+ - ``FFA_MSG_SEND2``
+ - ``FFA_RX_ACQUIRE``
 
 FFA_VERSION
 ~~~~~~~~~~~
@@ -827,7 +836,11 @@ regime as secure buffers in the MMU descriptors.
 
 When invoked from the Hypervisor or OS kernel, the buffers are mapped into the
 SPMC EL2 Stage-1 translation regime and marked as NS buffers in the MMU
-descriptors.
+descriptors. The provided addresses may be owned by a VM in the normal world,
+which is expected to receive messages from the secure world. The SPMC will in
+this case allocate internal state structures to facilitate RX buffer access
+synchronization (through FFA_RX_ACQUIRE interface), and to permit SPs to send
+messages.
 
 The FFA_RXTX_UNMAP unmaps the RX/TX pair from the translation regime of the
 caller, either it being the Hypervisor or OS kernel, as well as a secure
@@ -969,6 +982,53 @@ secondary execution contexts.
 A secondary EC is first resumed either upon invocation of PSCI_CPU_ON from
 the NWd or by invocation of FFA_RUN.
 
+FFA_RX_ACQUIRE/FFA_RX_RELEASE
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The RX buffers can be used to pass information to an FF-A endpoint in the
+following scenarios:
+
+ - When it was targetted by a FFA_MSG_SEND2 invokation from another endpoint.
+ - Return the result of calling ``FFA_PARTITION_INFO_GET``.
+ - In a memory share operation, as part of the ``FFA_MEM_RETRIEVE_RESP``,
+   with the memory descriptor of the shared memory.
+
+If a normal world VM is expected to exchange messages with secure world,
+its RX/TX buffer addresses are forwarded to the SPMC via FFA_RXTX_MAP ABI,
+and are from this moment owned by the SPMC.
+The hypervisor must call the FFA_RX_ACQUIRE interface before attempting
+to use the RX buffer, in any of the aforementioned scenarios. A successful
+call to FFA_RX_ACQUIRE transfers ownership of RX buffer to hypervisor, such
+that it can be safely used.
+
+The FFA_RX_RELEASE interface is used after the FF-A endpoint is done with
+processing the data received in its RX buffer. If the RX buffer has been
+acquired by the hypervisor, the FFA_RX_RELEASE call must be forwarded to
+the SPMC to reestablish SPMC's RX ownership.
+
+An attempt from an SP to send a message to a normal world VM whose RX buffer
+was acquired by the hypervisor fails with error code FFA_BUSY, to preserve
+the RX buffer integrity.
+The operation could then be conducted after FFA_RX_RELEASE.
+
+FFA_MSG_SEND2
+~~~~~~~~~~~~~
+
+Hafnium copies a message from the sender TX buffer into receiver's RX buffer.
+For messages from SPs to VMs, operation is only possible if the SPMC owns
+the receiver's RX buffer.
+
+Both receiver and sender need to enable support for indirect messaging,
+in their respective partition manifest. The discovery of support
+of such feature can be done via FFA_PARTITION_INFO_GET.
+
+On a successful message send, Hafnium pends an RX buffer full framework
+notification for the receiver, to inform it about a message in the RX buffer.
+
+The handling of framework notifications is similar to that of
+global notifications. Binding of these is not necessary, as these are
+reserved to be used by the hypervisor or SPMC.
+
 SPMC-SPMD direct requests/responses
 -----------------------------------
 
@@ -980,6 +1040,68 @@ permits SPMD to SPMC communication and either way.
 - SPMD to SPMC direct request/response uses ERET conduit.
 
 This is used in particular to convey power management messages.
+
+Memory Sharing
+--------------
+
+Hafnium implements the following memory sharing interfaces:
+
+ - ``FFA_MEM_SHARE`` - for shared access between lender and borrower.
+ - ``FFA_MEM_LEND`` - borrower to obtain exclusive access, though lender
+   retains ownership of the memory.
+ - ``FFA_MEM_DONATE`` - lender permanently relinquishes ownership of memory
+   to the borrower.
+
+The ``FFA_MEM_RETRIEVE_REQ`` interface is for the borrower to request the
+memory to be mapped into its address space: for S-EL1 partitions the SPM updates
+their stage 2 translation regime; for S-EL0 partitions the SPM updates their
+stage 1 translation regime. On a successful call, the SPMC responds back with
+``FFA_MEM_RETRIEVE_RESP``.
+
+The ``FFA_MEM_RELINQUISH`` interface is for when the borrower is done with using
+a memory region.
+
+The ``FFA_MEM_RECLAIM`` interface is for the owner of the memory to reestablish
+its ownership and exclusive access to the memory shared.
+
+The memory transaction descriptors are transmitted via RX/TX buffers. In
+situations where the size of the memory transaction descriptor exceeds the
+size of the RX/TX buffers, Hafnium provides support for fragmented transmission
+of the full transaction descriptor. The ``FFA_MEM_FRAG_RX`` and ``FFA_MEM_FRAG_TX``
+interfaces are for receiving and transmitting the next fragment, respectively.
+
+If lender and borrower(s) are SPs, all memory sharing operations are supported.
+
+Hafnium also supports memory sharing operations between the normal world and the
+secure world. If there is an SP involved, the SPMC allocates data to track the
+state of the operation.
+
+The SPMC is also the designated allocator for the memory handle. The hypervisor
+or OS kernel has the possibility to rely on the SPMC to maintain the state
+of the operation, thus saving memory.
+A lender SP can only donate NS memory to a borrower from the normal world.
+
+The SPMC supports the hypervisor retrieve request, as defined by the FF-A
+v1.1 EAC0 specification, in section 16.4.3. The intent is to aid with operations
+that the hypervisor must do for a VM retriever. For example, when handling
+an FFA_MEM_RECLAIM, if the hypervisor relies on SPMC to keep the state
+of the operation, the hypervisor retrieve request can be used to obtain
+that state information, do the necessary validations, and update stage 2
+memory translation.
+
+Hafnium also supports memory lend and share targetting multiple borrowers.
+This is the case for a lender SP to multiple SPs, and for a lender VM to
+multiple endpoints (from both secure world and normal world). If there is
+at least one borrower VM, the hypervisor is in charge of managing its
+stage 2 translation on a successful memory retrieve.
+The semantics of ``FFA_MEM_DONATE`` implies ownership transmission,
+which should target only one partition.
+
+The memory share interfaces are backwards compatible with memory transaction
+descriptors from FF-A v1.0. These get translated to FF-A v1.1 descriptors for
+Hafnium's internal processing of the operation. If the FF-A version of a
+borrower is v1.0, Hafnium provides FF-A v1.0 compliant memory transaction
+descriptors on memory retrieve response.
 
 PE MMU configuration
 --------------------
@@ -1009,6 +1131,40 @@ configuration is made part of a vCPU context.
 For S-EL0 partitions with VHE enabled, a single secure EL2&0 Stage-1 translation
 regime is used for both Hafnium and the partition.
 
+Schedule modes and SP Call chains
+---------------------------------
+
+An SP execution context is said to be in SPMC scheduled mode if CPU cycles are
+allocated to it by SPMC. Correspondingly, an SP execution context is said to be
+in Normal world scheduled mode if CPU cycles are allocated by the normal world.
+
+A call chain represents all SPs in a sequence of invocations of a direct message
+request. When execution on a PE is in the secure state, only a single call chain
+that runs in the Normal World scheduled mode can exist. FF-A v1.1 spec allows
+any number of call chains to run in the SPMC scheduled mode but the Hafnium
+SPMC restricts the number of call chains in SPMC scheduled mode to only one for
+keeping the implementation simple.
+
+Partition runtime models
+------------------------
+
+The runtime model of an endpoint describes the transitions permitted for an
+execution context between various states. These are the four partition runtime
+models supported (refer to `[1]`_ section 7):
+
+  - RTM_FFA_RUN: runtime model presented to an execution context that is
+    allocated CPU cycles through FFA_RUN interface.
+  - RTM_FFA_DIR_REQ: runtime model presented to an execution context that is
+    allocated CPU cycles through FFA_MSG_SEND_DIRECT_REQ interface.
+  - RTM_SEC_INTERRUPT: runtime model presented to an execution context that is
+    allocated CPU cycles by SPMC to handle a secure interrupt.
+  - RTM_SP_INIT: runtime model presented to an execution context that is
+    allocated CPU cycles by SPMC to initialize its state.
+
+If an endpoint execution context attempts to make an invalid transition or a
+valid transition that could lead to a loop in the call chain, SPMC denies the
+transition with the help of above runtime models.
+
 Interrupt management
 --------------------
 
@@ -1020,44 +1176,58 @@ trapped at S-EL2. The SPMC manages interrupt resources and allocates interrupt
 IDs based on SP manifests. The SPMC acknowledges physical interrupts and injects
 virtual interrupts by setting the use of vIRQ/vFIQ bits before resuming a SP.
 
+Abbreviations:
+
+  - NS-Int: A non-secure physical interrupt. It requires a switch to the normal
+    world to be handled if it triggers while execution is in secure world.
+  - Other S-Int: A secure physical interrupt targeted to an SP different from
+    the one that is currently running.
+  - Self S-Int: A secure physical interrupt targeted to the SP that is currently
+    running.
+
 Non-secure interrupt handling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The following illustrate the scenarios of non secure physical interrupts trapped
-by the SPMC:
+This section documents the actions supported in SPMC in response to a non-secure
+interrupt as per the guidance provided by FF-A v1.1 EAC0 specification.
+An SP specifies one of the following actions in its partition manifest:
 
-- The SP handles a managed exit operation:
+  - Non-secure interrupt is signaled.
+  - Non-secure interrupt is signaled after a managed exit.
+  - Non-secure interrupt is queued.
 
-.. image:: ../resources/diagrams/ffa-ns-interrupt-handling-managed-exit.png
-
-- The SP is pre-empted without managed exit:
-
-.. image:: ../resources/diagrams/ffa-ns-interrupt-handling-sp-preemption.png
+An SP execution context in a call chain could specify a less permissive action
+than subsequent SP execution contexts in the same call chain. The less
+permissive action takes precedence over the more permissive actions specified
+by the subsequent execution contexts. Please refer to FF-A v1.1 EAC0 section
+8.3.1 for further explanation.
 
 Secure interrupt handling
--------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This section documents the support implemented for secure interrupt handling in
-SPMC as per the guidance provided by FF-A v1.1 Beta0 specification.
+SPMC as per the guidance provided by FF-A v1.1 EAC0 specification.
 The following assumptions are made about the system configuration:
 
   - In the current implementation, S-EL1 SPs are expected to use the para
-    virtualized ABIs for interrupt management rather than accessing virtual GIC
-    interface.
+    virtualized ABIs for interrupt management rather than accessing the virtual
+    GIC interface.
   - Unless explicitly stated otherwise, this support is applicable only for
     S-EL1 SPs managed by SPMC.
   - Secure interrupts are configured as G1S or G0 interrupts.
   - All physical interrupts are routed to SPMC when running a secure partition
     execution context.
+  - All endpoints with multiple execution contexts have their contexts pinned
+    to corresponding CPUs. Hence, a secure virtual interrupt cannot be signaled
+    to a target vCPU that is currently running or blocked on a different
+    physical CPU.
 
-A physical secure interrupt could preempt normal world execution. Moreover, when
-the execution is in secure world, it is highly likely that the target of a
-secure interrupt is not the currently running execution context of an SP. It
-could be targeted to another FF-A component. Consequently, secure interrupt
-management depends on the state of the target execution context of the SP that
-is responsible for handling the interrupt. Hence, the spec provides guidance on
-how to signal start and completion of secure interrupt handling as discussed in
-further sections.
+A physical secure interrupt could trigger while CPU is executing in normal world
+or secure world.
+The action of SPMC for a secure interrupt depends on: the state of the target
+execution context of the SP that is responsible for handling the interrupt;
+whether the interrupt triggered while execution was in normal world or secure
+world.
 
 Secure interrupt signaling mechanisms
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1100,47 +1270,46 @@ following mechanisms:
   - ``FFA_MSG_WAIT`` ABI if it was in WAITING state.
   - ``FFA_RUN`` ABI if its was in BLOCKED state.
 
-In the current implementation, S-EL1 SPs use para-virtualized HVC interface
-implemented by SPMC to perform priority drop and interrupt deactivation (we
-assume EOImode = 0, i.e. priority drop and deactivation are done together).
+This is a remnant of SPMC implementation based on the FF-A v1.0 specification.
+In the current implementation, S-EL1 SPs use the para-virtualized HVC interface
+implemented by SPMC to perform priority drop and interrupt deactivation (SPMC
+configures EOImode = 0, i.e. priority drop and deactivation are done together).
+The SPMC performs checks to deny the state transition upon invocation of
+either FFA_MSG_WAIT or FFA_RUN interface if the SP didn't perform the
+deactivation of the secure virtual interrupt.
 
-If normal world execution was preempted by secure interrupt, SPMC uses
+If the current SP execution context was preempted by a secure interrupt to be
+handled by execution context of target SP, SPMC resumes current SP after signal
+completion by target SP execution context.
+
+Actions for a secure interrupt triggered while execution is in normal world
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++-------------------+----------+-----------------------------------------------+
+| State of target   | Action   | Description                                   |
+| execution context |          |                                               |
++-------------------+----------+-----------------------------------------------+
+| WAITING           | Signaled | This starts a new call chain in SPMC scheduled|
+|                   |          | mode.                                         |
++-------------------+----------+-----------------------------------------------+
+| PREEMPTED         | Queued   | The target execution must have been preempted |
+|                   |          | by a non-secure interrupt. SPMC queues the    |
+|                   |          | secure virtual interrupt now. It is signaled  |
+|                   |          | when the target execution context next enters |
+|                   |          | the RUNNING state.                            |
++-------------------+----------+-----------------------------------------------+
+| BLOCKED, RUNNING  | NA       | The target execution context is blocked or    |
+|                   |          | running on a different CPU. This is not       |
+|                   |          | supported by current SPMC implementation and  |
+|                   |          | execution hits panic.                         |
++-------------------+----------+-----------------------------------------------+
+
+If normal world execution was preempted by a secure interrupt, SPMC uses
 FFA_NORMAL_WORLD_RESUME ABI to indicate completion of secure interrupt handling
-and further return execution to normal world. If the current SP execution
-context was preempted by a secure interrupt to be handled by execution context
-of target SP, SPMC resumes current SP after signal completion by target SP
-execution context.
+and further returns execution to normal world.
 
-An action is broadly a set of steps taken by the SPMC in response to a physical
-interrupt. In order to simplify the design, the current version of secure
-interrupt management support in SPMC (Hafnium) does not fully implement the
-Scheduling models and Partition runtime models. However, the current
-implementation loosely maps to the following actions that are legally allowed
-by the specification. Please refer to the Table 8.4 in the spec for further
-description of actions. The action specified for a type of interrupt when the
-SP is in the message processing running state cannot be less permissive than the
-action specified for the same type of interrupt when the SP is in the interrupt
-handling running state.
-
-+--------------------+--------------------+------------+-------------+
-| Runtime Model      | NS-Int             | Self S-Int | Other S-Int |
-+--------------------+--------------------+------------+-------------+
-| Message Processing | Signalable with ME | Signalable | Signalable  |
-+--------------------+--------------------+------------+-------------+
-| Interrupt Handling | Queued             | Queued     | Queued      |
-+--------------------+--------------------+------------+-------------+
-
-Abbreviations:
-
-  - NS-Int: A Non-secure physical interrupt. It requires a switch to the Normal
-    world to be handled.
-  - Other S-Int: A secure physical interrupt targeted to an SP different from
-    the one that is currently running.
-  - Self S-Int: A secure physical interrupt targeted to the SP that is currently
-    running.
-
-The following figure describes interrupt handling flow when secure interrupt
-triggers while in normal world:
+The following figure describes interrupt handling flow when a secure interrupt
+triggers while execution is in normal world:
 
 .. image:: ../resources/diagrams/ffa-secure-interrupt-handling-nwd.png
 
@@ -1151,39 +1320,96 @@ A brief description of the events:
   - 3) SPMD signals secure interrupt to SPMC at S-EL2 using FFA_INTERRUPT ABI.
   - 4) SPMC identifies target vCPU of SP and injects virtual interrupt (pends
        vIRQ).
-  - 5) Since SP1 vCPU is in WAITING state, SPMC signals using FFA_INTERRUPT with
-       interrupt id as argument and resume it using ERET.
-  - 6) Execution traps to vIRQ handler in SP1 provided that interrupt is not
-       masked i.e., PSTATE.I = 0
-  - 7) SP1 services the interrupt and invokes the de-activation HVC call.
-  - 8) SPMC does internal state management and further de-activates the physical
-       interrupt and resumes SP vCPU.
-  - 9) SP performs secure interrupt completion through FFA_MSG_WAIT ABI.
+  - 5) Assuming SP1 vCPU is in WAITING state, SPMC signals virtual interrupt
+       using FFA_INTERRUPT with interrupt id as an argument and resumes the SP1
+       vCPU using ERET in SPMC scheduled mode.
+  - 6) Execution traps to vIRQ handler in SP1 provided that the virtual
+       interrupt is not masked i.e., PSTATE.I = 0
+  - 7) SP1 queries for the pending virtual interrupt id using a paravirtualized
+       HVC call. SPMC clears the pending virtual interrupt state management
+       and returns the pending virtual interrupt id.
+  - 8) SP1 services the virtual interrupt and invokes the paravirtualized
+       de-activation HVC call. SPMC de-activates the physical interrupt,
+       clears the fields tracking the secure interrupt and resumes SP1 vCPU.
+  - 9) SP1 performs secure interrupt completion through FFA_MSG_WAIT ABI.
   - 10) SPMC returns control to EL3 using FFA_NORMAL_WORLD_RESUME.
   - 11) EL3 resumes normal world execution.
 
-The following figure describes interrupt handling flow when secure interrupt
-triggers while in secure world:
+Actions for a secure interrupt triggered while execution is in secure world
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++-------------------+----------+------------------------------------------------+
+| State of target   | Action   | Description                                    |
+| execution context |          |                                                |
++-------------------+----------+------------------------------------------------+
+| WAITING           | Signaled | This starts a new call chain in SPMC scheduled |
+|                   |          | mode.                                          |
++-------------------+----------+------------------------------------------------+
+| PREEMPTED by Self | Signaled | The target execution context reenters the      |
+| S-Int             |          | RUNNING state to handle the secure virtual     |
+|                   |          | interrupt.                                     |
++-------------------+----------+------------------------------------------------+
+| PREEMPTED by      | Queued   | SPMC queues the secure virtual interrupt now.  |
+| NS-Int            |          | It is signaled when the target execution       |
+|                   |          | context next enters the RUNNING state.         |
++-------------------+----------+------------------------------------------------+
+| BLOCKED           | Signaled | Both preempted and target execution contexts   |
+|                   |          | must have been part of the Normal world        |
+|                   |          | scheduled call chain. Refer scenario 1 of      |
+|                   |          | Table 8.4 in the FF-A v1.1 EAC0 spec.          |
++-------------------+----------+------------------------------------------------+
+| RUNNING           | NA       | The target execution context is running on a   |
+|                   |          | different CPU. This scenario is not supported  |
+|                   |          | by current SPMC implementation and execution   |
+|                   |          | hits panic.                                    |
++-------------------+----------+------------------------------------------------+
+
+The following figure describes interrupt handling flow when a secure interrupt
+triggers while execution is in secure world. We assume OS kernel sends a direct
+request message to SP1. Further, SP1 sends a direct request message to SP2. SP1
+enters BLOCKED state and SPMC resumes SP2.
 
 .. image:: ../resources/diagrams/ffa-secure-interrupt-handling-swd.png
 
 A brief description of the events:
 
-  - 1) Secure interrupt triggers while SP2 is running and SP1 is blocked.
-  - 2) Gets trapped to SPMC as IRQ.
+  - 1) Secure interrupt triggers while SP2 is running.
+  - 2) SP2 gets preempted and execution traps to SPMC as IRQ.
   - 3) SPMC finds the target vCPU of secure partition responsible for handling
        this secure interrupt. In this scenario, it is SP1.
   - 4) SPMC pends vIRQ for SP1 and signals through FFA_INTERRUPT interface.
-       SPMC further resumes SP1 through ERET conduit.
-  - 5) Execution traps to vIRQ handler in SP1 provided that interrupt is not
-       masked i.e., PSTATE.I = 0
-  - 6) SP1 services the secure interrupt and invokes the de-activation HVC call.
-  - 7) SPMC does internal state management, de-activates the physical interrupt
-       and resumes SP1 vCPU.
-  - 8) Assuming SP1 is in BLOCKED state, SP1 performs secure interrupt completion
-       through FFA_RUN ABI.
+       SPMC further resumes SP1 through ERET conduit. Note that SP1 remains in
+       Normal world schedule mode.
+  - 6) Execution traps to vIRQ handler in SP1 provided that the virtual
+       interrupt is not masked i.e., PSTATE.I = 0
+  - 7) SP1 queries for the pending virtual interrupt id using a paravirtualized
+       HVC call. SPMC clears the pending virtual interrupt state management
+       and returns the pending virtual interrupt id.
+  - 8) SP1 services the virtual interrupt and invokes the paravirtualized
+       de-activation HVC call. SPMC de-activates the physical interrupt and
+       clears the fields tracking the secure interrupt and resumes SP1 vCPU.
+  - 9) Since SP1 direct request completed with FFA_INTERRUPT, it resumes the
+       direct request to SP2 by invoking FFA_RUN.
   - 9) SPMC resumes the pre-empted vCPU of SP2.
 
+EL3 interrupt handling
+~~~~~~~~~~~~~~~~~~~~~~
+
+In GICv3 based systems, EL3 interrupts are configured as Group0 secure
+interrupts. Execution traps to SPMC when a Group0 interrupt triggers while an
+SP is running. Further, SPMC running at S-EL2 uses FFA_EL3_INTR_HANDLE ABI to
+request EL3 platform firmware to handle a pending Group0 interrupt.
+Similarly, SPMD registers a handler with interrupt management framework to
+delegate handling of Group0 interrupt to the platform if the interrupt triggers
+in normal world.
+
+ - Platform hook
+
+   - plat_spmd_handle_group0_interrupt
+
+     SPMD provides platform hook to handle Group0 secure interrupts. In the
+     current design, SPMD expects the platform not to delegate handling to the
+     NWd (such as through SDEI) while processing Group0 interrupts.
 
 Power management
 ----------------
@@ -1374,13 +1600,13 @@ S-EL0 partitions are required by the FF-A specification to be UP endpoints,
 capable of migrating, and the SPMC enforces this requirement. The SPMC allows
 a S-EL0 partition to accept a direct message from secure world and normal world,
 and generate direct responses to them.
+All S-EL0 partitions must use AArch64. AArch32 S-EL0 partitions are not supported.
 
-Memory sharing between and with S-EL0 partitions is supported.
-Indirect messaging, Interrupt handling and Notifications are not supported with
-S-EL0 partitions and is work in progress, planned for future releases.
-All S-EL0 partitions must use AArch64. AArch32 S-EL0 partitions are not
-supported.
+Memory sharing, indirect messaging, and notifications functionality with S-EL0
+partitions is supported.
 
+Interrupt handling is not supported with S-EL0 partitions and is work in
+progress.
 
 References
 ==========
@@ -1424,4 +1650,4 @@ Client <https://developer.arm.com/documentation/den0006/d/>`__
 
 --------------
 
-*Copyright (c) 2020-2022, Arm Limited and Contributors. All rights reserved.*
+*Copyright (c) 2020-2023, Arm Limited and Contributors. All rights reserved.*

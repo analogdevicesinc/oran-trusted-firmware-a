@@ -1,11 +1,11 @@
 #
-# Copyright (c) 2017-2022, ARM Limited and Contributors. All rights reserved.
+# Copyright (c) 2017-2023, ARM Limited and Contributors. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
 # Non-TF Boot ROM
-BL2_AT_EL3	:=	1
+RESET_TO_BL2	:=	1
 
 # On Hikey, the TSP can execute from TZC secure area in DRAM (default)
 # or SRAM.
@@ -154,12 +154,12 @@ $(BUILD_PLAT)/bl2/hikey_rotpk.o: $(ROTPK_HASH)
 certificates: $(ROT_KEY)
 $(ROT_KEY): | $(BUILD_PLAT)
 	@echo "  OPENSSL $@"
-	$(Q)openssl genrsa 2048 > $@ 2>/dev/null
+	$(Q)${OPENSSL_BIN_PATH}/openssl genrsa 2048 > $@ 2>/dev/null
 
 $(ROTPK_HASH): $(ROT_KEY)
 	@echo "  OPENSSL $@"
-	$(Q)openssl rsa -in $< -pubout -outform DER 2>/dev/null |\
-	openssl dgst -sha256 -binary > $@ 2>/dev/null
+	$(Q)${OPENSSL_BIN_PATH}/openssl rsa -in $< -pubout -outform DER 2>/dev/null |\
+	${OPENSSL_BIN_PATH}/openssl dgst -sha256 -binary > $@ 2>/dev/null
 endif
 
 # Enable workarounds for selected Cortex-A53 errata.

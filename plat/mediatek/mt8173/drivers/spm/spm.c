@@ -20,7 +20,7 @@
  * - spm_suspend.c for system power control in system suspend scenario.
  *
  * This file provide utility functions common to hotplug, mcdi(idle), suspend
- * power scenarios. A bakery lock (software lock) is incoporated to protect
+ * power scenarios. A bakery lock (software lock) is incorporated to protect
  * certain critical sections to avoid kicking different SPM firmware
  * concurrently.
  */
@@ -29,9 +29,9 @@
 
 DEFINE_BAKERY_LOCK(spm_lock);
 
-static int spm_hotplug_ready __section("tzfw_coherent_mem");
-static int spm_mcdi_ready __section("tzfw_coherent_mem");
-static int spm_suspend_ready __section("tzfw_coherent_mem");
+static int spm_hotplug_ready __section(".tzfw_coherent_mem");
+static int spm_mcdi_ready __section(".tzfw_coherent_mem");
+static int spm_suspend_ready __section(".tzfw_coherent_mem");
 
 void spm_lock_init(void)
 {

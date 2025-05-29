@@ -36,11 +36,33 @@ assumptions:
 - There is no Secure-EL2. We don't consider threats that may come with
   Secure-EL2 software.
 
-- Measured boot is disabled. We do not consider the threats nor the mitigations
-  that may come with it.
-
 - No experimental features are enabled. We do not consider threats that may come
   from them.
+
+.. note::
+
+ In the current Measured Boot design, BL1, BL2, and BL31, as well as the
+ secure world components, form the |SRTM|. Measurement data is currently
+ considered an asset to be protected against attack, and this is achieved
+ by storing them in the Secure Memory.
+ Beyond the measurements stored inside the TCG-compliant Event Log buffer,
+ there are no other assets to protect or threats to defend against that
+ could compromise |TF-A| execution environment's security.
+
+ There are general security assets and threats associated with remote/delegated
+ attestation. However, these are outside the |TF-A| security boundary and
+ should be dealt with by the appropriate agent in the platform/system.
+ Since current Measured Boot design does not use local attestation, there would
+ be no further assets to protect(like unsealed keys).
+
+ A limitation of the current Measured Boot design is that it is dependent upon
+ Secure Boot as implementation of Measured Boot does not extend measurements
+ into a discrete |TPM|, where they would be securely stored and protected
+ against tampering. This implies that if Secure-Boot is compromised, Measured
+ Boot may also be compromised.
+
+ Platforms must carefully evaluate the security of the default implementation
+ since the |SRTM| includes all secure world components.
 
 Data Flow Diagram
 =================
@@ -170,7 +192,7 @@ Threat Risk Ratings
 
 For each threat identified, a risk rating that ranges
 from *informational* to *critical* is given based on the likelihood of the
-threat occuring if a mitigation is not in place, and the impact of the
+threat occurring if a mitigation is not in place, and the impact of the
 threat (i.e. how severe the consequences could be). Table 4 explains each
 rating in terms of score, impact and likelihood.
 
@@ -778,8 +800,9 @@ These are highlighted in the ``Mitigations implemented?`` box.
 +========================+====================================================+
 | Threat                 | | **Misconfiguration of the Memory Management Unit |
 |                        |   (MMU) may allow a normal world software to       |
-|                        |   access sensitive data or execute arbitrary       |
-|                        |   code**                                           |
+|                        |   access sensitive data, execute arbitrary         |
+|                        |   code or access otherwise restricted HW           |
+|                        |   interface**                                      |
 |                        |                                                    |
 |                        | | A misconfiguration of the MMU could              |
 |                        |   lead to an open door for software running in the |
@@ -853,6 +876,8 @@ These are highlighted in the ``Mitigations implemented?`` box.
 +------------------------+-----------------------------------------------------+
 | Threat Type            | Information Disclosure                              |
 +------------------------+-------------------+----------------+----------------+
+| Application            | Server            | IoT            | Mobile         |
++------------------------+-------------------+----------------+----------------+
 | Impact                 | Medium (3)        | Medium (3)     | Medium (3)     |
 +------------------------+-------------------+----------------+----------------+
 | Likelihood             | Low (2)           | Low (2)        | Low (2)        |
@@ -880,9 +905,89 @@ These are highlighted in the ``Mitigations implemented?`` box.
 |                        |   mitigated.                                        |
 +------------------------+-----------------------------------------------------+
 
++------------------------+-----------------------------------------------------+
+| ID                     | 13                                                  |
++========================+=====================================================+
+| Threat                 | | **Leaving sensitive information in the memory,    |
+|                        |   can allow an attacker to retrieve them.**         |
+|                        |                                                     |
+|                        | | Accidentally leaving not-needed sensitive data in |
+|                        |   internal buffers can leak them if an attacker     |
+|                        |   gains access to memory due to a vulnerability.    |
++------------------------+-----------------------------------------------------+
+| Diagram Elements       | DF4, DF5                                            |
++------------------------+-----------------------------------------------------+
+| Affected TF-A          | BL1, BL2, BL31                                      |
+| Components             |                                                     |
++------------------------+-----------------------------------------------------+
+| Assets                 | Sensitive Data                                      |
++------------------------+-----------------------------------------------------+
+| Threat Agent           | NSCode, SecCode                                     |
++------------------------+-----------------------------------------------------+
+| Threat Type            | Information Disclosure                              |
++------------------------+-------------------+----------------+----------------+
+| Application            | Server            | IoT            | Mobile         |
++------------------------+-------------------+----------------+----------------+
+| Impact                 |  Critical (5)     | Critical (5)   | Critical (5)   |
++------------------------+-------------------+----------------+----------------+
+| Likelihood             |  Medium (3)       | Medium (3)     | Medium (3)     |
++------------------------+-------------------+----------------+----------------+
+| Total Risk Rating      |  High (15)        | High (15)      | High (15)      |
++------------------------+-------------------+----------------+----------------+
+| Mitigations            |   Clear the sensitive data from internal buffers as |
+|                        |   soon as they are not needed anymore.              |
++------------------------+-----------------------------------------------------+
+| Mitigations            | | Yes / Platform specific                           |
++------------------------+-----------------------------------------------------+
+
++------------------------+-----------------------------------------------------+
+| ID                     | 14                                                  |
++========================+=====================================================+
+| Threat                 | | **Attacker wants to execute an arbitrary or       |
+|                        |   untrusted binary as the secure OS.**              |
+|                        |                                                     |
+|                        | | When the option OPTEE_ALLOW_SMC_LOAD is enabled,  |
+|                        |   this trusts the non-secure world up until the     |
+|                        |   point it issues the SMC call to load the Secure   |
+|                        |   BL32 payload. If a compromise occurs before the   |
+|                        |   SMC call is invoked, then arbitrary code execution|
+|                        |   in S-EL1 can occur or arbitrary memory in EL3 can |
+|                        |   be overwritten.                                   |
++------------------------+-----------------------------------------------------+
+| Diagram Elements       | DF5                                                 |
++------------------------+-----------------------------------------------------+
+| Affected TF-A          | BL31, BL32                                          |
+| Components             |                                                     |
++------------------------+-----------------------------------------------------+
+| Assets                 | Code Execution, Sensitive Data                      |
++------------------------+-----------------------------------------------------+
+| Threat Agent           | NSCode                                              |
++------------------------+-----------------------------------------------------+
+| Threat Type            | Tampering, Information Disclosure,                  |
+|                        | Elevation of privilege                              |
++------------------------+-----------------+-----------------+-----------------+
+| Application            | Server          | IoT             | Mobile          |
++------------------------+-----------------+-----------------+-----------------+
+| Impact                 | Critical (5)    | Critical (5)    | Critical (5)    |
++------------------------+-----------------+-----------------+-----------------+
+| Likelihood             | High (4)        | High (4)        | High (4)        |
++------------------------+-----------------+-----------------+-----------------+
+| Total Risk Rating      | Critical (20)   | Critical (20)   | Critical (20)   |
++------------------------+-----------------+-----------------+-----------------+
+| Mitigations            | When enabling the option OPTEE_ALLOW_SMC_LOAD,      |
+|                        | the non-secure OS must be considered a closed       |
+|                        | platform up until the point the SMC can be invoked  |
+|                        | to load OP-TEE.                                     |
++------------------------+-----------------------------------------------------+
+| Mitigations            | | None in TF-A itself. This option is only used by  |
+| implemented?           |   ChromeOS currently which has other mechanisms to  |
+|                        |   to mitigate this threat which are described in    |
+|                        |   `OP-TEE Dispatcher`_.                             |
++------------------------+-----------------------------------------------------+
+
 --------------
 
-*Copyright (c) 2021-2022, Arm Limited. All rights reserved.*
+*Copyright (c) 2021-2023, Arm Limited. All rights reserved.*
 
 
 .. _STRIDE threat analysis technique: https://docs.microsoft.com/en-us/azure/security/develop/threat-modeling-tool-threats#stride-model
@@ -894,3 +999,4 @@ These are highlighted in the ``Mitigations implemented?`` box.
 .. _TF-A error handling policy: https://trustedfirmware-a.readthedocs.io/en/latest/process/coding-guidelines.html#error-handling-and-robustness
 .. _Secure Development Guidelines: https://trustedfirmware-a.readthedocs.io/en/latest/process/security-hardening.html#secure-development-guidelines
 .. _Trusted Firmware-A Tests: https://git.trustedfirmware.org/TF-A/tf-a-tests.git/about/
+.. _OP-TEE Dispatcher: https://github.com/ARM-software/arm-trusted-firmware/blob/master/docs/components/spd/optee-dispatcher.rst

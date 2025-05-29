@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Arm Limited. All rights reserved.
+ * Copyright (c) 2018-2023, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -14,6 +14,7 @@
 #include <plat/arm/common/plat_arm.h>
 
 #include "n1sdp_def.h"
+#include "n1sdp_private.h"
 #include <platform_def.h>
 
 /*
@@ -51,8 +52,8 @@ static struct gic600_multichip_data n1sdp_multichip_data __init = {
 		PLAT_ARM_GICD_BASE >> 16
 	},
 	.spi_ids = {
-		{32, 479},
-		{512, 959}
+		{PLAT_ARM_GICD_BASE, 32, 479},
+		{PLAT_ARM_GICD_BASE, 512, 959}
 	}
 };
 
@@ -62,13 +63,14 @@ static uintptr_t n1sdp_multichip_gicr_frames[3] = {
 	0
 };
 
-scmi_channel_plat_info_t *plat_css_get_scmi_info(int channel_id)
+scmi_channel_plat_info_t *plat_css_get_scmi_info(unsigned int channel_id)
 {
 	return &n1sdp_scmi_plat_info;
 }
 
 const plat_psci_ops_t *plat_arm_psci_override_pm_ops(plat_psci_ops_t *ops)
 {
+	ops->pwr_domain_off = n1sdp_pwr_domain_off;
 	return css_scmi_override_pm_ops(ops);
 }
 
@@ -159,3 +161,14 @@ void bl31_platform_setup(void)
 	if ((plat_info.multichip_mode) && (plat_info.remote_ddr_size != 0))
 		remote_dmc_ecc_setup(plat_info.remote_ddr_size);
 }
+
+#if defined(SPD_spmd) && (SPMC_AT_EL3 == 0)
+/*
+ * A dummy implementation of the platform handler for Group0 secure interrupt.
+ */
+int plat_spmd_handle_group0_interrupt(uint32_t intid)
+{
+	(void)intid;
+	return -1;
+}
+#endif /*defined(SPD_spmd) && (SPMC_AT_EL3 == 0)*/

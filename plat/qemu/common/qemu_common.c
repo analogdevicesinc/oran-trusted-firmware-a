@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2015-2022, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2023, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -10,6 +10,7 @@
 #include <arch_helpers.h>
 #include <common/bl_common.h>
 #include <lib/xlat_tables/xlat_tables_v2.h>
+#include <services/el3_spmc_ffa_memory.h>
 
 #include <plat/common/platform.h>
 #include "qemu_private.h"
@@ -100,7 +101,7 @@ static const mmap_region_t plat_qemu_mmap[] = {
 #if SPM_MM
 	MAP_NS_DRAM0,
 	QEMU_SPM_BUF_EL3_MMAP,
-#else
+#elif !SPMC_AT_EL3
 	MAP_BL32_MEM,
 #endif
 	{0}
@@ -121,45 +122,12 @@ static const mmap_region_t plat_qemu_mmap[] = {
 #endif
 
 /*******************************************************************************
- * Macro generating the code for the function setting up the pagetables as per
- * the platform memory map & initialize the mmu, for the given exception level
+ * Returns QEMU platform specific memory map regions.
  ******************************************************************************/
-
-#define DEFINE_CONFIGURE_MMU_EL(_el)					\
-	void qemu_configure_mmu_##_el(unsigned long total_base,	\
-				   unsigned long total_size,		\
-				   unsigned long code_start,		\
-				   unsigned long code_limit,		\
-				   unsigned long ro_start,		\
-				   unsigned long ro_limit,		\
-				   unsigned long coh_start,		\
-				   unsigned long coh_limit)		\
-	{								\
-		mmap_add_region(total_base, total_base,			\
-				total_size,				\
-				MT_MEMORY | MT_RW | MT_SECURE);		\
-		mmap_add_region(code_start, code_start,			\
-				code_limit - code_start,		\
-				MT_CODE | MT_SECURE);			\
-		mmap_add_region(ro_start, ro_start,			\
-				ro_limit - ro_start,			\
-				MT_RO_DATA | MT_SECURE);		\
-		mmap_add_region(coh_start, coh_start,			\
-				coh_limit - coh_start,			\
-				MT_DEVICE | MT_RW | MT_SECURE);		\
-		mmap_add(plat_qemu_mmap);				\
-		init_xlat_tables();					\
-									\
-		enable_mmu_##_el(0);					\
-	}
-
-/* Define EL1 and EL3 variants of the function initialising the MMU */
-#ifdef __aarch64__
-DEFINE_CONFIGURE_MMU_EL(el1)
-DEFINE_CONFIGURE_MMU_EL(el3)
-#else
-DEFINE_CONFIGURE_MMU_EL(svc_mon)
-#endif
+const mmap_region_t *plat_qemu_get_mmap(void)
+{
+	return plat_qemu_mmap;
+}
 
 #if MEASURED_BOOT || TRUSTED_BOARD_BOOT
 int plat_get_mbedtls_heap(void **heap_addr, size_t *heap_size)
@@ -167,3 +135,41 @@ int plat_get_mbedtls_heap(void **heap_addr, size_t *heap_size)
 	return get_mbedtls_heap_helper(heap_addr, heap_size);
 }
 #endif
+
+#if SPMC_AT_EL3
+/*
+ * When using the EL3 SPMC implementation allocate the datastore
+ * for tracking shared memory descriptors in normal memory.
+ */
+#define PLAT_SPMC_SHMEM_DATASTORE_SIZE 64 * 1024
+
+uint8_t plat_spmc_shmem_datastore[PLAT_SPMC_SHMEM_DATASTORE_SIZE];
+
+int plat_spmc_shmem_datastore_get(uint8_t **datastore, size_t *size)
+{
+	*datastore = plat_spmc_shmem_datastore;
+	*size = PLAT_SPMC_SHMEM_DATASTORE_SIZE;
+	return 0;
+}
+
+int plat_spmc_shmem_begin(struct ffa_mtd *desc)
+{
+	return 0;
+}
+
+int plat_spmc_shmem_reclaim(struct ffa_mtd *desc)
+{
+	return 0;
+}
+#endif
+
+#if defined(SPD_spmd) && (SPMC_AT_EL3 == 0)
+/*
+ * A dummy implementation of the platform handler for Group0 secure interrupt.
+ */
+int plat_spmd_handle_group0_interrupt(uint32_t intid)
+{
+	(void)intid;
+	return -1;
+}
+#endif /*defined(SPD_spmd) && (SPMC_AT_EL3 == 0)*/

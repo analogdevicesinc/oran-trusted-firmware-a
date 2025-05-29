@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2016-2022, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -12,8 +12,10 @@
 	.globl	asm_print_hex
 	.globl	asm_print_hex_bits
 	.globl	asm_assert
-	.globl	do_panic
+	.globl	el3_panic
 	.globl	report_exception
+	.globl	report_prefetch_abort
+	.globl	report_data_abort
 
 /* Since the max decimal input number is 65536 */
 #define MAX_DEC_DIVISOR		10000
@@ -157,14 +159,14 @@ asm_print_hex_bits:
 endfunc asm_print_hex
 
 	/***********************************************************
-	 * The common implementation of do_panic for all BL stages
+	 * The common implementation of el3_panic for all BL stages
 	 ***********************************************************/
 
 .section .rodata.panic_str, "aS"
 	panic_msg: .asciz "PANIC at PC : 0x"
 	panic_end: .asciz "\r\n"
 
-func do_panic
+func el3_panic
 	/* Have LR copy point to PC at the time of panic */
 	sub	r6, lr, #4
 
@@ -192,7 +194,7 @@ func do_panic
 _panic_handler:
 	mov	lr, r6
 	b	plat_panic_handler
-endfunc do_panic
+endfunc el3_panic
 
 	/***********************************************************
 	 * This function is called from the vector table for
@@ -205,3 +207,33 @@ func report_exception
 	bl	plat_report_exception
 	no_ret	plat_panic_handler
 endfunc report_exception
+
+	/***********************************************************
+	 * This function is called from the vector table for
+	 * unhandled exceptions. The lr_abt is given as an
+	 * argument to platform handler.
+	 ***********************************************************/
+func report_prefetch_abort
+#if ARM_ARCH_MAJOR == 7 && !defined(ARMV7_SUPPORTS_VIRTUALIZATION)
+	b	report_exception
+#else
+	mrs	r0, lr_abt
+	bl	plat_report_prefetch_abort
+	no_ret	plat_panic_handler
+#endif
+endfunc report_prefetch_abort
+
+	/***********************************************************
+	 * This function is called from the vector table for
+	 * unhandled exceptions. The lr_abt is given as an
+	 * argument to platform handler.
+	 ***********************************************************/
+func report_data_abort
+#if ARM_ARCH_MAJOR == 7 && !defined(ARMV7_SUPPORTS_VIRTUALIZATION)
+	b	report_exception
+#else
+	mrs	r0, lr_abt
+	bl	plat_report_data_abort
+	no_ret	plat_panic_handler
+#endif
+endfunc report_data_abort

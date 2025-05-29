@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2022, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2023, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -11,12 +11,18 @@
 
 #include <lib/psci/psci.h>
 #if defined(SPD_spmd)
- #include <services/spm_core_manifest.h>
+#include <services/spm_core_manifest.h>
 #endif
-#if TRNG_SUPPORT
-#include "plat_trng.h"
+#if ENABLE_RME
+#include <services/rmm_core_manifest.h>
 #endif
 #include <drivers/fwu/fwu_metadata.h>
+#if TRNG_SUPPORT
+#include "plat_trng.h"
+#endif /* TRNG_SUPPORT */
+#if DRTM_SUPPORT
+#include "plat_drtm.h"
+#endif /* DRTM_SUPPORT */
 
 /*******************************************************************************
  * Forward declarations
@@ -31,15 +37,23 @@ struct bl_params;
 struct mmap_region;
 struct spm_mm_boot_info;
 struct sp_res_desc;
+struct rmm_manifest;
 enum fw_enc_status_t;
 
 /*******************************************************************************
  * plat_get_rotpk_info() flags
  ******************************************************************************/
 #define ROTPK_IS_HASH			(1 << 0)
+
 /* Flag used to skip verification of the certificate ROTPK while the platform
    ROTPK is not deployed */
 #define ROTPK_NOT_DEPLOYED		(1 << 1)
+
+static inline bool is_rotpk_flags_valid(unsigned int flags)
+{
+	unsigned int valid_flags = ROTPK_IS_HASH;
+	return (flags == ROTPK_NOT_DEPLOYED) || ((flags & ~valid_flags) == 0);
+}
 
 /*******************************************************************************
  * plat_get_enc_key_info() flags
@@ -101,6 +115,8 @@ int plat_ic_has_interrupt_type(unsigned int type);
 void plat_ic_set_interrupt_type(unsigned int id, unsigned int type);
 void plat_ic_set_interrupt_priority(unsigned int id, unsigned int priority);
 void plat_ic_raise_el3_sgi(int sgi_num, u_register_t target);
+void plat_ic_raise_ns_sgi(int sgi_num, u_register_t target);
+void plat_ic_raise_s_el1_sgi(int sgi_num, u_register_t target);
 void plat_ic_set_spi_routing(unsigned int id, unsigned int routing_mode,
 		u_register_t mpidr);
 void plat_ic_set_interrupt_pending(unsigned int id);
@@ -113,11 +129,14 @@ unsigned int plat_ic_get_interrupt_id(unsigned int raw);
  ******************************************************************************/
 uintptr_t plat_get_my_stack(void);
 void plat_report_exception(unsigned int exception_type);
+void plat_report_prefetch_abort(unsigned int fault_address);
+void plat_report_data_abort(unsigned int fault_address);
 int plat_crash_console_init(void);
 int plat_crash_console_putc(int c);
 void plat_crash_console_flush(void);
 void plat_error_handler(int err) __dead2;
 void plat_panic_handler(void) __dead2;
+void plat_system_reset(void) __dead2;
 const char *plat_log_get_prefix(unsigned int log_level);
 void bl2_plat_preload_setup(void);
 int plat_try_next_boot_source(void);
@@ -244,8 +263,8 @@ static inline void bl2_plat_mboot_finish(void)
 #endif /* MEASURED_BOOT */
 
 /*******************************************************************************
- * Mandatory BL2 at EL3 functions: Must be implemented if BL2_AT_EL3 image is
- * supported
+ * Mandatory BL2 at EL3 functions: Must be implemented
+ * if RESET_TO_BL2 image is supported
  ******************************************************************************/
 void bl2_el3_early_platform_setup(u_register_t arg0, u_register_t arg1,
 				  u_register_t arg2, u_register_t arg3);
@@ -305,10 +324,14 @@ plat_local_state_t plat_get_target_pwr_state(unsigned int lvl,
 /*******************************************************************************
  * Mandatory BL31 functions when ENABLE_RME=1
  ******************************************************************************/
-int plat_get_cca_attest_token(uintptr_t buf, size_t *len,
-			       uintptr_t hash, size_t hash_size);
-int plat_get_cca_realm_attest_key(uintptr_t buf, size_t *len,
-				   unsigned int type);
+#if ENABLE_RME
+int plat_rmmd_get_cca_attest_token(uintptr_t buf, size_t *len,
+				   uintptr_t hash, size_t hash_size);
+int plat_rmmd_get_cca_realm_attest_key(uintptr_t buf, size_t *len,
+				       unsigned int type);
+size_t plat_rmmd_get_el3_rmm_shared_mem(uintptr_t *shared);
+int plat_rmmd_load_manifest(struct rmm_manifest *manifest);
+#endif
 
 /*******************************************************************************
  * Optional BL31 functions (may be overridden)
@@ -403,5 +426,18 @@ int plat_fwu_set_metadata_image_source(unsigned int image_id,
 				       uintptr_t *image_spec);
 void plat_fwu_set_images_source(const struct fwu_metadata *metadata);
 uint32_t plat_fwu_get_boot_idx(void);
+
+/*
+ * Optional function to indicate if cache management operations can be
+ * performed.
+ */
+#if CONDITIONAL_CMO
+uint64_t plat_can_cmo(void);
+#else
+static inline uint64_t plat_can_cmo(void)
+{
+	return 1;
+}
+#endif /* CONDITIONAL_CMO */
 
 #endif /* PLATFORM_H */

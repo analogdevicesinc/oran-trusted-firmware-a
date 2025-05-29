@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2018-2023, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -9,6 +9,7 @@
 #include <arch.h>
 #include <arch_helpers.h>
 #include <common/debug.h>
+#include <common/runtime_svc.h>
 #include <lib/mmio.h>
 #include <lib/psci/psci.h>
 
@@ -16,14 +17,22 @@
 #include <imx8m_psci.h>
 #include <plat_imx8.h>
 
+#define MAX_PLL_NUM	U(10)
+
 static uint32_t gpc_imr_offset[] = { IMR1_CORE0_A53, IMR1_CORE1_A53, IMR1_CORE2_A53, IMR1_CORE3_A53, };
 
 DEFINE_BAKERY_LOCK(gpc_lock);
+
+#define FSL_SIP_CONFIG_GPC_PM_DOMAIN		0x03
 
 #pragma weak imx_set_cpu_pwr_off
 #pragma weak imx_set_cpu_pwr_on
 #pragma weak imx_set_cpu_lpm
 #pragma weak imx_set_cluster_powerdown
+#pragma weak imx_set_sys_wakeup
+#pragma weak imx_noc_slot_config
+#pragma weak imx_gpc_handler
+#pragma weak imx_anamix_override
 
 void imx_set_cpu_secure_entry(unsigned int core_id, uintptr_t sec_entrypoint)
 {
@@ -89,7 +98,7 @@ void imx_set_cpu_lpm(unsigned int core_id, bool pdn)
 		/* assert the pcg pcr bit of the core */
 		mmio_setbits_32(IMX_GPC_BASE + COREx_PGC_PCR(core_id), 0x1);
 	} else {
-		/* disbale CORE WFI PDN & IRQ PUP */
+		/* disable CORE WFI PDN & IRQ PUP */
 		mmio_clrbits_32(IMX_GPC_BASE + LPCR_A53_AD, COREx_WFI_PDN(core_id) |
 				COREx_IRQ_WUP(core_id));
 		/* deassert the pcg pcr bit of the core */
@@ -206,7 +215,6 @@ void imx_set_sys_wakeup(unsigned int last_core, bool pdn)
 	}
 }
 
-#pragma weak imx_noc_slot_config
 /*
  * this function only need to be override by platform
  * that support noc power down, for example: imx8mm.
@@ -228,7 +236,7 @@ void imx_set_sys_lpm(unsigned int last_core, bool retention)
 
 	if (retention)
 		val |= (SLPCR_EN_DSM | SLPCR_VSTBY | SLPCR_SBYOS |
-			SLPCR_BYPASS_PMIC_READY | SLPCR_A53_FASTWUP_STOP_MODE);
+			SLPCR_BYPASS_PMIC_READY);
 
 	mmio_write_32(IMX_GPC_BASE + SLPCR, val);
 
@@ -249,4 +257,50 @@ void imx_clear_rbc_count(void)
 {
 	mmio_clrbits_32(IMX_GPC_BASE + SLPCR, SLPCR_RBC_EN |
 		(0x3f << SLPCR_RBC_COUNT_SHIFT));
+}
+
+struct pll_override pll[MAX_PLL_NUM] = {
+	{.reg = 0x0, .override_mask = (1 << 12) | (1 << 8), },
+	{.reg = 0x14, .override_mask = (1 << 12) | (1 << 8), },
+	{.reg = 0x28, .override_mask = (1 << 12) | (1 << 8), },
+	{.reg = 0x50, .override_mask = (1 << 12) | (1 << 8), },
+	{.reg = 0x64, .override_mask = (1 << 10) | (1 << 8), },
+	{.reg = 0x74, .override_mask = (1 << 10) | (1 << 8), },
+	{.reg = 0x84, .override_mask = (1 << 10) | (1 << 8), },
+	{.reg = 0x94, .override_mask = 0x5555500, },
+	{.reg = 0x104, .override_mask = 0x5555500, },
+	{.reg = 0x114, .override_mask = 0x500, },
+};
+
+#define PLL_BYPASS	BIT(4)
+void imx_anamix_override(bool enter)
+{
+	unsigned int i;
+
+	/*
+	 * bypass all the plls & enable the override bit before
+	 * entering DSM mode.
+	 */
+	for (i = 0U; i < MAX_PLL_NUM; i++) {
+		if (enter) {
+			mmio_setbits_32(IMX_ANAMIX_BASE + pll[i].reg, PLL_BYPASS);
+			mmio_setbits_32(IMX_ANAMIX_BASE + pll[i].reg, pll[i].override_mask);
+		} else {
+			mmio_clrbits_32(IMX_ANAMIX_BASE + pll[i].reg, PLL_BYPASS);
+			mmio_clrbits_32(IMX_ANAMIX_BASE + pll[i].reg, pll[i].override_mask);
+		}
+	}
+}
+
+int imx_gpc_handler(uint32_t smc_fid, u_register_t x1, u_register_t x2, u_register_t x3)
+{
+	switch (x1) {
+	case FSL_SIP_CONFIG_GPC_PM_DOMAIN:
+		imx_gpc_pm_domain_enable(x2, x3);
+		break;
+	default:
+		return SMC_UNK;
+	}
+
+	return 0;
 }

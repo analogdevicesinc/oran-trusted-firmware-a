@@ -36,6 +36,7 @@ BL31_SOURCES	+=	\
 		lib/cpus/aarch64/cortex_a53.S				\
 		plat/common/plat_psci_common.c				\
 		plat/intel/soc/n5x/bl31_plat_setup.c			\
+		plat/intel/soc/n5x/soc/n5x_clock_manager.c		\
 		plat/intel/soc/common/socfpga_psci.c			\
 		plat/intel/soc/common/socfpga_sip_svc.c			\
 		plat/intel/soc/common/socfpga_sip_svc_v2.c		\
@@ -46,8 +47,7 @@ BL31_SOURCES	+=	\
 		plat/intel/soc/common/soc/socfpga_reset_manager.c
 
 PROGRAMMABLE_RESET_ADDRESS	:= 0
-BL2_AT_EL3			:= 1
+RESET_TO_BL2			:= 1
 BL2_INV_DCACHE			:= 0
 MULTI_CONSOLE_API		:= 1
-SIMICS_BUILD			:= 0
 USE_COHERENT_MEM		:= 1

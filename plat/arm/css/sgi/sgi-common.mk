@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2018-2021, ARM Limited and Contributors. All rights reserved.
+# Copyright (c) 2018-2022, Arm Limited and Contributors. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -8,13 +8,15 @@ CSS_USE_SCMI_SDS_DRIVER		:=	1
 
 CSS_ENT_BASE			:=	plat/arm/css/sgi
 
-RAS_EXTENSION			:=	0
+ENABLE_FEAT_RAS			:=	1
+
+RAS_FFH_SUPPORT			:=	0
 
 SDEI_SUPPORT			:=	0
 
 EL3_EXCEPTION_HANDLING		:=	0
 
-HANDLE_EA_EL3_FIRST		:=	0
+HANDLE_EA_EL3_FIRST_NS		:=	0
 
 CSS_SGI_CHIP_COUNT		:=	1
 
@@ -44,14 +46,15 @@ PLAT_BL_COMMON_SOURCES	+=	${CSS_ENT_BASE}/aarch64/sgi_helper.S
 BL1_SOURCES		+=	${INTERCONNECT_SOURCES}			\
 				drivers/arm/sbsa/sbsa.c
 
-BL2_SOURCES		+=	${CSS_ENT_BASE}/sgi_image_load.c
+BL2_SOURCES		+=	${CSS_ENT_BASE}/sgi_image_load.c	\
+				drivers/arm/css/sds/sds.c
 
 BL31_SOURCES		+=	${INTERCONNECT_SOURCES}			\
 				${ENT_GIC_SOURCES}			\
 				${CSS_ENT_BASE}/sgi_bl31_setup.c	\
 				${CSS_ENT_BASE}/sgi_topology.c
 
-ifeq (${RAS_EXTENSION},1)
+ifeq (${RAS_FFH_SUPPORT},1)
 BL31_SOURCES		+=	${CSS_ENT_BASE}/sgi_ras.c
 endif
 
@@ -68,7 +71,6 @@ $(eval $(call add_define,CSS_SGI_PLATFORM_VARIANT))
 
 override CSS_LOAD_SCP_IMAGES	:=	0
 override NEED_BL2U		:=	no
-override ARM_BL31_IN_DRAM	:=	1
 override ARM_PLAT_MT		:=	1
 override PSCI_EXTENDED_STATE_ID	:=	1
 override ARM_RECOM_STATE_ID_ENC	:=	1

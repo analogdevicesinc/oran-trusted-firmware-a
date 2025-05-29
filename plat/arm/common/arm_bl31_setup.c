@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2021, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2023, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -13,9 +13,7 @@
 #include <drivers/console.h>
 #include <lib/debugfs.h>
 #include <lib/extensions/ras.h>
-#if ENABLE_RME
 #include <lib/gpt_rme/gpt_rme.h>
-#endif
 #include <lib/mmio.h>
 #include <lib/xlat_tables/xlat_tables_compat.h>
 #include <plat/arm/common/plat_arm.h>
@@ -45,6 +43,7 @@ CASSERT(BL31_BASE >= ARM_FW_CONFIG_LIMIT, assert_bl31_base_overflows);
 #pragma weak bl31_platform_setup
 #pragma weak bl31_plat_arch_setup
 #pragma weak bl31_plat_get_next_image_ep_info
+#pragma weak bl31_plat_runtime_setup
 
 #define MAP_BL31_TOTAL		MAP_REGION_FLAT(			\
 					BL31_START,			\
@@ -163,6 +162,14 @@ void __init arm_bl31_early_platform_setup(void *from_bl2, uintptr_t soc_fw_confi
 
 	bl33_image_ep_info.spsr = arm_get_spsr_for_bl33_entry();
 	SET_SECURITY_STATE(bl33_image_ep_info.h.attr, NON_SECURE);
+
+#if ENABLE_RME
+	/*
+	 * Populate entry point information for RMM.
+	 * Only PC needs to be set as other fields are determined by RMMD.
+	 */
+	rmm_image_ep_info.pc = RMM_BASE;
+#endif /* ENABLE_RME */
 
 #else /* RESET_TO_BL31 */
 
@@ -288,7 +295,7 @@ void arm_bl31_platform_setup(void)
 	/* Initialize power controller before setting up topology */
 	plat_arm_pwrc_setup();
 
-#if RAS_EXTENSION
+#if RAS_FFH_SUPPORT
 	ras_init();
 #endif
 

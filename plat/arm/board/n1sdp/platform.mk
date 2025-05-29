@@ -47,6 +47,7 @@ BL31_SOURCES		:=	${N1SDP_CPU_SOURCES}			\
 				${INTERCONNECT_SOURCES}			\
 				${N1SDP_GIC_SOURCES}			\
 				${N1SDP_BASE}/n1sdp_bl31_setup.c	\
+				${N1SDP_BASE}/n1sdp_pm.c		\
 				${N1SDP_BASE}/n1sdp_topology.c	        \
 				${N1SDP_BASE}/n1sdp_security.c		\
 				drivers/arm/css/sds/sds.c
@@ -67,6 +68,13 @@ $(eval $(call TOOL_ADD_PAYLOAD,${FW_CONFIG},--fw-config,${FW_CONFIG}))
 $(eval $(call TOOL_ADD_PAYLOAD,${TB_FW_CONFIG},--tb-fw-config,${TB_FW_CONFIG}))
 # Add the NT_FW_CONFIG to FIP and specify the same to certtool
 $(eval $(call TOOL_ADD_PAYLOAD,${NT_FW_CONFIG},--nt-fw-config,${NT_FW_CONFIG}))
+
+N1SDP_SPMC_MANIFEST_DTS	:=	${N1SDP_BASE}/fdts/${PLAT}_optee_spmc_manifest.dts
+FDT_SOURCES		+=	${N1SDP_SPMC_MANIFEST_DTS}
+N1SDP_TOS_FW_CONFIG	:=	${BUILD_PLAT}/fdts/${PLAT}_optee_spmc_manifest.dtb
+
+# Add the TOS_FW_CONFIG to FIP and specify the same to certtool
+$(eval $(call TOOL_ADD_PAYLOAD,${N1SDP_TOS_FW_CONFIG},--tos-fw-config,${N1SDP_TOS_FW_CONFIG}))
 
 # Setting to 0 as no NVCTR in N1SDP
 N1SDP_FW_NVCTR_VAL	:=	0

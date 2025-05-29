@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2014-2023, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -7,9 +7,9 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
-
-#include <common/debug.h>
+#include <stdio.h>
 
 #define get_num_va_args(_args, _lcount)				\
 	(((_lcount) > 1)  ? va_arg(_args, long long int) :	\
@@ -43,6 +43,12 @@ static int unsigned_num_print(unsigned long long int unum, unsigned int radix,
 	int i = 0, count = 0;
 	unsigned int rem;
 
+	/* num_buf is only large enough for radix >= 10 */
+	if (radix < 10) {
+		assert(0);
+		return 0;
+	}
+
 	do {
 		rem = unum % radix;
 		if (rem < 0xa)
@@ -75,6 +81,7 @@ static int unsigned_num_print(unsigned long long int unum, unsigned int radix,
  * %x - hexadecimal format
  * %s - string format
  * %d or %i - signed decimal format
+ * %c - character format
  * %u - unsigned decimal format
  * %p - pointer format
  *
@@ -123,6 +130,10 @@ loop:
 
 				count += unsigned_num_print(unum, 10,
 							    padc, padn);
+				break;
+			case 'c':
+				(void)putchar(va_arg(args, int));
+				count++;
 				break;
 			case 's':
 				str = va_arg(args, char *);

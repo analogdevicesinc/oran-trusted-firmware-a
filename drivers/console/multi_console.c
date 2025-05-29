@@ -1,15 +1,17 @@
 /*
- * Copyright (c) 2018-2020, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2018-2023, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include <assert.h>
+#include <stddef.h>
+#include <stdlib.h>
 
 #include <drivers/console.h>
 
 console_t *console_list;
-uint8_t console_state = CONSOLE_FLAG_BOOT;
+static uint8_t console_state = CONSOLE_FLAG_BOOT;
 
 IMPORT_SYM(console_t *, __STACKS_START__, stacks_start)
 IMPORT_SYM(console_t *, __STACKS_END__, stacks_end)
@@ -95,8 +97,15 @@ int console_putc(int c)
 			if ((err == ERROR_NO_VALID_CONSOLE) || (ret < err))
 				err = ret;
 		}
-
 	return err;
+}
+
+int putchar(int c)
+{
+	if (console_putc(c) == 0)
+		return c;
+	else
+		return EOF;
 }
 
 int console_getc(void)

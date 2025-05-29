@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2018-2021, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2018-2021, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2022-2023, Advanced Micro Devices, Inc. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -15,7 +16,7 @@
  ******************************************************************************/
 
 /* Size of cacheable stacks */
-#define PLATFORM_STACK_SIZE	0x440
+#define PLATFORM_STACK_SIZE	U(0x440)
 
 #define PLATFORM_CORE_COUNT		U(2)
 #define PLAT_MAX_PWR_LVL		U(1)
@@ -81,8 +82,8 @@
 #define CACHE_WRITEBACK_SHIFT	6
 #define CACHE_WRITEBACK_GRANULE	(1 << CACHE_WRITEBACK_SHIFT)
 
-#define PLAT_VERSAL_GICD_BASE	U(0xF9000000)
-#define PLAT_VERSAL_GICR_BASE	U(0xF9080000)
+#define PLAT_GICD_BASE_VALUE	U(0xF9000000)
+#define PLAT_GICR_BASE_VALUE	U(0xF9080000)
 
 /*
  * Define a list of Group 1 Secure and Group 0 interrupts as per GICv3
@@ -100,5 +101,7 @@
 #define PLAT_VERSAL_G0_IRQ_PROPS(grp) \
 	INTR_PROP_DESC(PLAT_VERSAL_IPI_IRQ, GIC_HIGHEST_SEC_PRIORITY, grp, \
 			GIC_INTR_CFG_EDGE), \
+
+#define IRQ_MAX		142U
 
 #endif /* PLATFORM_DEF_H */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2022, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2023, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -42,7 +42,7 @@ static void stm32_cpu_standby(plat_local_state_t cpu_state)
 	while (interrupt == GIC_SPURIOUS_INTERRUPT) {
 		wfi();
 
-		/* Acknoledge IT */
+		/* Acknowledge IT */
 		interrupt = gicv2_acknowledge_interrupt();
 		/* If Interrupt == 1022 it will be acknowledged by non secure */
 		if ((interrupt != PENDING_G1_INTID) &&
@@ -87,7 +87,7 @@ static int stm32_pwr_domain_on(u_register_t mpidr)
 	clk_disable(RTCAPB);
 
 	/* Generate an IT to core 1 */
-	gicv2_raise_sgi(ARM_IRQ_SEC_SGI_0, STM32MP_SECONDARY_CPU);
+	gicv2_raise_sgi(ARM_IRQ_SEC_SGI_0, false, STM32MP_SECONDARY_CPU);
 
 	return PSCI_E_SUCCESS;
 }
@@ -118,7 +118,7 @@ static void stm32_pwr_domain_suspend(const psci_power_state_t *target_state)
  ******************************************************************************/
 static void stm32_pwr_domain_on_finish(const psci_power_state_t *target_state)
 {
-	stm32mp1_gic_pcpu_init();
+	stm32mp_gic_pcpu_init();
 
 	write_cntfrq_el0(cntfrq_core0);
 }

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018, ARM Limited and Contributors. All rights reserved.
- * Copyright (c) 2020, NVIDIA Corporation. All rights reserved.
+ * Copyright (c) 2020-2023, NVIDIA Corporation. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -33,7 +33,7 @@
 /*******************************************************************************
  * Tegra210 SiP SMCs
  ******************************************************************************/
-#define TEGRA_SIP_PMC_COMMANDS		U(0xC2FFFE00)
+#define TEGRA_SIP_PMC_COMMANDS		U(0xC200FE00)
 
 /*******************************************************************************
  * This function is responsible for handling all T210 SiP calls
@@ -55,9 +55,11 @@ int plat_sip_handler(uint32_t smc_fid,
 		SMC_RET1(handle, SMC_UNK);
 
 	if (smc_fid == TEGRA_SIP_PMC_COMMANDS) {
+
 		/* check the address is within PMC range and is 4byte aligned */
-		if ((x2 >= TEGRA_PMC_SIZE) || (x2 & 0x3))
+		if ((x2 >= TEGRA_PMC_SIZE) || (x2 & 0x3)) {
 			return -EINVAL;
+		}
 
 		switch (x2) {
 		/* Black listed PMC registers */

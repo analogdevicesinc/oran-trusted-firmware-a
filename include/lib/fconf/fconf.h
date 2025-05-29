@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, ARM Limited. All rights reserved.
+ * Copyright (c) 2019-2022, ARM Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -7,6 +7,7 @@
 #ifndef FCONF_H
 #define FCONF_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 /* Public API */
@@ -20,7 +21,7 @@
  */
 #define FCONF_REGISTER_POPULATOR(config, name, callback)			\
 	__attribute__((used, section(".fconf_populator")))			\
-	const struct fconf_populator (name##__populator) = {			\
+	static const struct fconf_populator (name##__populator) = {		\
 		.config_type = (#config),					\
 		.info = (#name),						\
 		.populate = (callback)						\

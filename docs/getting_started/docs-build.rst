@@ -17,67 +17,81 @@ check that you have the required software packages, as described in the
 Prerequisites
 -------------
 
-For building a local copy of the |TF-A| documentation you will need, at minimum:
+For building a local copy of the |TF-A| documentation you will need:
 
-- Python 3 (3.5 or later)
+- Python 3 (3.8 or later)
 - PlantUML (1.2017.15 or later)
+- `Poetry`_ (Python dependency manager)
+- Optionally, the `Dia`_ application can be installed if you need to edit
+  existing ``.dia`` diagram files, or create new ones.
 
-Optionally, the `Dia`_ application can be installed if you need to edit
-existing ``.dia`` diagram files, or create new ones.
 
-You must also install the Python modules that are specified in the
-``requirements.txt`` file in the root of the ``docs`` directory. These modules
-can be installed using ``pip3`` (the Python Package Installer). Passing this
-requirements file as an argument to ``pip3`` automatically installs the specific
-module versions required by |TF-A|.
-
-An example set of installation commands for Ubuntu 18.04 LTS follows, assuming
-that the working directory is ``docs``:
+Below is an example set of instructions to get a working environment (tested on
+Ubuntu):
 
 .. code:: shell
 
     sudo apt install python3 python3-pip plantuml [dia]
-    pip3 install [--user] -r requirements.txt
-
-.. note::
-   Several other modules will be installed as dependencies. Please review
-   the list to ensure that there will be no conflicts with other modules already
-   installed in your environment.
-
-Passing the optional ``--user`` argument to ``pip3`` will install the Python
-packages only for the current user. Omitting this argument will attempt to
-install the packages globally and this will likely require the command to be run
-as root or using ``sudo``.
-
-.. note::
-   More advanced usage instructions for *pip* are beyond the scope of this
-   document but you can refer to the `pip homepage`_ for detailed guides.
+    curl -sSL https://install.python-poetry.org | python3 -
 
 Building rendered documentation
 -------------------------------
 
-Documents can be built into HTML-formatted pages from project root directory by
-running the following command.
+To install Python dependencies using Poetry:
 
 .. code:: shell
 
-   make doc
+    poetry install
 
-Output from the build process will be placed in:
+Poetry will create a new virtual environment and install all dependencies listed
+in ``pyproject.toml``. You can get information about this environment, such as
+its location and the Python version, with the command:
 
-::
+.. code:: shell
 
-   docs/build/html
+    poetry env info
+
+If you have already sourced a virtual environment, Poetry will respect this and
+install dependencies there.
+
+Once all dependencies are installed, the documentation can be compiled into
+HTML-formatted pages from the project root directory by running:
+
+.. code:: shell
+
+   poetry run make doc
+
+Output from the build process will be placed in: ``docs/build/html``.
+
+Other Output Formats
+~~~~~~~~~~~~~~~~~~~~
 
 We also support building documentation in other formats. From the ``docs``
 directory of the project, run the following command to see the supported
-formats. It is important to note that you will not get the correct result if
-the command is run from the project root directory, as that would invoke the
-top-level Makefile for |TF-A| itself.
+formats.
 
 .. code:: shell
 
-   make help
+   poetry run make -C docs help
+
+Building rendered documentation from Poetry's virtual environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The command ``poetry run`` used in the steps above executes the input command
+from inside the project's virtual environment. The easiest way to activate this
+virtual environment is with the ``poetry shell`` command.
+
+Running ``poetry shell`` from the directory containing this project, activates
+the same virtual environment. This creates a sub-shell through which you can
+build the documentation directly with ``make``.
+
+.. code:: shell
+
+    poetry shell
+    make doc
+
+Type ``exit`` to deactivate the virtual environment and exit this new shell. For
+other use cases, please see the official `Poetry`_ documentation.
 
 Building rendered documentation from a container
 ------------------------------------------------
@@ -91,24 +105,23 @@ from project root directory
 
 .. code:: shell
 
-   docker run --rm -v $PWD:/TF sphinxdoc/sphinx \
-          bash -c 'cd /TF && \
-          pip3 install plantuml -r ./docs/requirements.txt && make doc'
+   docker run --rm -v $PWD:/tf-a sphinxdoc/sphinx \
+        bash -c 'cd /tf-a &&
+            apt-get update && apt-get install -y curl plantuml &&
+            curl -sSL https://install.python-poetry.org | python3 - &&
+            ~/.local/bin/poetry install && ~/.local/bin/poetry run make doc'
 
 The above command fetches the ``sphinxdoc/sphinx`` container from `docker
 hub`_, launches the container, installs documentation requirements and finally
 creates the documentation. Once done, exit the container and output from the
-build process will be placed in:
-
-::
-
-   docs/build/html
+build process will be placed in: ``docs/build/html``.
 
 --------------
 
-*Copyright (c) 2019, Arm Limited. All rights reserved.*
+*Copyright (c) 2019-2023, Arm Limited. All rights reserved.*
 
 .. _Sphinx: http://www.sphinx-doc.org/en/master/
+.. _Poetry: https://python-poetry.org/docs/
 .. _pip homepage: https://pip.pypa.io/en/stable/
 .. _Dia: https://wiki.gnome.org/Apps/Dia
 .. _docker: https://www.docker.com/

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2017-2018, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -21,7 +21,7 @@
 #include <plat_private.h>
 
 /* Zynqmp ipi configuration table */
-const static struct ipi_config zynqmp_ipi_table[] = {
+static const struct ipi_config zynqmp_ipi_table[] = {
 	/* APU IPI */
 	{
 		.ipi_bit_mask = 0x1,

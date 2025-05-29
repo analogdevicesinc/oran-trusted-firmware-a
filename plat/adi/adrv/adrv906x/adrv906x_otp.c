@@ -6,6 +6,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <string.h>
 
 #include <drivers/adi/adi_otp.h>
 

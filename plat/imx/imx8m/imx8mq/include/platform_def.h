@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+#include <lib/utils_def.h>
+#include <plat/common/common_def.h>
+
 #define PLATFORM_LINKER_FORMAT		"elf64-littleaarch64"
 #define PLATFORM_LINKER_ARCH		aarch64
 
@@ -31,7 +34,8 @@
 #define PLAT_STOP_OFF_STATE		U(3)
 
 #define BL31_BASE			U(0x910000)
-#define BL31_LIMIT			U(0x920000)
+#define BL31_SIZE			SZ_64K
+#define BL31_LIMIT			(BL31_BASE + BL31_SIZE)
 
 /* non-secure uboot base */
 #define PLAT_NS_IMAGE_OFFSET		U(0x40200000)
@@ -54,7 +58,6 @@
 
 #define HAB_RVT_BASE			U(0x00000880) /* HAB_RVT for i.MX8MQ */
 
-#define IMX_BOOT_UART_BASE		U(0x30860000)
 #define IMX_BOOT_UART_CLK_IN_HZ		25000000 /* Select 25Mhz oscillator */
 #define PLAT_CRASH_UART_BASE		IMX_BOOT_UART_BASE
 #define PLAT_CRASH_UART_CLK_IN_HZ	25000000
@@ -80,6 +83,9 @@
 #define IMX_DDRC_BASE			U(0x3d400000)
 #define IMX_DDRPHY_BASE			U(0x3c000000)
 #define IMX_DDR_IPS_BASE		U(0x3d000000)
+#define IMX_DDR_IPS_SIZE		U(0x1800000)
+#define IMX_DRAM_BASE			U(0x40000000)
+#define IMX_DRAM_SIZE			U(0xc0000000)
 
 #define IMX_ROM_BASE			U(0x00000000)
 #define IMX_ROM_SIZE			U(0x20000)
@@ -117,6 +123,12 @@
 #define SNVS_LPCR_DP_EN			BIT(5)
 #define SNVS_LPCR_TOP			BIT(6)
 
+#define SAVED_DRAM_TIMING_BASE		U(0x40000000)
+
+#define HW_DRAM_PLL_CFG0		(IMX_ANAMIX_BASE + 0x60)
+#define HW_DRAM_PLL_CFG1		(IMX_ANAMIX_BASE + 0x64)
+#define HW_DRAM_PLL_CFG2		(IMX_ANAMIX_BASE + 0x68)
+#define DRAM_PLL_CTRL			HW_DRAM_PLL_CFG0
 
 #define IOMUXC_GPR10			U(0x28)
 #define GPR_TZASC_EN			BIT(0)
@@ -126,7 +138,6 @@
 #define OCRAM_S_SIZE			U(0x8000)
 #define OCRAM_S_LIMIT			(OCRAM_S_BASE + OCRAM_S_SIZE)
 
-#define COUNTER_FREQUENCY		8000000 /* 8MHz */
+#define COUNTER_FREQUENCY		8333333 /* 25MHz / 3 */
 
-#define DEBUG_CONSOLE			0
 #define IMX_WDOG_B_RESET

@@ -1,21 +1,34 @@
 #
-# Copyright (c) 2013-2019, ARM Limited and Contributors. All rights reserved.
+# Copyright (c) 2013-2023, Arm Limited and Contributors. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
 INCLUDES		+=	-Iinclude/bl32/tsp
 
-BL32_SOURCES		+=	bl32/tsp/tsp_main.c			\
-				bl32/tsp/aarch64/tsp_entrypoint.S	\
+ifeq (${SPMC_AT_EL3},1)
+   BL32_SOURCES            +=      bl32/tsp/tsp_ffa_main.c                    \
+				   bl32/tsp/ffa_helpers.c
+else
+   BL32_SOURCES            +=      bl32/tsp/tsp_main.c
+endif
+
+BL32_SOURCES		+=	bl32/tsp/aarch64/tsp_entrypoint.S	\
 				bl32/tsp/aarch64/tsp_exceptions.S	\
 				bl32/tsp/aarch64/tsp_request.S		\
 				bl32/tsp/tsp_interrupt.c		\
 				bl32/tsp/tsp_timer.c			\
+				bl32/tsp/tsp_common.c			\
 				common/aarch64/early_exceptions.S	\
 				lib/locks/exclusive/aarch64/spinlock.S
 
-BL32_LINKERFILE		:=	bl32/tsp/tsp.ld.S
+BL32_DEFAULT_LINKER_SCRIPT_SOURCE := bl32/tsp/tsp.ld.S
+
+ifneq ($(findstring gcc,$(notdir $(LD))),)
+        BL32_LDFLAGS	+=	-Wl,--sort-section=alignment
+else ifneq ($(findstring ld,$(notdir $(LD))),)
+        BL32_LDFLAGS	+=	--sort-section=alignment
+endif
 
 # This flag determines if the TSPD initializes BL32 in tspd_init() (synchronous
 # method) or configures BL31 to pass control to BL32 instead of BL33

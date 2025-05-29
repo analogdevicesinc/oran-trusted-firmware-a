@@ -61,31 +61,6 @@ define MAKE_LOCALS
 $(eval $(call uppercase,$(2))_SOURCES += $(1))
 endef
 
-# MAKE_LINKERFILE change linker script source file name to
-# target linker script
-#   $(1) = linker script source file
-#   $(2) = BL stage
-define MAKE_LINKERFILE
-$(eval EXTRA_GENERATED_LINKER_SCRIPT += $(BUILD_PLAT)/$(2)/$(patsubst %.ld.S,%.ld,$(notdir $(1))))
-endef
-
-# MAKE_LINKERFILE_ITER call MAKE_LINKERFILE iteratively
-#   $(1) = linker script source file
-#   $(2) = BL stage
-define MAKE_LINKERFILE_ITER
-$(eval $(foreach link_src,$(1),$(call MAKE_LINKERFILE,$(link_src),$(2))))
-endef
-
-# MAKE_LD_ITER generate the linker scripts using the C preprocessor iteratively
-#   $(1) = output linker script
-#   $(2) = input template
-#   $(3) = BL stage (1, 2, 2u, 31, 32)
-define MAKE_LD_ITER
-$(eval index_list=$(shell seq $(words $(1))))
-$(eval $(foreach i, $(index_list), \
-$(call MAKE_LD,$(word $(i), $(1)), $(word $(i), $(2)),$(3))))
-endef
-
 # MAKE_MODULE reference MAKE_OBJS.
 # Create module folder under out/bl$(BL)/$(module)
 # Arguments:
@@ -116,20 +91,23 @@ endef
 # Include MTK configuration files
 
 # MTK makefile variables
+ifeq (${COREBOOT},1)
+MTK_COMMON_CFG := $(MTK_PLAT)/common/coreboot_config.mk
+else
+MTK_COMMON_CFG := $(MTK_PLAT)/common/common_config.mk
+endif
 MTK_PLAT      := plat/mediatek
 MTK_PLAT_SOC  := ${MTK_PLAT}/${MTK_SOC}
-MTK_COMMON_CFG := $(MTK_PLAT)/common/common_config.mk
 MTK_PLAT_CFG := $(MTK_PLAT_SOC)/plat_config.mk
 MTK_PROJECT_CFG := $(MTK_PLAT)/project/$(PLAT)/project_config.mk
 MTK_OPTIONS := $(MTK_PLAT)/build_helpers/options.mk
 MTK_COND_EVAL := $(MTK_PLAT)/build_helpers/conditional_eval_options.mk
 
 # Indicate which BL should be built in command line
-ifeq (${NEED_BL31},yes)
-MTK_BL := bl31
-endif
 ifeq (${NEED_BL32},yes)
 MTK_BL := bl32
+else
+MTK_BL := bl31
 endif
 # Include common, platform, board level config
 include $(MTK_COMMON_CFG)

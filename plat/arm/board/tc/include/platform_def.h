@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, Arm Limited. All rights reserved.
+ * Copyright (c) 2020-2023, Arm Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -25,13 +25,28 @@
  * The top 16MB of ARM_DRAM1 is configured as secure access only using the TZC,
  * its base is ARM_AP_TZC_DRAM1_BASE.
  *
- * Reserve 32MB below ARM_AP_TZC_DRAM1_BASE for:
+ * Reserve 96 MB below ARM_AP_TZC_DRAM1_BASE for:
  *   - BL32_BASE when SPD_spmd is enabled
- *   - Region to load Trusted OS
+ *   - Region to load secure partitions
+ *
+ *
+ *  0xF900_0000  ------------------   TC_TZC_DRAM1_BASE
+ *               |                |
+ *               |      SPMC      |
+ *               |       SP       |
+ *               |     (96MB)     |
+ *  0xFF00_0000  ------------------   ARM_AP_TZC_DRAM1_BASE
+ *               |       AP       |
+ *               |   EL3 Monitor  |
+ *               |       SCP      |
+ *               |     (16MB)     |
+ *  0xFFFF_FFFF  ------------------
+ *
+ *
  */
 #define TC_TZC_DRAM1_BASE		(ARM_AP_TZC_DRAM1_BASE -	\
 					 TC_TZC_DRAM1_SIZE)
-#define TC_TZC_DRAM1_SIZE		UL(0x02000000)	/* 32 MB */
+#define TC_TZC_DRAM1_SIZE		96 * SZ_1M	/* 96 MB */
 #define TC_TZC_DRAM1_END		(TC_TZC_DRAM1_BASE +		\
 					 TC_TZC_DRAM1_SIZE - 1)
 
@@ -68,7 +83,9 @@
  * max size of BL32 image.
  */
 #if defined(SPD_spmd)
-#define PLAT_ARM_SPMC_BASE		TC_TZC_DRAM1_BASE
+#define TC_EL2SPMC_LOAD_ADDR		(TC_TZC_DRAM1_BASE + 0x04000000)
+
+#define PLAT_ARM_SPMC_BASE		TC_EL2SPMC_LOAD_ADDR
 #define PLAT_ARM_SPMC_SIZE		UL(0x200000)  /* 2 MB */
 #endif
 
@@ -101,7 +118,7 @@
  * PLAT_ARM_MAX_BL1_RW_SIZE is calculated using the current BL1 RW debug size
  * plus a little space for growth.
  */
-#define PLAT_ARM_MAX_BL1_RW_SIZE	0xC000
+#define PLAT_ARM_MAX_BL1_RW_SIZE	0x12000
 
 /*
  * PLAT_ARM_MAX_ROMLIB_RW_SIZE is define to use a full page
@@ -117,20 +134,19 @@
 
 /*
  * PLAT_ARM_MAX_BL2_SIZE is calculated using the current BL2 debug size plus a
- * little space for growth.
+ * little space for growth. Current size is considering that TRUSTED_BOARD_BOOT
+ * and MEASURED_BOOT is enabled.
  */
-#if TRUSTED_BOARD_BOOT
-# define PLAT_ARM_MAX_BL2_SIZE		0x20000
-#else
-# define PLAT_ARM_MAX_BL2_SIZE		0x14000
-#endif
+# define PLAT_ARM_MAX_BL2_SIZE		0x26000
+
 
 /*
  * Since BL31 NOBITS overlays BL2 and BL1-RW, PLAT_ARM_MAX_BL31_SIZE is
  * calculated using the current BL31 PROGBITS debug size plus the sizes of
- * BL2 and BL1-RW
+ * BL2 and BL1-RW. Current size is considering that TRUSTED_BOARD_BOOT and
+ * MEASURED_BOOT is enabled.
  */
-#define PLAT_ARM_MAX_BL31_SIZE		0x3F000
+#define PLAT_ARM_MAX_BL31_SIZE		0x60000
 
 /*
  * Size of cacheable stacks
@@ -153,12 +169,19 @@
 # if SPM_MM
 #  define PLATFORM_STACK_SIZE		0x500
 # else
-#  define PLATFORM_STACK_SIZE		0x400
+#  define PLATFORM_STACK_SIZE		0xa00
 # endif
 #elif defined(IMAGE_BL32)
 # define PLATFORM_STACK_SIZE		0x440
 #endif
 
+/*
+ * In the current implementation the RoT Service request that requires the
+ * biggest message buffer is the RSS_DELEGATED_ATTEST_GET_PLATFORM_TOKEN. The
+ * maximum required buffer size is calculated based on the platform-specific
+ * needs of this request.
+ */
+#define PLAT_RSS_COMMS_PAYLOAD_MAX_SIZE	0x500
 
 #define TC_DEVICE_BASE			0x21000000
 #define TC_DEVICE_SIZE			0x5f000000
@@ -178,7 +201,9 @@
 #define PLAT_ARM_NSTIMER_FRAME_ID	0
 
 #define PLAT_ARM_TRUSTED_ROM_BASE	0x0
-#define PLAT_ARM_TRUSTED_ROM_SIZE	0x00080000	/* 512KB */
+
+/* PLAT_ARM_TRUSTED_ROM_SIZE 512KB minus ROM base. */
+#define PLAT_ARM_TRUSTED_ROM_SIZE	(0x00080000 - PLAT_ARM_TRUSTED_ROM_BASE)
 
 #define PLAT_ARM_NSRAM_BASE		0x06000000
 #define PLAT_ARM_NSRAM_SIZE		0x00080000	/* 512KB */
@@ -187,8 +212,11 @@
 #define PLAT_ARM_DRAM2_SIZE		ULL(0x180000000)
 #define PLAT_ARM_DRAM2_END		(PLAT_ARM_DRAM2_BASE + PLAT_ARM_DRAM2_SIZE - 1ULL)
 
-#define PLAT_ARM_G1S_IRQ_PROPS(grp)	CSS_G1S_IRQ_PROPS(grp)
-#define PLAT_ARM_G0_IRQ_PROPS(grp)	ARM_G0_IRQ_PROPS(grp)
+#define PLAT_ARM_G1S_IRQ_PROPS(grp)	CSS_G1S_INT_PROPS(grp)
+#define PLAT_ARM_G0_IRQ_PROPS(grp)	ARM_G0_IRQ_PROPS(grp),	\
+					INTR_PROP_DESC(SBSA_SECURE_WDOG_INTID,	\
+						GIC_HIGHEST_SEC_PRIORITY, grp, \
+						GIC_INTR_CFG_LEVEL)
 
 #define PLAT_ARM_SP_IMAGE_STACK_BASE	(PLAT_SP_IMAGE_NS_BUF_BASE +	\
 					 PLAT_SP_IMAGE_NS_BUF_SIZE)
@@ -204,9 +232,11 @@
 #define PLAT_ARM_MEM_PROT_ADDR		(V2M_FLASH0_BASE + \
 					 V2M_FLASH0_SIZE - V2M_FLASH_BLOCK_SIZE)
 
-/*Secure Watchdog Constants */
-#define SBSA_SECURE_WDOG_BASE		UL(0x2A480000)
+/* Secure Watchdog Constants */
+#define SBSA_SECURE_WDOG_CONTROL_BASE	UL(0x2A480000)
+#define SBSA_SECURE_WDOG_REFRESH_BASE	UL(0x2A490000)
 #define SBSA_SECURE_WDOG_TIMEOUT	UL(100)
+#define SBSA_SECURE_WDOG_INTID		86
 
 #define PLAT_ARM_SCMI_CHANNEL_COUNT	1
 
@@ -214,8 +244,13 @@
 #define PLAT_MAX_CPUS_PER_CLUSTER	U(8)
 #define PLAT_MAX_PE_PER_CPU		U(1)
 
+/* Message Handling Unit (MHU) base addresses */
 #define PLAT_CSS_MHU_BASE		UL(0x45400000)
 #define PLAT_MHUV2_BASE			PLAT_CSS_MHU_BASE
+
+/* TC2: AP<->RSS MHUs */
+#define PLAT_RSS_AP_SND_MHU_BASE	UL(0x2A840000)
+#define PLAT_RSS_AP_RCV_MHU_BASE	UL(0x2A850000)
 
 #define CSS_SYSTEM_PWR_DMN_LVL		ARM_PWR_LVL2
 #define PLAT_MAX_PWR_LVL		ARM_PWR_LVL1
@@ -259,8 +294,8 @@
 		(TZC_REGION_ACCESS_RDWR(TZC_NSAID_DEFAULT))
 
 /*
- * The first region below, TC_TZC_DRAM1_BASE (0xfd000000) to
- * ARM_SCP_TZC_DRAM1_END (0xffffffff) will mark the last 48 MB of DRAM as
+ * The first region below, TC_TZC_DRAM1_BASE (0xf9000000) to
+ * ARM_SCP_TZC_DRAM1_END (0xffffffff) will mark the last 112 MB of DRAM as
  * secure. The second and third regions gives non secure access to rest of DRAM.
  */
 #define TC_TZC_REGIONS_DEF	\
@@ -273,5 +308,18 @@
 
 /* virtual address used by dynamic mem_protect for chunk_base */
 #define PLAT_ARM_MEM_PROTEC_VA_FRAME	UL(0xc0000000)
+
+#if ARM_GPT_SUPPORT
+/*
+ * This overrides the default PLAT_ARM_FIP_OFFSET_IN_GPT in board_css_def.h.
+ * Offset of the FIP in the GPT image. BL1 component uses this option
+ * as it does not load the partition table to get the FIP base
+ * address. At sector 48 for TC to align with ATU page size boundaries (8KiB)
+ * (i.e. after reserved sectors 0-47).
+ * Offset = 48 * 512 = 0x6000
+ */
+#undef PLAT_ARM_FIP_OFFSET_IN_GPT
+#define PLAT_ARM_FIP_OFFSET_IN_GPT		0x6000
+#endif /* ARM_GPT_SUPPORT */
 
 #endif /* PLATFORM_DEF_H */

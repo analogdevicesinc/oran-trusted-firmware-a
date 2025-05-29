@@ -574,7 +574,7 @@ static void bl2_add_rpc_node(void)
 		goto err;
 	}
 
-	node = ret = fdt_add_subnode(fdt, node, "rpc@ee200000");
+	node = ret = fdt_add_subnode(fdt, node, "spi@ee200000");
 	if (ret < 0) {
 		goto err;
 	}
@@ -1190,7 +1190,7 @@ static void bl2_init_generic_timer(void)
 		break;
 	}
 #endif /* RCAR_LSI == RCAR_E3 */
-	/* Update memory mapped and register based freqency */
+	/* Update memory mapped and register based frequency */
 	write_cntfrq_el0((u_register_t )reg_cntfid);
 	mmio_write_32(ARM_SYS_CNTCTL_BASE + (uintptr_t)CNTFID_OFF, reg_cntfid);
 	/* Enable counter */

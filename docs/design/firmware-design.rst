@@ -25,7 +25,6 @@ tables. The details of this library can be found in
 :ref:`Translation (XLAT) Tables Library`.
 
 TF-A can be built to support either AArch64 or AArch32 execution state.
-
 .. note::
 
  The descriptions in this chapter are for the Arm TrustZone architecture.
@@ -484,8 +483,8 @@ to execute at EL3. On these platforms, TF-A BL1 is a waste of memory
 as its only purpose is to ensure TF-A BL2 is entered at S-EL1. To avoid
 this waste, a special mode enables BL2 to execute at EL3, which allows
 a non-TF-A Boot ROM to load and jump directly to BL2. This mode is selected
-when the build flag BL2_AT_EL3 is enabled. The main differences in this
-mode are:
+when the build flag RESET_TO_BL2 is enabled.
+The main differences in this mode are:
 
 #. BL2 includes the reset code and the mailbox mechanism to differentiate
    cold boot and warm boot. It runs at EL3 doing the arch
@@ -900,7 +899,7 @@ Registration
 A runtime service is registered using the ``DECLARE_RT_SVC()`` macro, specifying
 the name of the service, the range of OENs covered, the type of service and
 initialization and call handler functions. This macro instantiates a ``const struct rt_svc_desc`` for the service with these details (see ``runtime_svc.h``).
-This structure is allocated in a special ELF section ``rt_svc_descs``, enabling
+This structure is allocated in a special ELF section ``.rt_svc_descs``, enabling
 the framework to find all service descriptors included into BL31.
 
 The specific service for a SMC Function is selected based on the OEN and call
@@ -990,9 +989,10 @@ The service's ``handle()`` callback is provided with five of the SMC parameters
 directly, the others are saved into memory for retrieval (if needed) by the
 handler. The handler is also provided with an opaque ``handle`` for use with the
 supporting library for parameter retrieval, setting return values and context
-manipulation; and with ``flags`` indicating the security state of the caller. The
-framework finally sets up the execution stack for the handler, and invokes the
-services ``handle()`` function.
+manipulation. The ``flags`` parameter indicates the security state of the caller
+and the state of the SVE hint bit per the SMCCCv1.3. The framework finally sets
+up the execution stack for the handler, and invokes the services ``handle()``
+function.
 
 On return from the handler the result registers are populated in X0-X7 as needed
 before restoring the stack and CPU state and returning from the original SMC.
@@ -1329,7 +1329,7 @@ element of the array specifies the interrupt number and its attributes
 (priority, group, configuration). Each element of the array shall be populated
 by the macro ``INTR_PROP_DESC()``. The macro takes the following arguments:
 
-- 10-bit interrupt number,
+- 13-bit interrupt number,
 
 - 8-bit interrupt priority,
 
@@ -1759,6 +1759,10 @@ BL image during boot.
 
                    DRAM
     0xffffffff +----------+
+               | EL3 TZC  |
+    0xffe00000 |----------| (secure)
+               | AP TZC   |
+    0xff000000 +----------+
                :          :
     0x82100000 |----------|
                |HW_CONFIG |
@@ -1800,6 +1804,10 @@ BL image during boot.
 
                      DRAM
     0xffffffff +--------------+
+               |   EL3 TZC    |
+    0xffe00000 |--------------|  (secure)
+               |   AP TZC     |
+    0xff000000 +--------------+
                :              :
     0x82100000 |--------------|
                |  HW_CONFIG   |
@@ -1840,7 +1848,10 @@ BL image during boot.
 
                    DRAM
     0xffffffff +----------+
-               |  BL32    |  (secure)
+               |  EL3 TZC |
+    0xffe00000 |----------|  (secure)
+               |  AP TZC  |
+               |  (BL32)  |
     0xff000000 +----------+
                |          |
     0x82100000 |----------|
@@ -1880,6 +1891,20 @@ BL image during boot.
 
 ::
 
+                  DRAM
+    0xFFFFFFFF +----------+
+               |  SCP TZC |
+    0xFFE00000 |----------|
+               |  EL3 TZC |
+    0xFFC00000 |----------|  (secure)
+               |  AP TZC  |
+    0xFF000000 +----------+
+               |          |
+               :          :  (non-secure)
+               |          |
+    0x80000000 +----------+
+
+
                   Flash0
     0x0C000000 +----------+
                :          :
@@ -1909,9 +1934,14 @@ BL image during boot.
 ::
 
                    DRAM
-    0xFFE00000 +----------+
-               |  BL32    |  (secure)
-    0xFF000000 |----------|
+    0xFFFFFFFF +----------+
+               |  SCP TZC |
+    0xFFE00000 |----------|
+               |  EL3 TZC |
+    0xFFC00000 |----------|  (secure)
+               |  AP TZC  |
+               |  (BL32)  |
+    0xFF000000 +----------+
                |          |
                :          :  (non-secure)
                |          |
@@ -2164,7 +2194,7 @@ To use bakery locks when ``USE_COHERENT_MEM`` is disabled, the lock data structu
 has been redesigned. The changes utilise the characteristic of Lamport's Bakery
 algorithm mentioned earlier. The bakery_lock structure only allocates the memory
 for a single CPU. The macro ``DEFINE_BAKERY_LOCK`` allocates all the bakery locks
-needed for a CPU into a section ``bakery_lock``. The linker allocates the memory
+needed for a CPU into a section ``.bakery_lock``. The linker allocates the memory
 for other cores by using the total size allocated for the bakery_lock section
 and multiplying it with (PLATFORM_CORE_COUNT - 1). This enables software to
 perform software cache maintenance on the lock data structure without running
@@ -2192,7 +2222,7 @@ with n bakery locks are:
 
 ::
 
-    bakery_lock section start
+    .bakery_lock section start
     |----------------|
     | `bakery_info_t`| <-- Lock_0 per-CPU field
     |    Lock_0      |     for CPU0
@@ -2229,7 +2259,7 @@ with n bakery locks are:
 
 Consider a system of 2 CPUs with 'N' bakery locks as shown above. For an
 operation on Lock_N, the corresponding ``bakery_info_t`` in both CPU0 and CPU1
-``bakery_lock`` section need to be fetched and appropriate cache operations need
+``.bakery_lock`` section need to be fetched and appropriate cache operations need
 to be performed for each access.
 
 On Arm Platforms, bakery locks are used in psci (``psci_locks``) and power controller
@@ -2592,16 +2622,29 @@ TF-A makes use of Armv8-A Architecture Extensions where applicable. This
 section lists the usage of Architecture Extensions, and build flags
 controlling them.
 
-In general, and unless individually mentioned, the build options
-``ARM_ARCH_MAJOR`` and ``ARM_ARCH_MINOR`` select the Architecture Extension to
-target when building TF-A. Subsequent Arm Architecture Extensions are backward
-compatible with previous versions.
+Build options
+~~~~~~~~~~~~~
 
-The build system only requires that ``ARM_ARCH_MAJOR`` and ``ARM_ARCH_MINOR`` have a
-valid numeric value. These build options only control whether or not
-Architecture Extension-specific code is included in the build. Otherwise, TF-A
-targets the base Armv8.0-A architecture; i.e. as if ``ARM_ARCH_MAJOR`` == 8
-and ``ARM_ARCH_MINOR`` == 0, which are also their respective default values.
+``ARM_ARCH_MAJOR`` and ``ARM_ARCH_MINOR``
+
+These build options serve dual purpose
+
+- Determine the architecture extension support in TF-A build: All the mandatory
+  architectural features up to ``ARM_ARCH_MAJOR.ARM_ARCH_MINOR`` are included
+  and unconditionally enabled by TF-A build system.
+
+- Passed to compiler via "-march" option to generate binary target : Tell the
+  compiler to emit instructions upto ``ARM_ARCH_MAJOR.ARM_ARCH_MINOR``
+
+The build system requires that the platform provides a valid numeric value based on
+CPU architecture extension, otherwise it defaults to base Armv8.0-A architecture.
+Subsequent Arm Architecture versions also support extensions which were introduced
+in previous versions.
+
+**TO-DO** : Its planned to decouple the two functionalities and introduce a new macro
+for compiler usage. The requirement for this decoupling arises becasue TF-A code
+always provides support for the latest and greatest architecture features but this
+is not the case for the target compiler.
 
 .. seealso:: :ref:`Build Options`
 
@@ -2751,7 +2794,7 @@ kernel at boot time. These can be found in the ``fdts`` directory.
 
 --------------
 
-*Copyright (c) 2013-2022, Arm Limited and Contributors. All rights reserved.*
+*Copyright (c) 2013-2023, Arm Limited and Contributors. All rights reserved.*
 
 .. _Power State Coordination Interface PDD: http://infocenter.arm.com/help/topic/com.arm.doc.den0022d/Power_State_Coordination_Interface_PDD_v1_1_DEN0022D.pdf
 .. _SMCCC: https://developer.arm.com/docs/den0028/latest

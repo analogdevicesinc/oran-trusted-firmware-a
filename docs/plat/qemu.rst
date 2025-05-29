@@ -44,7 +44,7 @@ or, can be built as follows:
 Then, you will get ``Build/ArmVirtQemuKernel-AARCH64/DEBUG_GCC5/FV/QEMU_EFI.fd``
 
 Please note you do not need to use GCC 5 in spite of the environment variable
-``GCC5_AARCH64_PREFIX``
+``GCC5_AARCH64_PREFIX``.
 
 The rootfs can be built by using Buildroot as follows:
 
@@ -88,51 +88,104 @@ To start (QEMU v5.0.0):
         -initrd rootfs.cpio.gz -smp 2 -m 1024 -bios bl1.bin   \
         -d unimp -semihosting-config enable,target=native
 
-Booting via flash based firmwares
----------------------------------
+Booting via flash based firmware
+--------------------------------
 
-Boot firmwares are loaded via secure FLASH0 device so ``bl1.bin`` and
-``fip.bin`` should be concatenated to create a ``flash.bin`` that is flashed
-onto secure FLASH0.
+An alternate approach to deploy a full system stack on QEMU is to load the
+firmware via a secure flash device.  This involves concatenating ``bl1.bin`` and
+``fip.bin`` to create a boot ROM that is flashed onto secure FLASH0 with the
+``-bios`` option.
 
--  ``bl32.bin`` -> BL32 (``tee-header_v2.bin``)
--  ``bl32_extra1.bin`` -> BL32 Extra1 (``tee-pager_v2.bin``)
--  ``bl32_extra2.bin`` -> BL32 Extra2 (``tee-pageable_v2.bin``)
--  ``bl33.bin`` -> BL33 (``QEMU_EFI.fd``)
+For example, to test the following firmware stack:
+
+
+-  BL32 - ``bl32.bin`` -> ``tee-header_v2.bin``
+-  BL32 Extra1 - ``bl32_extra1.bin`` -> ``tee-pager_v2.bin``
+-  BL32 Extra2 - ``bl32_extra2.bin`` -> ``tee-pageable_v2.bin``
+-  BL33 - ``bl33.bin`` -> ``QEMU_EFI.fd`` (EDK II)
 -  ``Image`` -> linux/arch/arm64/boot/Image
 
-To build:
+
+1.  Compile TF-A
+
+  .. code:: shell
+
+      make CROSS_COMPILE=aarch64-linux-gnu- PLAT=qemu BL32=bl32.bin \
+          BL32_EXTRA1=bl32_extra1.bin BL32_EXTRA2=bl32_extra2.bin \
+          BL33=bl33.bin BL32_RAM_LOCATION=tdram SPD=opteed all fip
+
+  Or, alternatively, to build with TBBR enabled, as well as, BL31 and BL32 encrypted with
+  test key:
+
+  .. code:: shell
+
+      make CROSS_COMPILE=aarch64-linux-gnu- PLAT=qemu BL32=bl32.bin \
+          BL32_EXTRA1=bl32_extra1.bin BL32_EXTRA2=bl32_extra2.bin \
+          BL33=bl33.bin BL32_RAM_LOCATION=tdram SPD=opteed all fip \
+          MBEDTLS_DIR=<path-to-mbedtls-repo> TRUSTED_BOARD_BOOT=1 \
+          GENERATE_COT=1 DECRYPTION_SUPPORT=aes_gcm FW_ENC_STATUS=0 \
+          ENCRYPT_BL31=1 ENCRYPT_BL32=1
+
+2.  Concatenate ``bl1.bin`` and ``fip.bin`` to create the boot ROM
+
+  .. code:: shell
+
+      dd if=build/qemu/release/bl1.bin of=flash.bin bs=4096 conv=notrunc
+      dd if=build/qemu/release/fip.bin of=flash.bin seek=64 bs=4096 conv=notrunc
+
+3.  Launch QEMU
+
+  .. code:: shell
+
+      qemu-system-aarch64 -nographic -machine virt,secure=on
+          -cpu cortex-a57  -kernel Image   \
+          -append 'console=ttyAMA0,38400 keep_bootcon'  \
+          -initrd rootfs.cpio.gz -smp 2 -m 1024 -bios flash.bin   \
+          -d unimp
+
+The ``-bios`` option abstracts the loading of raw bare metal binaries into flash
+or ROM memory. QEMU loads the binary into the region corresponding to
+the hardware's entrypoint, from which the binary is executed upon a platform
+"reset". In addition to this, it places the information about the kernel
+provided with option ``-kernel``, and the RamDisk provided with ``-initrd``,
+into the firmware configuration ``fw_cfg``. In this setup, EDK II is responsible
+for extracting and launching these from ``fw_cfg``.
+
+.. note::
+    QEMU may be launched with or without ACPI (``-acpi``/``-no-acpi``). In
+    either case, ensure that the kernel build options are aligned with the
+    parameters passed to QEMU.
+
+Running QEMU in OpenCI
+-----------------------
+
+Linaro's continuous integration platform OpenCI supports running emulated tests
+on QEMU. The tests are kicked off on Jenkins and deployed through the Linaro
+Automation and Validation Architecture `LAVA`_.
+
+There are a set of Linux boot tests provided in OpenCI. They rely on prebuilt
+`binaries`_ for UEFI, the kernel, root file system, as well as, any other TF-A
+dependencies, and are run as part of the OpenCI TF-A `daily job`_. To run them
+manually, a `builder`_ job may be triggered with the test configuration
+``qemu-boot-tests``.
+
+
+You may see the following warning repeated several times in the boot logs:
 
 .. code:: shell
 
-    make CROSS_COMPILE=aarch64-linux-gnu- PLAT=qemu BL32=bl32.bin \
-        BL32_EXTRA1=bl32_extra1.bin BL32_EXTRA2=bl32_extra2.bin \
-        BL33=bl33.bin BL32_RAM_LOCATION=tdram SPD=opteed all fip
+    pflash_write: Write to buffer emulation is flawed
 
-To build with TBBR enabled, BL31 and BL32 encrypted with test key:
+Please ignore this as it is an unresolved `issue in QEMU`_, it is an internal
+QEMU warning that logs flawed use of "write to buffer".
 
-.. code:: shell
+.. note::
+    For more information on how to trigger jobs in OpenCI, please refer to
+    Linaro's CI documentation, which explains how to trigger a `manual job`_.
 
-    make CROSS_COMPILE=aarch64-linux-gnu- PLAT=qemu BL32=bl32.bin \
-        BL32_EXTRA1=bl32_extra1.bin BL32_EXTRA2=bl32_extra2.bin \
-        BL33=bl33.bin BL32_RAM_LOCATION=tdram SPD=opteed all fip \
-        MBEDTLS_DIR=<path-to-mbedtls-repo> TRUSTED_BOARD_BOOT=1 \
-        GENERATE_COT=1 DECRYPTION_SUPPORT=aes_gcm FW_ENC_STATUS=0 \
-        ENCRYPT_BL31=1 ENCRYPT_BL32=1
-
-To build flash.bin:
-
-.. code:: shell
-
-    dd if=build/qemu/release/bl1.bin of=flash.bin bs=4096 conv=notrunc
-    dd if=build/qemu/release/fip.bin of=flash.bin seek=64 bs=4096 conv=notrunc
-
-To start (QEMU v5.0.0):
-
-.. code:: shell
-
-    qemu-system-aarch64 -nographic -machine virt,secure=on -cpu cortex-a57  \
-        -kernel Image -no-acpi                     \
-        -append 'console=ttyAMA0,38400 keep_bootcon'  \
-        -initrd rootfs.cpio.gz -smp 2 -m 1024 -bios flash.bin   \
-        -d unimp
+.. _binaries: https://downloads.trustedfirmware.org/tf-a/linux_boot/
+.. _daily job: https://ci.trustedfirmware.org/view/TF-A/job/tf-a-main/
+.. _builder: https://ci.trustedfirmware.org/view/TF-A/job/tf-a-builder/
+.. _LAVA: https://tf.validation.linaro.org/
+.. _manual job: https://tf-ci-users-guide.readthedocs.io/en/latest/#manual-job-trigger
+.. _issue in QEMU: https://git.qemu.org/?p=qemu.git;a=blob;f=hw/block/pflash_cfi01.c;h=0cbc2fb4cbf62c9a033b8dd89012374ff74ed610;hb=refs/heads/master#l500

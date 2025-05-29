@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2014-2022, ARM Limited and Contributors. All rights reserved.
+# Copyright (c) 2014-2023, Arm Limited and Contributors. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -7,6 +7,7 @@
 MAKE_HELPERS_DIRECTORY := ../../make_helpers/
 include ${MAKE_HELPERS_DIRECTORY}build_macros.mk
 include ${MAKE_HELPERS_DIRECTORY}build_env.mk
+include ${MAKE_HELPERS_DIRECTORY}defaults.mk
 
 FIPTOOL ?= fiptool${BIN_EXT}
 PROJECT := $(notdir ${FIPTOOL})
@@ -22,6 +23,15 @@ ifeq (${DEBUG},1)
 else
   HOSTCCFLAGS += -O2
 endif
+
+# Select OpenSSL version flag according to the OpenSSL build selected
+# from setting the OPENSSL_DIR path.
+$(eval $(call SELECT_OPENSSL_API_VERSION))
+
+HOSTCCFLAGS += ${DEFINES}
+# USING_OPENSSL3 flag will be added to the HOSTCCFLAGS variable with the proper
+# computed value.
+HOSTCCFLAGS += -DUSING_OPENSSL3=$(USING_OPENSSL3)
 
 # Include library directories where OpenSSL library files are located.
 # For a normal installation (i.e.: when ${OPENSSL_DIR} = /usr or
@@ -44,18 +54,23 @@ HOSTCC ?= gcc
 ifneq (${PLAT},)
 TF_PLATFORM_ROOT	:=	../../plat/
 include ${MAKE_HELPERS_DIRECTORY}plat_helpers.mk
-PLAT_FIPTOOL_HELPER_MK := ${PLAT_DIR}/plat_fiptool.mk
+COMBINED_PATH_FRAG := plat_fiptool/
+PLAT_FIPTOOL_HELPER_MK := $(foreach path_frag,$(subst /, ,$(patsubst ../../plat/%/,%,${PLAT_DIR})),\
+			  $(eval COMBINED_PATH_FRAG := ${COMBINED_PATH_FRAG}/${path_frag})\
+			  $(wildcard ${COMBINED_PATH_FRAG}/plat_fiptool.mk))
 endif
 
-ifneq (,$(wildcard ${PLAT_FIPTOOL_HELPER_MK}))
+ifneq (,$(wildcard $(lastword ${PLAT_FIPTOOL_HELPER_MK})))
 include ${PLAT_FIPTOOL_HELPER_MK}
 endif
 
-.PHONY: all clean distclean
+DEPS := $(patsubst %.o,%.d,$(OBJECTS))
+
+.PHONY: all clean distclean --openssl
 
 all: ${PROJECT}
 
-${PROJECT}: ${OBJECTS} Makefile
+${PROJECT}: --openssl ${OBJECTS} Makefile
 	@echo "  HOSTLD  $@"
 	${Q}${HOSTCC} ${OBJECTS} -o $@ ${LDLIBS}
 	@${ECHO_BLANK_LINE}
@@ -64,7 +79,15 @@ ${PROJECT}: ${OBJECTS} Makefile
 
 %.o: %.c Makefile
 	@echo "  HOSTCC  $<"
-	${Q}${HOSTCC} -c ${CPPFLAGS} ${HOSTCCFLAGS} ${INCLUDE_PATHS} $< -o $@
+	${Q}${HOSTCC} -c ${CPPFLAGS} ${HOSTCCFLAGS} ${INCLUDE_PATHS} -MD -MP $< -o $@
+
+-include $(DEPS)
+
+--openssl:
+ifeq ($(DEBUG),1)
+	@echo "Selected OpenSSL version: ${OPENSSL_CURRENT_VER}"
+endif
+
 
 clean:
-	$(call SHELL_DELETE_ALL, ${PROJECT} ${OBJECTS})
+	$(call SHELL_DELETE_ALL, ${PROJECT} ${OBJECTS} $(DEPS))

@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2018-2021, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2018-2021, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2018-2022, Xilinx, Inc. All rights reserved.
+ * Copyright (c) 2022, Advanced Micro Devices, Inc. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -15,11 +17,14 @@
 #include <drivers/arm/pl011.h>
 #include <drivers/console.h>
 #include <lib/mmio.h>
-#include <lib/xlat_tables/xlat_tables.h>
+#include <lib/xlat_tables/xlat_tables_v2.h>
 #include <plat/common/platform.h>
 #include <versal_def.h>
 #include <plat_private.h>
 #include <plat_startup.h>
+#include <pm_ipi.h>
+#include "pm_client.h"
+#include "pm_api_sys.h"
 
 static entry_point_info_t bl32_image_ep_info;
 static entry_point_info_t bl33_image_ep_info;
@@ -63,23 +68,26 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 				u_register_t arg2, u_register_t arg3)
 {
 	uint64_t atf_handoff_addr;
+	uint32_t payload[PAYLOAD_ARG_CNT], max_size = ATF_HANDOFF_PARAMS_MAX_SIZE;
+	enum pm_ret_status ret_status;
+	uint64_t addr[ATF_HANDOFF_PARAMS_MAX_SIZE];
 
 	if (VERSAL_CONSOLE_IS(pl011) || (VERSAL_CONSOLE_IS(pl011_1))) {
 		static console_t versal_runtime_console;
 		/* Initialize the console to provide early debug support */
-		int rc = console_pl011_register((unsigned long)VERSAL_UART_BASE,
-						(unsigned int)VERSAL_UART_CLOCK,
-						(unsigned int)VERSAL_UART_BAUDRATE,
+		int32_t rc = console_pl011_register((uintptr_t)VERSAL_UART_BASE,
+						(uint32_t)VERSAL_UART_CLOCK,
+						(uint32_t)VERSAL_UART_BAUDRATE,
 						&versal_runtime_console);
 		if (rc == 0) {
 			panic();
 		}
 
-		console_set_scope(&versal_runtime_console, (unsigned int)(CONSOLE_FLAG_BOOT |
+		console_set_scope(&versal_runtime_console, (uint32_t)(CONSOLE_FLAG_BOOT |
 				  CONSOLE_FLAG_RUNTIME));
 	} else if (VERSAL_CONSOLE_IS(dcc)) {
 		/* Initialize the dcc console for debug */
-		int rc = console_dcc_register();
+		int32_t rc = console_dcc_register();
 		if (rc == 0) {
 			panic();
 		}
@@ -89,9 +97,6 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 
 	/* Initialize the platform config for future decision making */
 	versal_config_setup();
-	/* There are no parameters from BL2 if BL31 is a reset vector */
-	assert(arg0 == 0U);
-	assert(arg1 == 0U);
 
 	/*
 	 * Do initial security configuration to allow DRAM/device access. On
@@ -106,7 +111,17 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	SET_PARAM_HEAD(&bl33_image_ep_info, PARAM_EP, VERSION_1, 0);
 	SET_SECURITY_STATE(bl33_image_ep_info.h.attr, NON_SECURE);
 
-	atf_handoff_addr = mmio_read_32(PMC_GLOBAL_GLOB_GEN_STORAGE4);
+	PM_PACK_PAYLOAD4(payload, LOADER_MODULE_ID, 1, PM_LOAD_GET_HANDOFF_PARAMS,
+			(uintptr_t)addr >> 32U, (uintptr_t)addr, max_size);
+	ret_status = pm_ipi_send_sync(primary_proc, payload, NULL, 0);
+	if (ret_status == PM_RET_SUCCESS) {
+		INFO("BL31: GET_HANDOFF_PARAMS call success=%d\n", ret_status);
+		atf_handoff_addr = (uintptr_t)&addr;
+	} else {
+		ERROR("BL31: GET_HANDOFF_PARAMS Failed, read atf_handoff_addr from reg\n");
+		atf_handoff_addr = mmio_read_32(PMC_GLOBAL_GLOB_GEN_STORAGE4);
+	}
+
 	enum fsbl_handoff ret = fsbl_atf_handover(&bl32_image_ep_info,
 						  &bl33_image_ep_info,
 						  atf_handoff_addr);
@@ -117,23 +132,36 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	} else if (ret != FSBL_HANDOFF_SUCCESS) {
 		panic();
 	} else {
-		INFO("BL31: fsbl-atf handover success %u\n", ret);
+		INFO("BL31: PLM to TF-A handover success %u\n", ret);
 	}
 
 	NOTICE("BL31: Secure code at 0x%lx\n", bl32_image_ep_info.pc);
 	NOTICE("BL31: Non secure code at 0x%lx\n", bl33_image_ep_info.pc);
 }
 
-static interrupt_type_handler_t type_el3_interrupt_handler;
+static versal_intr_info_type_el3_t type_el3_interrupt_table[MAX_INTR_EL3];
 
 int request_intr_type_el3(uint32_t id, interrupt_type_handler_t handler)
 {
-	/* Validate 'handler'*/
-	if (handler == NULL) {
+	static uint32_t index;
+	uint32_t i;
+
+	/* Validate 'handler' and 'id' parameters */
+	if (handler == NULL || index >= MAX_INTR_EL3) {
 		return -EINVAL;
 	}
 
-	type_el3_interrupt_handler = handler;
+	/* Check if a handler has already been registered */
+	for (i = 0; i < index; i++) {
+		if (id == type_el3_interrupt_table[i].id) {
+			return -EALREADY;
+		}
+	}
+
+	type_el3_interrupt_table[index].id = id;
+	type_el3_interrupt_table[index].handler = handler;
+
+	index++;
 
 	return 0;
 }
@@ -142,16 +170,17 @@ static uint64_t rdo_el3_interrupt_handler(uint32_t id, uint32_t flags,
 					  void *handle, void *cookie)
 {
 	uint32_t intr_id;
-	interrupt_type_handler_t handler;
+	uint32_t i;
+	interrupt_type_handler_t handler = NULL;
 
 	intr_id = plat_ic_get_pending_interrupt_id();
-	/* Currently we support one interrupt */
-	if (intr_id != PLAT_VERSAL_IPI_IRQ) {
-		WARN("Unexpected interrupt call: 0x%x\n", intr_id);
-		return 0;
+
+	for (i = 0; i < MAX_INTR_EL3; i++) {
+		if (intr_id == type_el3_interrupt_table[i].id) {
+			handler = type_el3_interrupt_table[i].handler;
+		}
 	}
 
-	handler = type_el3_interrupt_handler;
 	if (handler != NULL) {
 		return handler(intr_id, flags, handle, cookie);
 	}
@@ -200,5 +229,5 @@ void bl31_plat_arch_setup(void)
 	};
 
 	setup_page_tables(bl_regions, plat_versal_get_mmap());
-	enable_mmu_el3(0);
+	enable_mmu(0);
 }

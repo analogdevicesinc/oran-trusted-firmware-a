@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2018-2022, ARM Limited and Contributors. All rights reserved.
+# Copyright (c) 2018-2023, ARM Limited and Contributors. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -13,6 +13,12 @@ PLAT_INCLUDES		:=	-Iplat/imx/common/include		\
 
 # Include GICv3 driver files
 include drivers/arm/gic/v3/gicv3.mk
+
+IMX_DRAM_SOURCES	:=	plat/imx/imx8m/ddr/dram.c		\
+				plat/imx/imx8m/ddr/clock.c		\
+				plat/imx/imx8m/ddr/dram_retention.c	\
+				plat/imx/imx8m/ddr/ddr4_dvfs.c		\
+				plat/imx/imx8m/ddr/lpddr4_dvfs.c
 
 IMX_GIC_SOURCES		:=	${GICV3_SOURCES}			\
 				plat/common/plat_gicv3.c		\
@@ -36,11 +42,14 @@ BL31_SOURCES		+=	plat/imx/common/imx8_helpers.S			\
 				drivers/delay_timer/delay_timer.c		\
 				drivers/delay_timer/generic_delay_timer.c	\
 				${XLAT_TABLES_LIB_SRCS}				\
+				${IMX_DRAM_SOURCES}				\
 				${IMX_GIC_SOURCES}
 
+ENABLE_PIE		:=	1
 USE_COHERENT_MEM	:=	1
 RESET_TO_BL31		:=	1
 A53_DISABLE_NON_TEMPORAL_HINT := 0
+WARMBOOT_ENABLE_DCACHE_EARLY	:=	1
 
 ERRATA_A53_835769	:=	1
 ERRATA_A53_843419	:=	1
@@ -51,6 +60,9 @@ $(eval $(call add_define,BL32_BASE))
 
 BL32_SIZE		?=	0x2000000
 $(eval $(call add_define,BL32_SIZE))
+
+IMX_BOOT_UART_BASE	?=	0x30860000
+$(eval $(call add_define,IMX_BOOT_UART_BASE))
 
 ifeq (${SPD},trusty)
 	BL31_CFLAGS    +=      -DPLAT_XLAT_TABLES_DYNAMIC=1

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2016-2023, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -9,7 +9,8 @@
 #include <arch.h>
 #include <lib/cpus/errata_report.h>
 
-#if defined(IMAGE_BL1) || defined(IMAGE_BL32)  || (defined(IMAGE_BL2) && BL2_AT_EL3)
+#if defined(IMAGE_BL1) || defined(IMAGE_BL32)  \
+	|| (defined(IMAGE_BL2) && RESET_TO_BL2)
 #define IMAGE_AT_EL3
 #endif
 
@@ -129,7 +130,7 @@
 	 */
 	.macro declare_cpu_ops _name:req, _midr:req, _resetfunc:req, \
 		_power_down_ops:vararg
-	.section cpu_ops, "a"
+	.section .cpu_ops, "a"
 	.align 2
 	.type cpu_ops_\_name, %object
 	.word \_midr

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2018, Arm Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -7,7 +7,7 @@
 #include <plat_private.h>
 #include <plat/common/platform.h>
 
-int plat_core_pos_by_mpidr(u_register_t mpidr)
+int32_t plat_core_pos_by_mpidr(u_register_t mpidr)
 {
 	if (mpidr & MPIDR_CLUSTER_MASK) {
 		return -1;

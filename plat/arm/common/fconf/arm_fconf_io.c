@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, ARM Limited. All rights reserved.
+ * Copyright (c) 2019-2023, ARM Limited. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -68,10 +68,16 @@ const io_uuid_spec_t arm_uuid_spec[MAX_NUMBER_IDS] = {
 	[TOS_FW_CONFIG_ID] = {UUID_TOS_FW_CONFIG},
 	[NT_FW_CONFIG_ID] = {UUID_NT_FW_CONFIG},
 	[RMM_IMAGE_ID] = {UUID_REALM_MONITOR_MGMT_FIRMWARE},
+#if ARM_ETHOSN_NPU_TZMP1
+	[ARM_ETHOSN_NPU_FW_IMAGE_ID] = {UUID_ETHOSN_FW},
+#endif /* ARM_ETHOSN_NPU_TZMP1 */
 #endif /* ARM_IO_IN_DTB */
 #if TRUSTED_BOARD_BOOT
 	[TRUSTED_BOOT_FW_CERT_ID] = {UUID_TRUSTED_BOOT_FW_CERT},
 #if !ARM_IO_IN_DTB
+	[CCA_CONTENT_CERT_ID] = {UUID_CCA_CONTENT_CERT},
+	[CORE_SWD_KEY_CERT_ID] = {UUID_CORE_SWD_KEY_CERT},
+	[PLAT_KEY_CERT_ID] = {UUID_PLAT_KEY_CERT},
 	[TRUSTED_KEY_CERT_ID] = {UUID_TRUSTED_KEY_CERT},
 	[SCP_FW_KEY_CERT_ID] = {UUID_SCP_FW_KEY_CERT},
 	[SOC_FW_KEY_CERT_ID] = {UUID_SOC_FW_KEY_CERT},
@@ -85,6 +91,10 @@ const io_uuid_spec_t arm_uuid_spec[MAX_NUMBER_IDS] = {
 	[SIP_SP_CONTENT_CERT_ID] = {UUID_SIP_SECURE_PARTITION_CONTENT_CERT},
 	[PLAT_SP_CONTENT_CERT_ID] = {UUID_PLAT_SECURE_PARTITION_CONTENT_CERT},
 #endif
+#if ARM_ETHOSN_NPU_TZMP1
+	[ARM_ETHOSN_NPU_FW_KEY_CERT_ID] = {UUID_ETHOSN_FW_KEY_CERTIFICATE},
+	[ARM_ETHOSN_NPU_FW_CONTENT_CERT_ID] = {UUID_ETHOSN_FW_CONTENT_CERTIFICATE},
+#endif /* ARM_ETHOSN_NPU_TZMP1 */
 #endif /* ARM_IO_IN_DTB */
 #endif /* TRUSTED_BOARD_BOOT */
 };
@@ -188,6 +198,13 @@ struct plat_io_policy policies[MAX_NUMBER_IDS] = {
 		(uintptr_t)&arm_uuid_spec[NT_FW_CONFIG_ID],
 		open_fip
 	},
+#if ARM_ETHOSN_NPU_TZMP1
+	[ARM_ETHOSN_NPU_FW_IMAGE_ID] = {
+		&fip_dev_handle,
+		(uintptr_t)&arm_uuid_spec[ARM_ETHOSN_NPU_FW_IMAGE_ID],
+		open_fip
+	},
+#endif /* ARM_ETHOSN_NPU_TZMP1 */
 #endif /* ARM_IO_IN_DTB */
 #if TRUSTED_BOARD_BOOT
 	[TRUSTED_BOOT_FW_CERT_ID] = {
@@ -196,6 +213,21 @@ struct plat_io_policy policies[MAX_NUMBER_IDS] = {
 		open_fip
 	},
 #if !ARM_IO_IN_DTB
+	[CCA_CONTENT_CERT_ID] = {
+		&fip_dev_handle,
+		(uintptr_t)&arm_uuid_spec[CCA_CONTENT_CERT_ID],
+		open_fip
+	},
+	[CORE_SWD_KEY_CERT_ID] = {
+		&fip_dev_handle,
+		(uintptr_t)&arm_uuid_spec[CORE_SWD_KEY_CERT_ID],
+		open_fip
+	},
+	[PLAT_KEY_CERT_ID] = {
+		&fip_dev_handle,
+		(uintptr_t)&arm_uuid_spec[PLAT_KEY_CERT_ID],
+		open_fip
+	},
 	[TRUSTED_KEY_CERT_ID] = {
 		&fip_dev_handle,
 		(uintptr_t)&arm_uuid_spec[TRUSTED_KEY_CERT_ID],
@@ -253,17 +285,55 @@ struct plat_io_policy policies[MAX_NUMBER_IDS] = {
 		open_fip
 	},
 #endif
+#if ARM_ETHOSN_NPU_TZMP1
+	[ARM_ETHOSN_NPU_FW_KEY_CERT_ID] = {
+		&fip_dev_handle,
+		(uintptr_t)&arm_uuid_spec[ARM_ETHOSN_NPU_FW_KEY_CERT_ID],
+		open_fip
+	},
+	[ARM_ETHOSN_NPU_FW_CONTENT_CERT_ID] = {
+		&fip_dev_handle,
+		(uintptr_t)&arm_uuid_spec[ARM_ETHOSN_NPU_FW_CONTENT_CERT_ID],
+		open_fip
+	},
+#endif /* ARM_ETHOSN_NPU_TZMP1 */
 #endif /* ARM_IO_IN_DTB */
 #endif /* TRUSTED_BOARD_BOOT */
 };
 
 #ifdef IMAGE_BL2
 
-#if TRUSTED_BOARD_BOOT
-#define FCONF_ARM_IO_UUID_NUMBER	U(21)
+#define FCONF_ARM_IO_UUID_NUM_BASE	U(10)
+
+#if ARM_ETHOSN_NPU_TZMP1
+#define FCONF_ARM_IO_UUID_NUM_NPU	U(1)
 #else
-#define FCONF_ARM_IO_UUID_NUMBER	U(10)
+#define FCONF_ARM_IO_UUID_NUM_NPU	U(0)
 #endif
+
+#if TRUSTED_BOARD_BOOT
+#define FCONF_ARM_IO_UUID_NUM_TBB	U(12)
+#else
+#define FCONF_ARM_IO_UUID_NUM_TBB	U(0)
+#endif /* TRUSTED_BOARD_BOOT */
+
+#if TRUSTED_BOARD_BOOT && defined(SPD_spmd)
+#define FCONF_ARM_IO_UUID_NUM_SPD	U(2)
+#else
+#define FCONF_ARM_IO_UUID_NUM_SPD	U(0)
+#endif /* TRUSTED_BOARD_BOOT && defined(SPD_spmd) */
+
+#if TRUSTED_BOARD_BOOT && ARM_ETHOSN_NPU_TZMP1
+#define FCONF_ARM_IO_UUID_NUM_NPU_TBB	U(2)
+#else
+#define FCONF_ARM_IO_UUID_NUM_NPU_TBB	U(0)
+#endif /* TRUSTED_BOARD_BOOT && ARM_ETHOSN_NPU_TZMP1 */
+
+#define FCONF_ARM_IO_UUID_NUMBER	FCONF_ARM_IO_UUID_NUM_BASE + \
+					FCONF_ARM_IO_UUID_NUM_NPU + \
+					FCONF_ARM_IO_UUID_NUM_TBB + \
+					FCONF_ARM_IO_UUID_NUM_SPD + \
+					FCONF_ARM_IO_UUID_NUM_NPU_TBB
 
 static io_uuid_spec_t fconf_arm_uuids[FCONF_ARM_IO_UUID_NUMBER];
 static OBJECT_POOL_ARRAY(fconf_arm_uuids_pool, fconf_arm_uuids);
@@ -285,7 +355,13 @@ static const struct policies_load_info load_info[FCONF_ARM_IO_UUID_NUMBER] = {
 	{SOC_FW_CONFIG_ID, "soc_fw_cfg_uuid"},
 	{TOS_FW_CONFIG_ID, "tos_fw_cfg_uuid"},
 	{NT_FW_CONFIG_ID, "nt_fw_cfg_uuid"},
+#if ARM_ETHOSN_NPU_TZMP1
+	{ARM_ETHOSN_NPU_FW_IMAGE_ID, "arm_ethosn_npu_fw_uuid"},
+#endif /* ARM_ETHOSN_NPU_TZMP1 */
 #if TRUSTED_BOARD_BOOT
+	{CCA_CONTENT_CERT_ID, "cca_cert_uuid"},
+	{CORE_SWD_KEY_CERT_ID, "core_swd_cert_uuid"},
+	{PLAT_KEY_CERT_ID, "plat_cert_uuid"},
 	{TRUSTED_KEY_CERT_ID, "t_key_cert_uuid"},
 	{SCP_FW_KEY_CERT_ID, "scp_fw_key_uuid"},
 	{SOC_FW_KEY_CERT_ID, "soc_fw_key_uuid"},
@@ -299,6 +375,10 @@ static const struct policies_load_info load_info[FCONF_ARM_IO_UUID_NUMBER] = {
 	{SIP_SP_CONTENT_CERT_ID, "sip_sp_content_cert_uuid"},
 	{PLAT_SP_CONTENT_CERT_ID, "plat_sp_content_cert_uuid"},
 #endif
+#if ARM_ETHOSN_NPU_TZMP1
+	{ARM_ETHOSN_NPU_FW_KEY_CERT_ID, "arm_ethosn_npu_fw_key_cert_uuid"},
+	{ARM_ETHOSN_NPU_FW_CONTENT_CERT_ID, "arm_ethosn_npu_fw_content_cert_uuid"},
+#endif /* ARM_ETHOSN_NPU_TZMP1 */
 #endif /* TRUSTED_BOARD_BOOT */
 };
 

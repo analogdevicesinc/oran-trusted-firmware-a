@@ -31,6 +31,7 @@ To build TF-A for JTAG DCC console:
 ZynqMP platform specific build options
 --------------------------------------
 
+-  ``XILINX_OF_BOARD_DTB_ADDR`` : Specifies the base address of Device tree.
 -  ``ZYNQMP_ATF_MEM_BASE``: Specifies the base address of the bl31 binary.
 -  ``ZYNQMP_ATF_MEM_SIZE``: Specifies the size of the memory region of the bl31 binary.
 -  ``ZYNQMP_BL32_MEM_BASE``: Specifies the base address of the bl32 binary.
@@ -40,6 +41,63 @@ ZynqMP platform specific build options
 
    -  ``cadence``, ``cadence0``: Cadence UART 0
    -  ``cadence1`` : Cadence UART 1
+
+ZynqMP Debug behavior
+---------------------
+
+With DEBUG=1, TF-A for ZynqMP uses DDR memory range instead of OCM memory range
+due to size constraints.
+For DEBUG=1 configuration for ZynqMP the BL31_BASE is set to the DDR location
+of 0x1000 and BL31_LIMIT is set to DDR location of 0x7FFFF. By default the
+above memory range will NOT be reserved in device tree.
+
+To reserve the above memory range in device tree, the device tree base address
+must be provided during build as,
+
+make CROSS_COMPILE=aarch64-none-elf- PLAT=zynqmp RESET_TO_BL31=1 DEBUG=1 \
+       XILINX_OF_BOARD_DTB_ADDR=<DTB address> bl31
+
+The default DTB base address for ZynqMP platform is 0x100000. This default value
+is not set in the code and to use this default address, user still needs to
+provide it through the build command as above.
+
+If the user wants to move the bl31 to a different DDR location, user can provide
+the DDR address location using the build time parameters ZYNQMP_ATF_MEM_BASE and
+ZYNQMP_ATF_MEM_SIZE.
+
+The DDR address must be reserved in the DTB by the user, either by manually
+adding the reserved memory node, in the device tree, with the required address
+range OR let TF-A modify the device tree on the run.
+
+To let TF-A access and modify the device tree, the DTB address must be provided
+to the build command as follows,
+
+make CROSS_COMPILE=aarch64-none-elf- PLAT=zynqmp RESET_TO_BL31=1 DEBUG=1 \
+	ZYNQMP_ATF_MEM_BASE=<DDR address> ZYNQMP_ATF_MEM_SIZE=<size> \
+	XILINX_OF_BOARD_DTB_ADDR=<DTB address> bl31
+
+DDR Address Range Usage
+-----------------------
+
+When FSBL runs on RPU and TF-A is to be placed in DDR address range,
+then the user needs to make sure that the DDR address is beyond 256KB.
+In the RPU view, the first 256 KB is TCM memory.
+
+For this use case, with the minimum base address in DDR for TF-A,
+the build command example is;
+
+make CROSS_COMPILE=aarch64-none-elf- PLAT=zynqmp RESET_TO_BL31=1 DEBUG=1 \
+	ZYNQMP_ATF_MEM_BASE=0x40000 ZYNQMP_ATF_MEM_SIZE=<size>
+
+Configurable Stack Size
+-----------------------
+
+The stack size in TF-A for ZynqMP platform is configurable.
+The custom package can define the desired stack size as per the requirement in
+the make file as follows,
+
+PLATFORM_STACK_SIZE := <value>
+$(eval $(call add_define,PLATFORM_STACK_SIZE))
 
 FSBL->TF-A Parameter Passing
 ----------------------------
@@ -71,3 +129,40 @@ for ZynqMP:
 
 The 4 leaf power domains represent the individual A53 cores, while resources
 common to the cluster are grouped in the power domain on the top.
+
+CUSTOM SIP service support
+--------------------------
+
+- Dedicated SMC FID ZYNQMP_SIP_SVC_CUSTOM(0x82002000)(32-bit)/
+  (0xC2002000)(64-bit) to be used by a custom package for
+  providing CUSTOM SIP service.
+
+- by default platform provides bare minimum definition for
+  custom_smc_handler in this service.
+
+- to use this service, custom package should implement their
+  smc handler with the name custom_smc_handler. once custom package is
+  included in TF-A build, their definition of custom_smc_handler is
+  enabled.
+
+Custom package makefile fragment inclusion in TF-A build
+--------------------------------------------------------
+
+- custom package is not directly part of TF-A source.
+
+- <CUSTOM_PKG_PATH> is the location at which user clones a
+  custom package locally.
+
+- custom package needs to implement makefile fragment named
+  custom_pkg.mk so as to get included in TF-A build.
+
+- custom_pkg.mk specify all the rules to include custom package
+  specific header files, dependent libs, source files that are
+  supposed to be included in TF-A build.
+
+- when <CUSTOM_PKG_PATH> is specified in TF-A build command,
+  custom_pkg.mk is included from <CUSTOM_PKG_PATH> in TF-A build.
+
+- TF-A build command:
+  make CROSS_COMPILE=aarch64-none-elf- PLAT=zynqmp RESET_TO_BL31=1
+  bl31 CUSTOM_PKG_PATH=<...>

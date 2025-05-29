@@ -11,6 +11,7 @@
 #include <platform_def.h>
 
 #include <arch.h>
+#include <arch_features.h>
 #include <arch_helpers.h>
 #include <common/bl_common.h>
 #include <context.h>
@@ -135,17 +136,17 @@ void cm_setup_context(cpu_context_t *ctx, const entry_point_info_t *ep)
 static void enable_extensions_nonsecure(bool el2_unused)
 {
 #if IMAGE_BL32
-#if ENABLE_AMU
-	amu_enable(el2_unused);
-#endif
+	if (is_feat_amu_supported()) {
+		amu_enable(el2_unused);
+	}
 
-#if ENABLE_SYS_REG_TRACE_FOR_NS
-	sys_reg_trace_enable();
-#endif /* ENABLE_SYS_REG_TRACE_FOR_NS */
+	if (is_feat_sys_reg_trace_supported()) {
+		sys_reg_trace_enable();
+	}
 
-#if ENABLE_TRF_FOR_NS
-	trf_enable();
-#endif /* ENABLE_TRF_FOR_NS */
+	if (is_feat_trf_supported()) {
+		trf_enable();
+	}
 #endif
 }
 

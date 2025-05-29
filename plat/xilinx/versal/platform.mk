@@ -1,4 +1,5 @@
-# Copyright (c) 2018-2021, ARM Limited and Contributors. All rights reserved.
+# Copyright (c) 2018-2021, Arm Limited and Contributors. All rights reserved.
+# Copyright (c) 2022-2023, Advanced Micro Devices, Inc. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
@@ -10,6 +11,10 @@ override RESET_TO_BL31 := 1
 PL011_GENERIC_UART := 1
 IPI_CRC_CHECK := 0
 HARDEN_SLS_ALL := 0
+
+# A72 Erratum for SoC
+ERRATA_A72_859971 := 1
+ERRATA_A72_1319367 := 1
 
 ifdef VERSAL_ATF_MEM_BASE
     $(eval $(call add_define,VERSAL_ATF_MEM_BASE))
@@ -48,10 +53,9 @@ PLAT_INCLUDES		:=	-Iinclude/plat/arm/common/			\
 
 # Include GICv3 driver files
 include drivers/arm/gic/v3/gicv3.mk
+include lib/xlat_tables_v2/xlat_tables.mk
 
-PLAT_BL_COMMON_SOURCES	:=	lib/xlat_tables/xlat_tables_common.c		\
-				lib/xlat_tables/aarch64/xlat_tables.c		\
-				drivers/arm/dcc/dcc_console.c			\
+PLAT_BL_COMMON_SOURCES	:= 	drivers/arm/dcc/dcc_console.c			\
 				drivers/delay_timer/delay_timer.c		\
 				drivers/delay_timer/generic_delay_timer.c	\
 				${GICV3_SOURCES}				\
@@ -61,7 +65,8 @@ PLAT_BL_COMMON_SOURCES	:=	lib/xlat_tables/xlat_tables_common.c		\
 				plat/arm/common/arm_common.c			\
 				plat/common/plat_gicv3.c			\
 				plat/xilinx/versal/aarch64/versal_helpers.S	\
-				plat/xilinx/versal/aarch64/versal_common.c
+				plat/xilinx/versal/aarch64/versal_common.c	\
+				${XLAT_TABLES_LIB_SRCS}
 
 VERSAL_CONSOLE	?=	pl011
 ifeq (${VERSAL_CONSOLE}, $(filter ${VERSAL_CONSOLE},pl011 pl011_0 pl011_1 dcc))
@@ -78,6 +83,8 @@ BL31_SOURCES		+=	drivers/arm/cci/cci.c				\
 				plat/xilinx/common/plat_startup.c		\
 				plat/xilinx/common/ipi_mailbox_service/ipi_mailbox_svc.c \
 				plat/xilinx/common/pm_service/pm_ipi.c		\
+				plat/xilinx/common/pm_service/pm_api_sys.c	\
+				plat/xilinx/common/pm_service/pm_svc_main.c	\
 				plat/xilinx/versal/bl31_versal_setup.c		\
 				plat/xilinx/versal/plat_psci.c			\
 				plat/xilinx/versal/plat_versal.c		\
@@ -85,8 +92,6 @@ BL31_SOURCES		+=	drivers/arm/cci/cci.c				\
 				plat/xilinx/versal/sip_svc_setup.c		\
 				plat/xilinx/versal/versal_gicv3.c		\
 				plat/xilinx/versal/versal_ipi.c			\
-				plat/xilinx/versal/pm_service/pm_svc_main.c	\
-				plat/xilinx/versal/pm_service/pm_api_sys.c	\
 				plat/xilinx/versal/pm_service/pm_client.c
 
 ifeq ($(HARDEN_SLS_ALL), 1)

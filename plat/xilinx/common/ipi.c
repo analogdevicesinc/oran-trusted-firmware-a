@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2017-2018, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2017-2020, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2020-2022, Xilinx, Inc. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -17,7 +18,6 @@
 #include <lib/mmio.h>
 
 #include <ipi.h>
-#include <plat_ipi.h>
 #include <plat_private.h>
 
 /*********************************************************************
@@ -39,7 +39,7 @@
 #define IPI_BIT_MASK(I) (ipi_table[(I)].ipi_bit_mask)
 
 /* IPI configuration table */
-const static struct ipi_config *ipi_table;
+static const struct ipi_config *ipi_table;
 
 /* Total number of IPI */
 static uint32_t ipi_total;
@@ -141,7 +141,7 @@ void ipi_mb_release(uint32_t local, uint32_t remote)
  */
 int ipi_mb_enquire_status(uint32_t local, uint32_t remote)
 {
-	int ret = 0;
+	int ret = 0U;
 	uint32_t status;
 
 	status = mmio_read_32(IPI_REG_BASE(local) + IPI_OBR_OFFSET);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022, STMicroelectronics - All Rights Reserved
+ * Copyright (C) 2018-2023, STMicroelectronics - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -34,6 +34,9 @@ uintptr_t stm32mp_pwr_base(void);
 
 /* Return the base address of the RCC peripheral */
 uintptr_t stm32mp_rcc_base(void);
+
+void stm32mp_gic_pcpu_init(void);
+void stm32mp_gic_init(void);
 
 /* Check MMU status to allow spinlock use */
 bool stm32mp_lock_available(void);
@@ -109,28 +112,24 @@ void stm32mp_print_boardinfo(void);
 /* Initialise the IO layer and register platform IO devices */
 void stm32mp_io_setup(void);
 
-#if STM32MP_USE_STM32IMAGE
-/*
- * Check that the STM32 header of a .stm32 binary image is valid
- * @param header: pointer to the stm32 image header
- * @param buffer: address of the binary image (payload)
- * @return: 0 on success, negative value in case of error
- */
-int stm32mp_check_header(boot_api_image_header_t *header, uintptr_t buffer);
-#endif /* STM32MP_USE_STM32IMAGE */
-
 /* Functions to map DDR in MMU with non-cacheable attribute, and unmap it */
 int stm32mp_map_ddr_non_cacheable(void);
 int stm32mp_unmap_ddr(void);
 
-/* Functions to save and get boot peripheral info */
-void stm32_save_boot_interface(uint32_t interface, uint32_t instance);
+/* Function to save boot info */
+void stm32_save_boot_info(boot_api_context_t *boot_context);
+/* Function to get boot peripheral info */
 void stm32_get_boot_interface(uint32_t *interface, uint32_t *instance);
+/* Function to get BOOT_MODE backup register address */
+uintptr_t stm32_get_bkpr_boot_mode_addr(void);
 
-#if !STM32MP_USE_STM32IMAGE && PSA_FWU_SUPPORT
+/* Display board information from the value found in OTP fuse */
+void stm32_display_board_info(uint32_t board_id);
+
+#if PSA_FWU_SUPPORT
 void stm32mp1_fwu_set_boot_idx(void);
 uint32_t stm32_get_and_dec_fwu_trial_boot_cnt(void);
 void stm32_set_max_fwu_trial_boot_cnt(void);
-#endif /* !STM32MP_USE_STM32IMAGE && PSA_FWU_SUPPORT */
+#endif /* PSA_FWU_SUPPORT */
 
 #endif /* STM32MP_COMMON_H */

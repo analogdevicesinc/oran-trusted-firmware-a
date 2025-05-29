@@ -39,7 +39,7 @@
 #define MT_UNKNOWN	~0U
 
 static uint64_t xlat_tables[MAX_XLAT_TABLES][XLAT_TABLE_ENTRIES]
-			__aligned(XLAT_TABLE_SIZE) __section("xlat_table");
+			__aligned(XLAT_TABLE_SIZE) __section(".xlat_table");
 
 static unsigned int next_xlat;
 static unsigned long long xlat_max_pa;
@@ -161,7 +161,7 @@ void mmap_add_region(unsigned long long base_pa, uintptr_t base_va,
 	/* Make room for new region by moving other regions up by one place */
 	(void)memmove(mm + 1, mm, (uintptr_t)mm_last - (uintptr_t)mm);
 
-	/* Check we haven't lost the empty sentinal from the end of the array */
+	/* Check we haven't lost the empty sentinel from the end of the array */
 	assert(mm_last->size == 0U);
 
 	mm->base_pa = base_pa;

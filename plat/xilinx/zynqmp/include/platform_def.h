@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2014-2022, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2014-2022, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2018-2022, Xilinx, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Advanced Micro Devices, Inc. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -19,10 +21,11 @@
  ******************************************************************************/
 
 /* Size of cacheable stacks */
+#ifndef PLATFORM_STACK_SIZE
 #define PLATFORM_STACK_SIZE 0x440
+#endif
 
 #define PLATFORM_CORE_COUNT		U(4)
-#define PLAT_NUM_POWER_DOMAINS		U(5)
 #define PLAT_MAX_PWR_LVL		U(1)
 #define PLAT_MAX_RET_STATE		U(1)
 #define PLAT_MAX_OFF_STATE		U(2)
@@ -83,18 +86,30 @@
 /*******************************************************************************
  * Platform specific page table and MMU setup constants
  ******************************************************************************/
-#define XILINX_OF_BOARD_DTB_ADDR	U(0x100000)
 #define XILINX_OF_BOARD_DTB_MAX_SIZE	U(0x200000)
 #define PLAT_DDR_LOWMEM_MAX		U(0x80000000)
+#define PLAT_OCM_BASE			U(0xFFFC0000)
+#define PLAT_OCM_LIMIT			U(0xFFFFFFFF)
+
+#define IS_TFA_IN_OCM(x)		((x >= PLAT_OCM_BASE) && (x < PLAT_OCM_LIMIT))
 
 #define PLAT_PHY_ADDR_SPACE_SIZE	(1ULL << 32)
 #define PLAT_VIRT_ADDR_SPACE_SIZE	(1ULL << 32)
-#if (BL31_LIMIT < PLAT_DDR_LOWMEM_MAX)
+
+#ifndef MAX_MMAP_REGIONS
+#if (defined(XILINX_OF_BOARD_DTB_ADDR) && !IS_TFA_IN_OCM(BL31_BASE))
 #define MAX_MMAP_REGIONS		8
-#define MAX_XLAT_TABLES			6
 #else
 #define MAX_MMAP_REGIONS		7
+#endif
+#endif
+
+#ifndef MAX_XLAT_TABLES
+#if !IS_TFA_IN_OCM(BL31_BASE)
+#define MAX_XLAT_TABLES			8
+#else
 #define MAX_XLAT_TABLES			5
+#endif
 #endif
 
 #define CACHE_WRITEBACK_SHIFT   6

@@ -6,6 +6,7 @@
 
 #include <assert.h>
 
+#include <arch_features.h>
 #include <arch_helpers.h>
 #include <common/debug.h>
 #include <drivers/arm/gicv3.h>
@@ -53,13 +54,13 @@ static void fvp_cluster_pwrdwn_common(void)
 {
 	uint64_t mpidr = read_mpidr_el1();
 
-#if ENABLE_SPE_FOR_LOWER_ELS
 	/*
 	 * On power down we need to disable statistical profiling extensions
 	 * before exiting coherency.
 	 */
-	spe_disable();
-#endif
+	if (is_feat_spe_supported()) {
+		spe_disable();
+	}
 
 	/* Disable coherency if this cluster is to be turned off */
 	fvp_interconnect_disable();
@@ -227,7 +228,11 @@ static void fvp_pwr_domain_off(const psci_power_state_t *target_state)
  * FVP handler called when a power domain is about to be suspended. The
  * target_state encodes the power state that each level should transition to.
  ******************************************************************************/
+#if PSCI_OS_INIT_MODE
+static int fvp_pwr_domain_suspend(const psci_power_state_t *target_state)
+#else
 static void fvp_pwr_domain_suspend(const psci_power_state_t *target_state)
+#endif
 {
 	unsigned long mpidr;
 
@@ -237,7 +242,11 @@ static void fvp_pwr_domain_suspend(const psci_power_state_t *target_state)
 	 */
 	if (target_state->pwr_domain_state[ARM_PWR_LVL0] ==
 					ARM_LOCAL_STATE_RET)
+#if PSCI_OS_INIT_MODE
+		return PSCI_E_SUCCESS;
+#else
 		return;
+#endif
 
 	assert(target_state->pwr_domain_state[ARM_PWR_LVL0] ==
 					ARM_LOCAL_STATE_OFF);
@@ -269,6 +278,12 @@ static void fvp_pwr_domain_suspend(const psci_power_state_t *target_state)
 
 	/* Program the power controller to power off this cpu. */
 	fvp_pwrc_write_ppoffr(read_mpidr_el1());
+
+#if PSCI_OS_INIT_MODE
+	return PSCI_E_SUCCESS;
+#else
+	return;
+#endif
 }
 
 /*******************************************************************************

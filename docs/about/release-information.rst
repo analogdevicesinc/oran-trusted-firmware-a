@@ -52,22 +52,43 @@ depending on project requirement and partner feedback.
 +-----------------+---------------------------+------------------------------+
 | v2.8            | 5th week of Nov '22       | 3rd week of Nov '22          |
 +-----------------+---------------------------+------------------------------+
+| v2.9            | 4th week of May '23       | 2nd week of May '23          |
++-----------------+---------------------------+------------------------------+
+| v3.0            | 2nd week of Nov '23       | 2nd week of Oct '23          |
++-----------------+---------------------------+------------------------------+
 
 Removal of Deprecated Interfaces
 --------------------------------
 
-As mentioned in the :ref:`Platform Compatibility Policy`, this is a live
-document cataloging all the deprecated interfaces in TF-A project and the
-Release version after which it will be removed.
+As mentioned in the :ref:`Platform Ports Policy`, this is a live document
+cataloging all the deprecated interfaces in TF-A project and the Release version
+after which it will be removed.
 
 +--------------------------------+-------------+---------+---------------------------------------------------------+
 | Interface                      | Deprecation | Removed | Comments                                                |
 |                                | Date        | after   |                                                         |
 |                                |             | Release |                                                         |
 +================================+=============+=========+=========================================================+
-| STM32MP_USE_STM32IMAGE macro   |   Dec '21   |   2.7   | FIP is the recommended boot method for STM32MP          |
+| None at this time              |             |         |                                                         |
++--------------------------------+-------------+---------+---------------------------------------------------------+
+
+Removal of Deprecated Drivers
+-----------------------------
+
+As mentioned in the :ref:`Platform Ports Policy`, this is a live document
+cataloging all the deprecated drivers in TF-A project and the Release version
+after which it will be removed.
+
++--------------------------------+-------------+---------+---------------------------------------------------------+
+| Driver                         | Deprecation | Removed | Comments                                                |
+|                                | Date        | after   |                                                         |
+|                                |             | Release |                                                         |
++================================+=============+=========+=========================================================+
+| CryptoCell-712                 |     2.9     |   3.0   | No longer maintained.                                   |
++--------------------------------+-------------+---------+---------------------------------------------------------+
+| CryptoCell-713                 |     2.9     |   3.0   | No longer maintained.                                   |
 +--------------------------------+-------------+---------+---------------------------------------------------------+
 
 --------------
 
-*Copyright (c) 2018-2021, Arm Limited and Contributors. All rights reserved.*
+*Copyright (c) 2018-2023, Arm Limited and Contributors. All rights reserved.*

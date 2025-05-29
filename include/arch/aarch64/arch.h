@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2022, Arm Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2023, Arm Limited and Contributors. All rights reserved.
  * Copyright (c) 2020-2022, NVIDIA Corporation. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -79,6 +79,7 @@
  ******************************************************************************/
 #define ICC_IGRPEN1_EL1		S3_0_C12_C12_7
 #define ICC_SGI1R		S3_0_C12_C11_5
+#define ICC_ASGI1R		S3_0_C12_C11_6
 #define ICC_SRE_EL1		S3_0_C12_C12_5
 #define ICC_SRE_EL2		S3_4_C12_C9_5
 #define ICC_SRE_EL3		S3_6_C12_C12_5
@@ -118,8 +119,11 @@
 #define MPAMVPM7_EL2		S3_4_C10_C6_7
 #define MPAMVPMV_EL2		S3_4_C10_C4_1
 #define TRFCR_EL2		S3_4_C1_C2_1
+#define VNCR_EL2		S3_4_C2_C2_0
 #define PMSCR_EL2		S3_4_C9_C9_0
 #define TFSR_EL2		S3_4_C5_C6_0
+#define CONTEXTIDR_EL2		S3_4_C13_C0_1
+#define TTBR1_EL2		S3_4_C2_C0_1
 
 /*******************************************************************************
  * Generic timer memory mapped registers & offsets
@@ -261,6 +265,15 @@
 #define ID_AA64ISAR1_SB_SUPPORTED	ULL(0x1)
 #define ID_AA64ISAR1_SB_NOT_SUPPORTED	ULL(0x0)
 
+/* ID_AA64ISAR2_EL1 definitions */
+#define ID_AA64ISAR2_EL1		S3_0_C0_C6_2
+
+#define ID_AA64ISAR2_GPA3_SHIFT		U(8)
+#define ID_AA64ISAR2_GPA3_MASK		ULL(0xf)
+
+#define ID_AA64ISAR2_APA3_SHIFT		U(12)
+#define ID_AA64ISAR2_APA3_MASK		ULL(0xf)
+
 /* ID_AA64MMFR0_EL1 definitions */
 #define ID_AA64MMFR0_EL1_PARANGE_SHIFT	U(0)
 #define ID_AA64MMFR0_EL1_PARANGE_MASK	ULL(0xf)
@@ -339,7 +352,28 @@
 #define ID_AA64MMFR2_EL1_NV_SUPPORTED		ULL(0x1)
 #define ID_AA64MMFR2_EL1_NV2_SUPPORTED		ULL(0x2)
 
+/* ID_AA64MMFR3_EL1 definitions */
+#define ID_AA64MMFR3_EL1			S3_0_C0_C7_3
+
+#define ID_AA64MMFR3_EL1_S2POE_SHIFT		U(20)
+#define ID_AA64MMFR3_EL1_S2POE_MASK		ULL(0xf)
+
+#define ID_AA64MMFR3_EL1_S1POE_SHIFT		U(16)
+#define ID_AA64MMFR3_EL1_S1POE_MASK		ULL(0xf)
+
+#define ID_AA64MMFR3_EL1_S2PIE_SHIFT		U(12)
+#define ID_AA64MMFR3_EL1_S2PIE_MASK		ULL(0xf)
+
+#define ID_AA64MMFR3_EL1_S1PIE_SHIFT		U(8)
+#define ID_AA64MMFR3_EL1_S1PIE_MASK		ULL(0xf)
+
+#define ID_AA64MMFR3_EL1_TCRX_SHIFT		U(0)
+#define ID_AA64MMFR3_EL1_TCRX_MASK		ULL(0xf)
+
 /* ID_AA64PFR1_EL1 definitions */
+#define ID_AA64PFR1_EL1_GCS_SHIFT	U(44)
+#define ID_AA64PFR1_EL1_GCS_MASK	ULL(0xf)
+
 #define ID_AA64PFR1_EL1_SSBS_SHIFT	U(4)
 #define ID_AA64PFR1_EL1_SSBS_MASK	ULL(0xf)
 
@@ -352,6 +386,15 @@
 
 #define ID_AA64PFR1_EL1_MTE_SHIFT	U(8)
 #define ID_AA64PFR1_EL1_MTE_MASK	ULL(0xf)
+
+#define ID_AA64PFR1_EL1_RNDR_TRAP_SHIFT	U(28)
+#define ID_AA64PFR1_EL1_RNDR_TRAP_MASK	U(0xf)
+
+#define ID_AA64PFR1_EL1_RNG_TRAP_SUPPORTED	ULL(0x1)
+#define ID_AA64PFR1_EL1_RNG_TRAP_NOT_SUPPORTED	ULL(0x0)
+
+#define VDISR_EL2				S3_4_C12_C1_1
+#define VSESR_EL2				S3_4_C5_C2_3
 
 /* Memory Tagging Extension is not implemented */
 #define MTE_UNIMPLEMENTED	U(0)
@@ -368,8 +411,11 @@
 #define ID_AA64PFR1_MPAM_FRAC_SHIFT	ULL(16)
 #define ID_AA64PFR1_MPAM_FRAC_MASK	ULL(0xf)
 
-#define ID_AA64PFR1_EL1_SME_SHIFT	U(24)
-#define ID_AA64PFR1_EL1_SME_MASK	ULL(0xf)
+#define ID_AA64PFR1_EL1_SME_SHIFT		U(24)
+#define ID_AA64PFR1_EL1_SME_MASK		ULL(0xf)
+#define ID_AA64PFR1_EL1_SME_NOT_SUPPORTED	ULL(0x0)
+#define ID_AA64PFR1_EL1_SME_SUPPORTED		ULL(0x1)
+#define ID_AA64PFR1_EL1_SME2_SUPPORTED		ULL(0x2)
 
 /* ID_PFR1_EL1 definitions */
 #define ID_PFR1_VIRTEXT_SHIFT	U(12)
@@ -477,6 +523,8 @@
 #define CPACR_EL1_FP_TRAP_EL0	UL(0x1)
 #define CPACR_EL1_FP_TRAP_ALL	UL(0x2)
 #define CPACR_EL1_FP_TRAP_NONE	UL(0x3)
+#define CPACR_EL1_SMEN_SHIFT	U(24)
+#define CPACR_EL1_SMEN_MASK	ULL(0x3)
 
 /* SCR definitions */
 #define SCR_RES1_BITS		((U(1) << 4) | (U(1) << 5))
@@ -485,6 +533,10 @@
 #define SCR_GPF_BIT		(UL(1) << 48)
 #define SCR_TWEDEL_SHIFT	U(30)
 #define SCR_TWEDEL_MASK		ULL(0xf)
+#define SCR_PIEN_BIT		(UL(1) << 45)
+#define SCR_TCR2EN_BIT		(UL(1) << 43)
+#define SCR_TRNDR_BIT		(UL(1) << 40)
+#define SCR_GCSEn_BIT		(UL(1) << 39)
 #define SCR_HXEn_BIT		(UL(1) << 38)
 #define SCR_ENTP2_SHIFT		U(41)
 #define SCR_ENTP2_BIT		(UL(1) << SCR_ENTP2_SHIFT)
@@ -703,7 +755,7 @@
 #define HI_VECTOR_BASE		U(0xFFFF0000)
 
 /*
- * TCR defintions
+ * TCR definitions
  */
 #define TCR_EL3_RES1		((ULL(1) << 31) | (ULL(1) << 23))
 #define TCR_EL2_RES1		((ULL(1) << 31) | (ULL(1) << 23))
@@ -977,12 +1029,19 @@
 #define SMCR_EL3			S3_6_C1_C2_6
 
 /* ID_AA64SMFR0_EL1 definitions */
-#define ID_AA64SMFR0_EL1_FA64_BIT	(UL(1) << 63)
+#define ID_AA64SMFR0_EL1_SME_FA64_SHIFT		U(63)
+#define ID_AA64SMFR0_EL1_SME_FA64_MASK		U(0x1)
+#define ID_AA64SMFR0_EL1_SME_FA64_SUPPORTED	U(0x1)
+#define ID_AA64SMFR0_EL1_SME_VER_SHIFT		U(55)
+#define ID_AA64SMFR0_EL1_SME_VER_MASK		ULL(0xf)
+#define ID_AA64SMFR0_EL1_SME_INST_SUPPORTED	ULL(0x0)
+#define ID_AA64SMFR0_EL1_SME2_INST_SUPPORTED	ULL(0x1)
 
 /* SMCR_ELx definitions */
 #define SMCR_ELX_LEN_SHIFT		U(0)
-#define SMCR_ELX_LEN_MASK		U(0x1ff)
+#define SMCR_ELX_LEN_MAX		U(0x1ff)
 #define SMCR_ELX_FA64_BIT		(U(1) << 31)
+#define SMCR_ELX_EZT0_BIT		(U(1) << 30)
 
 /*******************************************************************************
  * Definitions of MAIR encodings for device and normal memory
@@ -1046,13 +1105,15 @@
 #define PMBLIMITR_EL1		S3_0_C9_C10_0
 
 /*******************************************************************************
- * Definitions for system register interface to MPAM
+ * Definitions for system register interface, shifts and masks for MPAM
  ******************************************************************************/
 #define MPAMIDR_EL1		S3_0_C10_C4_4
 #define MPAM2_EL2		S3_4_C10_C5_0
 #define MPAMHCR_EL2		S3_4_C10_C4_0
 #define MPAM3_EL3		S3_6_C10_C5_0
 
+#define MPAMIDR_EL1_VPMR_MAX_SHIFT	ULL(18)
+#define MPAMIDR_EL1_VPMR_MAX_MASK	ULL(0x7)
 /*******************************************************************************
  * Definitions for system register interface to AMU for FEAT_AMUv1
  ******************************************************************************/
@@ -1201,6 +1262,8 @@
 #define GPCCR_EL3			S3_6_C2_C1_6
 #define GPTBR_EL3			S3_6_C2_C1_4
 
+#define SCXTNUM_EL2			S3_4_C13_C0_7
+
 /*******************************************************************************
  * RAS system registers
  ******************************************************************************/
@@ -1265,14 +1328,48 @@
 #define GCR_EL1			S3_0_C1_C0_6
 
 /*******************************************************************************
+ * Armv8.5 - Random Number Generator Registers
+ ******************************************************************************/
+#define RNDR			S3_3_C2_C4_0
+#define RNDRRS			S3_3_C2_C4_1
+
+/*******************************************************************************
  * FEAT_HCX - Extended Hypervisor Configuration Register
  ******************************************************************************/
 #define HCRX_EL2		S3_4_C1_C2_2
+#define HCRX_EL2_MSCEn_BIT	(UL(1) << 11)
+#define HCRX_EL2_MCE2_BIT	(UL(1) << 10)
+#define HCRX_EL2_CMOW_BIT	(UL(1) << 9)
+#define HCRX_EL2_VFNMI_BIT	(UL(1) << 8)
+#define HCRX_EL2_VINMI_BIT	(UL(1) << 7)
+#define HCRX_EL2_TALLINT_BIT	(UL(1) << 6)
+#define HCRX_EL2_SMPME_BIT	(UL(1) << 5)
 #define HCRX_EL2_FGTnXS_BIT	(UL(1) << 4)
 #define HCRX_EL2_FnXS_BIT	(UL(1) << 3)
 #define HCRX_EL2_EnASR_BIT	(UL(1) << 2)
 #define HCRX_EL2_EnALS_BIT	(UL(1) << 1)
 #define HCRX_EL2_EnAS0_BIT	(UL(1) << 0)
+#define HCRX_EL2_INIT_VAL	ULL(0x0)
+
+/*******************************************************************************
+ * FEAT_TCR2 - Extended Translation Control Register
+ ******************************************************************************/
+#define TCR2_EL2		S3_4_C2_C0_3
+
+/*******************************************************************************
+ * Permission indirection and overlay
+ ******************************************************************************/
+
+#define PIRE0_EL2		S3_4_C10_C2_2
+#define PIR_EL2			S3_4_C10_C2_3
+#define POR_EL2			S3_4_C10_C2_4
+#define S2PIR_EL2		S3_4_C10_C2_5
+
+/*******************************************************************************
+ * FEAT_GCS - Guarded Control Stack Registers
+ ******************************************************************************/
+#define GCSCR_EL2		S3_4_C2_C5_0
+#define GCSPR_EL2		S3_4_C2_C5_1
 
 /*******************************************************************************
  * Definitions for DynamicIQ Shared Unit registers
@@ -1295,5 +1392,8 @@
 #define CPUMPMMCR_EL3			S3_6_C15_C2_1
 #define CPUMPMMCR_EL3_MPMM_EN_SHIFT	UINT64_C(0)
 #define CPUMPMMCR_EL3_MPMM_EN_MASK	UINT64_C(0x1)
+
+/* alternative system register encoding for the "sb" speculation barrier */
+#define SYSREG_SB			S0_3_C3_C0_7
 
 #endif /* ARCH_H */

@@ -9,10 +9,8 @@ relevant to Trusted Firmware-A. We encourage responsible disclosure of
 vulnerabilities and inform users as best we can about all possible issues.
 
 We disclose TF-A vulnerabilities as Security Advisories, all of which are listed
-at the bottom of this page. Any new ones will, additionally, be announced as
-issues in the project's `issue tracker`_ with the ``security-advisory`` tag. You
-can receive notification emails for these by watching the "Trusted Firmware-A"
-project at https://developer.trustedfirmware.org/.
+at the bottom of this page. Any new ones will, additionally, be announced on the
+TF-A project's `mailing list`_.
 
 Found a Security Issue?
 -----------------------
@@ -69,6 +67,12 @@ Security Advisories
 |  |TFV-8|  | Not saving x0 to x3 registers can leak information from one      |
 |           | Normal World SMC client to another                               |
 +-----------+------------------------------------------------------------------+
+|  |TFV-9|  | Trusted Firmware-A exposure to speculative processor             |
+|           | vulnerabilities with branch prediction target reuse              |
++-----------+------------------------------------------------------------------+
+|  |TFV-10| | Incorrect validation of X.509 certificate extensions can result  |
+|           | in an out-of-bounds read                                         |
++-----------+------------------------------------------------------------------+
 
 .. _issue tracker: https://developer.trustedfirmware.org/project/board/1/
 .. _mailing list: https://lists.trustedfirmware.org/mailman3/lists/tf-a.lists.trustedfirmware.org/
@@ -81,9 +85,11 @@ Security Advisories
 .. |TFV-6| replace:: :ref:`Advisory TFV-6 (CVE-2017-5753, CVE-2017-5715, CVE-2017-5754)`
 .. |TFV-7| replace:: :ref:`Advisory TFV-7 (CVE-2018-3639)`
 .. |TFV-8| replace:: :ref:`Advisory TFV-8 (CVE-2018-19440)`
+.. |TFV-9| replace:: :ref:`Advisory TFV-9 (CVE-2022-23960)`
+.. |TFV-10| replace:: :ref:`Advisory TFV-10 (CVE-2022-47630)`
 
 .. _TrustedFirmware.org security incident process: https://developer.trustedfirmware.org/w/collaboration/security_center/
 
 --------------
 
-*Copyright (c) 2019-2022, Arm Limited. All rights reserved.*
+*Copyright (c) 2019-2023, Arm Limited. All rights reserved.*
