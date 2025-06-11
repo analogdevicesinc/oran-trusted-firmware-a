@@ -8,8 +8,8 @@
 #define GPIO_ACTIVE_HIGH        0 /* From u-boot: include/dt-bindings/gpio/gpio.h.*/
 #define GPIO_ACTIVE_LOW         1
 
-#define PHY_INTERFACE_MODE_RMII   6 /* From u-boot include/phy_interface.h */
-#define PHY_INTERFACE_MODE_RGMII  7
+#define PHY_INTERFACE_MODE_RMII   7 /* From u-boot include/phy_interface.h */
+#define PHY_INTERFACE_MODE_RGMII  9
 
 #include "adrv906x_def.h"
 #include "pinctrl-adi-adrv906x.h"
@@ -60,7 +60,7 @@
 		psci {
 			compatible = "arm,psci-1.0";
 			method = "smc";
-			u-boot,dm-pre-reloc;
+			bootph-all;
 		};
 	};
 
@@ -114,7 +114,7 @@
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <250000000>;
-		u-boot,dm-pre-reloc;
+		bootph-all;
 	};
 
 	dwmac_clk: dwmac_clk {
@@ -125,7 +125,7 @@
 		clocks = <&dwmac_clkin>;
 		clock-names = "dwmac_clkin";
 		status = "okay";
-		u-boot,dm-pre-reloc;
+		bootph-all;
 		adi,ctrl-reg = <EMAC_1G_CLK_CTRL 0x08>;
 	};
 
