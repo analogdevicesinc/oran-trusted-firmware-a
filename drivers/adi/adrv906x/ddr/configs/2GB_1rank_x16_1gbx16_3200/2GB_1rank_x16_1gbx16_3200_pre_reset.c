@@ -53,11 +53,11 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_3200_pre_reset_init(uintptr_t base_addr_ctr
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_CRCPARCTL1, 0x00000000);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_INIT0, 0x00020002);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_INIT1, 0x00010002);
-	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_INIT3, 0x0c510103);
+	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_INIT3, 0x0c510403);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_INIT4, 0x00280400);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_INIT5, 0x00110000);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_INIT6, 0x00000640);
-	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_INIT7, 0x00001059);
+	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_INIT7, 0x00001004);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_DIMMCTL, 0x00000000);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_RANKCTL, 0x0000022f);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_RANKCTL1, 0x00000002);
@@ -123,10 +123,10 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_3200_pre_reset_init(uintptr_t base_addr_ctr
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_FREQ1_FREQ1_PWRTMG, 0x00400004);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_FREQ1_FREQ1_RFSHCTL0, 0x00210000);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_FREQ1_FREQ1_RFSHTMG, 0x00c301b8);
-	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_FREQ1_FREQ1_INIT3, 0x0c510103);
+	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_FREQ1_FREQ1_INIT3, 0x0c510403);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_FREQ1_FREQ1_INIT4, 0x00280400);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_FREQ1_FREQ1_INIT6, 0x00000640);
-	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_FREQ1_FREQ1_INIT7, 0x00001059);
+	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_FREQ1_FREQ1_INIT7, 0x00001004);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_FREQ1_FREQ1_RANKCTL, 0x0000022f);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_FREQ1_FREQ1_RANKCTL1, 0x00000002);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_FREQ1_FREQ1_DRAMTMG0, 0x1618361a);
