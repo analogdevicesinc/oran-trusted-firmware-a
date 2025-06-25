@@ -29,7 +29,32 @@
 static interrupt_type_handler_t primary_gpint_interrupt_table[TOTAL_GPINTS] = { NULL };
 static interrupt_type_handler_t secondary_gpint_interrupt_table[TOTAL_GPINTS] = { NULL };
 
-static void __unused plat_request_gpint_intr(uint32_t id, interrupt_type_handler_t handler, bool secondary){
+static uint64_t secondary_to_primary_gpint_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
+{
+	/* Do nothing in the handler right now, otherwise the same GPINT event may get reported twice which can be confusing in the log.
+	 * We can change this handler in the future if we want the primary to add additional logging or actions based on
+	 * GPINTs happening on the secondary */
+	return 0;
+}
+
+static uint64_t primary_clkpll_unlock_gpint_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
+{
+	/* Just print out additional info, we will be reset shortly after this handler completes by GPINT1 */
+	plat_error_message("CLKPLL unlock event occurred on primary tile.\n");
+
+	return 0;
+}
+
+static uint64_t secondary_clkpll_unlock_gpint_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
+{
+	/* Just print out additional info, we will be reset shortly after this handler completes by GPINT1 */
+	plat_error_message("CLKPLL unlock event occurred on secondary tile.\n");
+
+	return 0;
+}
+
+static void plat_request_gpint_intr(uint32_t id, interrupt_type_handler_t handler, bool secondary)
+{
 	/* Validate 'handler' and 'id' parameters */
 	if (id >= TOTAL_GPINTS) {
 		plat_warn_message("Requested GPINT event handler number outside allowed range.");
@@ -373,6 +398,9 @@ void plat_assign_interrupt_handlers(void)
 	plat_request_intr_type_el3(IRQ_O_DFI_ALERT_ERR_INTR, ddr_phy_err_handler);
 	plat_request_intr_type_el3(IRQ_O_DWC_DDRPHY_INT_N, ddr_phy_err_handler);
 
+	/* Set up handlers for GPINT events */
+	plat_request_gpint_intr(CLKPLL_PLL_LOCKED_SYNC, primary_clkpll_unlock_gpint_handler, false);
+	plat_request_gpint_intr(GPINT_INTERRUPT_SECONDARY_TO_PRIMARY, secondary_to_primary_gpint_handler, false);
 
 	if (plat_get_dual_tile_enabled()) {
 		/* Set up handlers for GPINT0 received on the Primary from the Secondary */
@@ -386,5 +414,9 @@ void plat_assign_interrupt_handlers(void)
 		plat_request_intr_type_el3(IRQ_C2C_OUT_HW_INTERRUPT_17, l4_warning_handler);
 		plat_request_intr_type_el3(IRQ_C2C_OUT_HW_INTERRUPT_20, l4_warning_handler);
 		plat_request_intr_type_el3(IRQ_C2C_OUT_HW_INTERRUPT_23, l4_warning_handler);
+
+		/* Set up handlers for GPINT events */
+		plat_request_gpint_intr(CLKPLL_PLL_LOCKED_SYNC, secondary_clkpll_unlock_gpint_handler, true);
+		plat_request_gpint_intr(GPINT_INTERRUPT_SECONDARY_TO_PRIMARY, secondary_to_primary_gpint_handler, true);
 	}
 }
