@@ -1160,7 +1160,7 @@ static int c2c_setup_command_function(uint8_t *command_buffer, bool help)
 		printf("                                   ");
 		printf("<mode> values: 0=NORMAL, 1=EXTERNAL_LOOPBACK, 2=PHYDIG_LOOPBACK\n");
 		printf("                                   ");
-		printf("Sequence: c2csetup -> c2ctrain -> c2cactivate --(loopback mode)--> c2ctest \n");
+		printf("Sequence: c2csetup -> c2ctrain -> c2cactivate --(loopback mode)--> (c2cbgcal) -> c2ctest \n");
 	} else {
 		/* Optional parameter to set c2c mode (default is 0) */
 		command_buffer = parse_next_param(10, command_buffer, &mode);
@@ -1315,6 +1315,27 @@ static int c2c_activate_command_function(uint8_t *command_buffer, bool help)
 	return 0;
 }
 
+static int c2c_bgcal_command_function(uint8_t *command_buffer, bool help)
+{
+	if (help) {
+		printf("c2cbgcal                          ");
+		printf("Enables C2C background calibration\n");
+	} else {
+		/* c2cactivate must be run first */
+		if (c2c_train_state < C2C_STATE_CALIBRATED) {
+			printf("Please run c2cactivate first\n");
+			return -1;
+		}
+
+		if (!adrv906x_c2c_enable_hw_bg_cal())
+			return -1;
+
+		printf("Background calibration enabled\n");
+	}
+
+	return 0;
+}
+
 static int c2c_test_command_function(uint8_t *command_buffer, bool help)
 {
 	if (help) {
@@ -1347,6 +1368,7 @@ cli_command_t plat_command_list[] = {
 	{ "ateddr",	   ate_ddr_command_function			  },
 	{ "bootrominotp",  bootrom_in_otp_command_function		  },
 	{ "c2cactivate",   c2c_activate_command_function		  },
+	{ "c2cbgcal",	   c2c_bgcal_command_function			  },
 	{ "c2csetup",	   c2c_setup_command_function			  },
 	{ "c2ctest",	   c2c_test_command_function			  },
 	{ "c2ctrain",	   c2c_train_command_function			  },

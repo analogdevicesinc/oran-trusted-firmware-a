@@ -23,7 +23,8 @@
 #include <platform_def.h>
 
 /* training setup parameters */
-#define ADI_ADRV906X_C2C_TRAINING_POLYNOMIAL 0xD008      /* x^16 + x^15 + x^13 + x^4 + 1 */
+#define ADI_ADRV906X_C2C_TRAINING_POS_POLYNOMIAL 0xD008         /* x^16 + x^15 + x^13 + x^4 + 1 */
+#define ADI_ADRV906X_C2C_TRAINING_NEG_POLYNOMIAL 0xD008
 #define ADI_ADRV906X_C2C_TRAINING_SEED 0x42
 #define ADI_ADRV906X_C2C_ROSC_DIV 0
 #define ADI_ADRV906X_C2C_DEVCLK_DIV 0
@@ -74,9 +75,11 @@ static struct adi_c2cc_training_settings adrv906x_c2c_training_params = {
 		.rosc_div	= ADI_ADRV906X_C2C_ROSC_DIV,
 		.devclk_div	= ADI_ADRV906X_C2C_DEVCLK_DIV,
 		.pll_div	= ADI_ADRV906X_C2C_PLL_DIV,
+		.drive_level	= C2C_DRIVE_LEVEL_0,
 	},
 	.generator		={
-		.poly		= ADI_ADRV906X_C2C_TRAINING_POLYNOMIAL,
+		.pos_poly	= ADI_ADRV906X_C2C_TRAINING_POS_POLYNOMIAL,
+		.neg_poly	= ADI_ADRV906X_C2C_TRAINING_NEG_POLYNOMIAL,
 		.seed		= ADI_ADRV906X_C2C_TRAINING_SEED,
 	},
 	.p2s_delay		={

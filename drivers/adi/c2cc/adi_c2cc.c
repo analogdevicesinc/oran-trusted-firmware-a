@@ -93,6 +93,10 @@ static void adi_c2cc_configure_tx_clk(uintptr_t pri_base, uintptr_t sec_base, st
 	ADI_C2CC_WRITE_TRAIN_DEV_TX_CLK_DIV(sec_base, tx_clk->devclk_div);
 	ADI_C2CC_WRITE_TRAIN_PLL_TX_CLK_DIV(pri_base, tx_clk->pll_div);
 	ADI_C2CC_WRITE_TRAIN_PLL_TX_CLK_DIV(sec_base, tx_clk->pll_div);
+
+	/* Configure drive level */
+	ADI_C2CC_WRITE_TX_DRIVE_LEVEL(pri_base, tx_clk->drive_level);
+	ADI_C2CC_WRITE_TX_DRIVE_LEVEL(sec_base, tx_clk->drive_level);
 }
 
 static void adi_c2cc_configure_generator(uintptr_t pri_base, uintptr_t sec_base, struct adi_c2cc_training_generator_settings *generator)
@@ -103,17 +107,17 @@ static void adi_c2cc_configure_generator(uintptr_t pri_base, uintptr_t sec_base,
 		/* primary */
 		ADI_C2CC_WRITE_TRAINPOLY_LFSR_SEED(pri_base, i, 0, generator->seed);    /* positive edge */
 		ADI_C2CC_WRITE_TRAINPOLY_LFSR_SEED(pri_base, i, 1, generator->seed);    /* negative edge */
-		ADI_C2CC_WRITE_TRAINPOLY_LFSR_POLY(pri_base, i, 0, generator->poly);
-		ADI_C2CC_WRITE_TRAINPOLY_LFSR_POLY(pri_base, i, 1, generator->poly);
-		ADI_C2CC_WRITE_CHECKPOLY_LFSR_POLY(pri_base, i, 0, generator->poly);
-		ADI_C2CC_WRITE_CHECKPOLY_LFSR_POLY(pri_base, i, 1, generator->poly);
+		ADI_C2CC_WRITE_TRAINPOLY_LFSR_POLY(pri_base, i, 0, generator->pos_poly);
+		ADI_C2CC_WRITE_TRAINPOLY_LFSR_POLY(pri_base, i, 1, generator->neg_poly);
+		ADI_C2CC_WRITE_CHECKPOLY_LFSR_POLY(pri_base, i, 0, generator->pos_poly);
+		ADI_C2CC_WRITE_CHECKPOLY_LFSR_POLY(pri_base, i, 1, generator->neg_poly);
 		/* secondary */
 		ADI_C2CC_WRITE_TRAINPOLY_LFSR_SEED(sec_base, i, 0, generator->seed);
 		ADI_C2CC_WRITE_TRAINPOLY_LFSR_SEED(sec_base, i, 1, generator->seed);
-		ADI_C2CC_WRITE_TRAINPOLY_LFSR_POLY(sec_base, i, 0, generator->poly);
-		ADI_C2CC_WRITE_TRAINPOLY_LFSR_POLY(sec_base, i, 1, generator->poly);
-		ADI_C2CC_WRITE_CHECKPOLY_LFSR_POLY(sec_base, i, 0, generator->poly);
-		ADI_C2CC_WRITE_CHECKPOLY_LFSR_POLY(sec_base, i, 1, generator->poly);
+		ADI_C2CC_WRITE_TRAINPOLY_LFSR_POLY(sec_base, i, 0, generator->pos_poly);
+		ADI_C2CC_WRITE_TRAINPOLY_LFSR_POLY(sec_base, i, 1, generator->neg_poly);
+		ADI_C2CC_WRITE_CHECKPOLY_LFSR_POLY(sec_base, i, 0, generator->pos_poly);
+		ADI_C2CC_WRITE_CHECKPOLY_LFSR_POLY(sec_base, i, 1, generator->neg_poly);
 	}
 }
 
@@ -815,8 +819,8 @@ bool adi_c2cc_enable_hw_bg_cal(struct adi_c2cc_calibration_settings *params, str
 
 	// 6. Configure Primary.CALIBCTRL4.bg_lfsr_poly , Primary.CALIBCTRL4.bg_lfsr_seed, Secondary.CALIBCTRL4.bg_lfsr_poly , Secondary.CALIBCTRL4.bg_lfsr_seed  with the polynomial and seed value for PRBS generator
 	if (pattern_mode == ADI_C2C_PRBS_INJECTION) {
-		ADI_C2CC_WRITE_BG_CAL_LFSR_POLY(pri_base, generator_params->poly);
-		ADI_C2CC_WRITE_BG_CAL_LFSR_POLY(sec_base, generator_params->poly);
+		ADI_C2CC_WRITE_BG_CAL_LFSR_POLY(pri_base, generator_params->pos_poly);
+		ADI_C2CC_WRITE_BG_CAL_LFSR_POLY(sec_base, generator_params->pos_poly);
 		ADI_C2CC_WRITE_BG_CAL_LFSR_SEED(pri_base, generator_params->seed);
 		ADI_C2CC_WRITE_BG_CAL_LFSR_SEED(sec_base, generator_params->seed);
 	}

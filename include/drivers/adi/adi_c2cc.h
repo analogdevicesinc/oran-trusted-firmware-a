@@ -30,14 +30,23 @@ typedef enum {
 	C2C_MODE_PHYDIG_LOOPBACK        /* Internal phydig loopback mode */
 } c2c_mode_t;
 
+typedef enum {
+	C2C_DRIVE_LEVEL_0, /* ~700mV signal swing */
+	C2C_DRIVE_LEVEL_1,
+	C2C_DRIVE_LEVEL_2,
+	C2C_DRIVE_LEVEL_3, /* ~1400mV signal swing */
+} c2c_drive_level_t;
+
 struct adi_c2cc_training_clock_settings {
 	uint8_t rosc_div;
 	uint8_t devclk_div;
 	uint8_t pll_div;
+	c2c_drive_level_t drive_level;
 };
 
 struct adi_c2cc_training_generator_settings {
-	uint32_t poly; /* golden polynomial with maximum length sequence */
+	uint32_t pos_poly; /* golden polynomial with maximum length sequence */
+	uint32_t neg_poly;
 	uint32_t seed;
 };
 
