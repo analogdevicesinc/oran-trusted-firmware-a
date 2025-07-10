@@ -7,8 +7,11 @@
 #include <common/debug.h>
 #include <lib/mmio.h>
 
+#include <adrv906x_def.h>
 #include <adrv906x_sram.h>
 #include <plat_err.h>
+
+#define L4_SCRUB_SCNT   0x8000
 
 void l4_warning_info(uintptr_t base_addr)
 {
@@ -83,4 +86,30 @@ void l4_error_info(uintptr_t base_addr)
 			/* Clear all of the error status bits by writing a 1 since we've handled them all. */
 			mmio_write_32(base_addr + L4CTL_CFG_STAT, ((L4_SRAM_BANK_CLEAR_MASK) << L4CTL_CFG_STAT_ECCERR0_SHIFT));
 	}
+}
+
+static void plat_scrub_l4_instance(uintptr_t base_addr_l4, uint32_t start_addr, uint32_t size)
+{
+	uint32_t sctl;
+
+	/* Start at first address of the L4 memory*/
+	mmio_write_32(base_addr_l4 + L4CTL_CFG_SADR, start_addr);
+	mmio_write_32(base_addr_l4 + L4CTL_CFG_SCNT, size);
+
+	/* Set number of cycles between each scrub */
+	sctl = mmio_read_32(base_addr_l4 + L4CTL_CFG_SCTL);
+	sctl |= L4_SCRUB_SCNT;
+	mmio_write_32(base_addr_l4 + L4CTL_CFG_SCTL, sctl);
+
+	/* Enable automatic L4 scrub */
+	sctl = mmio_read_32(base_addr_l4 + L4CTL_CFG_SCTL);
+	sctl |= L4CTL_CFG_SCTL_SCRUB_ENABLE_MASK;
+	mmio_write_32(base_addr_l4 + L4CTL_CFG_SCTL, sctl);
+}
+
+void plat_scrub_l4(void)
+{
+	plat_scrub_l4_instance(L4CTL_CFG0_BASE, L4CTL0, L4CTL0_SIZE);
+	plat_scrub_l4_instance(L4CTL_CFG1_BASE, L4CTL1, L4CTL1_SIZE);
+	plat_scrub_l4_instance(L4CTL_CFG2_BASE, L4CTL2, L4CTL2_SIZE);
 }

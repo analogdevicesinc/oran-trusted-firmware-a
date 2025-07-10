@@ -11,5 +11,6 @@
 
 void l4_warning_info(uintptr_t base_addr);
 void l4_error_info(uintptr_t base_addr);
+void plat_scrub_l4(void);
 
 #endif /* ADRV906X_SRAM_H */

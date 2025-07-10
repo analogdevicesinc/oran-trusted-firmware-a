@@ -104,4 +104,12 @@ void plat_bl31_setup(void)
 
 	/* Do board-specific setup */
 	plat_board_bl31_setup();
+
+	if (plat_get_l4_scrubber_enabled()) {
+		/* Enable L4 memory scrubber */
+		INFO("Enabling L4 memory scrubber\n");
+		plat_scrub_l4();
+	} else {
+		INFO("L4 memory scrubber is disabled\n");
+	}
 }

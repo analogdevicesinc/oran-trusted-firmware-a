@@ -90,6 +90,7 @@ bool plat_get_dual_tile_no_c2c_primary(void);
 bool plat_get_dual_tile_enabled(void);
 void plat_set_dual_tile_disabled(void);
 bool plat_get_secondary_linux_enabled(void);
+bool plat_get_l4_scrubber_enabled(void);
 bool plat_is_primary_ecc_enabled(void);
 bool plat_is_secondary_ecc_enabled(void);
 size_t plat_get_dram_physical_size(void);

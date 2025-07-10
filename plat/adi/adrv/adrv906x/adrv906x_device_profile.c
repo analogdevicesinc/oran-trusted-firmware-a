@@ -44,6 +44,7 @@ static uint32_t sec_dram_remap_size = 0U;
 static uint32_t clk_pll_freq_setting = 0U;
 static uint32_t orx_adc_freq_setting = 0U;
 static uint32_t eth_pll_freq_setting = 0U;
+static bool l4_scrubber_enabled = false;
 static bool dual_tile_enabled = false;
 static bool secondary_dram_is_present = false;
 static bool secondary_linux_enabled = false;
@@ -655,6 +656,10 @@ void plat_dprof_init(void)
 	else
 		NOTICE("Using eth-pll frequency value %d from FW_CONFIG\n", eth_pll_freq_setting);
 
+	err = fw_config_prop_exists("/", "l4-scrubber-enabled", &l4_scrubber_enabled);
+	if (err != 0)
+		handle_fw_config_read_error("L4 scrubber configuration", err);
+
 	err = fw_config_prop_exists("/", "dual-tile", &dual_tile_enabled);
 	if (err != 0)
 		handle_fw_config_read_error("Dual tile configuration", err);
@@ -752,6 +757,11 @@ void plat_set_dual_tile_disabled(void)
 bool plat_get_secondary_linux_enabled(void)
 {
 	return dual_tile_enabled && secondary_linux_enabled;
+}
+
+bool plat_get_l4_scrubber_enabled(void)
+{
+	return l4_scrubber_enabled;
 }
 
 /* Returns the logical DRAM size that is used by U-Boot and Linux, which may or may not fill the actual physical size of the DDR.
