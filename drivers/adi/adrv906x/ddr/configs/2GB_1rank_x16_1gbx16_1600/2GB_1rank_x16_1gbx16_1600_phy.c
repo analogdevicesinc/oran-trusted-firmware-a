@@ -193,8 +193,8 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_1600_phy_init(uintptr_t base_addr_ctrl, uin
 /* Programming CalDrvStr0::CalDrvStrPd50 to 0x0*/
 /* Programming CalDrvStr0::CalDrvStrPu50 to 0x0*/
 	mmio_write_32((DDRPHYA_MASTER0_P0_MASTER0_P0_CALDRVSTR0 + base_addr_phy), 0x0);
-/* Pstate=0, Memclk=800MHz, Programming CalUclkInfo::CalUClkTicksPer1uS to 0x190*/
-	mmio_write_32((DDRPHYA_MASTER0_P0_MASTER0_P0_CALUCLKINFO_P0 + base_addr_phy), 0x190);
+/* Pstate=0, Memclk=800MHz, Programming CalUclkInfo::CalUClkTicksPer1uS to 0x312*/
+	mmio_write_32((DDRPHYA_MASTER0_P0_MASTER0_P0_CALUCLKINFO_P0 + base_addr_phy), 0x312);
 /* Programming CalRate::CalInterval to 0x9*/
 /* Programming CalRate::CalOnce to 0x0*/
 	mmio_write_32((DDRPHYA_MASTER0_P0_MASTER0_P0_CALRATE + base_addr_phy), 0x9);
