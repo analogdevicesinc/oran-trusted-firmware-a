@@ -410,6 +410,9 @@ static void setup_rfplls_reference_clock_dividers(enum adrv906x_tile_type tile)
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDER_PD(WEST_RFPLL_BASE, 0);
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDER_RESETB(EAST_RFPLL_BASE, 1);
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDER_RESETB(WEST_RFPLL_BASE, 1);
+
+		pll_power_ctrl(0, 0, EAST_RFPLL_BASE, DIG_CORE_BASE);
+		pll_power_ctrl(0, 0, WEST_RFPLL_BASE, DIG_CORE_BASE);
 	} else {
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDE_RATIO(SEC_EAST_RFPLL_BASE, 0);
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDE_RATIO(SEC_WEST_RFPLL_BASE, 0);
@@ -417,7 +420,12 @@ static void setup_rfplls_reference_clock_dividers(enum adrv906x_tile_type tile)
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDER_PD(SEC_WEST_RFPLL_BASE, 0);
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDER_RESETB(SEC_EAST_RFPLL_BASE, 1);
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDER_RESETB(SEC_WEST_RFPLL_BASE, 1);
+
+		pll_power_ctrl(1, 0, SEC_EAST_RFPLL_BASE, SEC_DIG_CORE_BASE);
+		pll_power_ctrl(1, 0, SEC_WEST_RFPLL_BASE, SEC_DIG_CORE_BASE);
 	}
+
+
 }
 
 static void setup_sysref_path_for_external_sysref_signal(enum adrv906x_tile_type tile)

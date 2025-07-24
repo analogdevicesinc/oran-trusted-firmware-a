@@ -139,7 +139,6 @@ void pll_set_dut_modulus(PllSelName_e pll, uint32_t modulus, const uint64_t base
 int pll_bleed_ramp(PllSelName_e pll, const uint64_t base);
 
 static uint32_t pll_get_dut_modulus(PllSelName_e pll, const uint64_t base);
-static void pll_power_ctrl(PllSelName_e pll, uint8_t state, const uint64_t base, const uint64_t dig_core_base);
 static int pll_sdm_ref_clk_init(PllSelName_e pll, const uint64_t base, const uint32_t refclk_freq);
 static int pll_update_temp_comp(PllSelName_e pll, const uint64_t base);
 static void pll_reset(PllSelName_e pll, const uint64_t base);
@@ -402,7 +401,7 @@ static void pll_init_hw_defaults(PllSelName_e pll, const uint64_t base)
  *
  *******************************************************************************
  */
-static void pll_power_ctrl(PllSelName_e pll, uint8_t state, const uint64_t base, const uint64_t dig_core_base)
+void pll_power_ctrl(PllSelName_e pll, uint8_t state, const uint64_t base, const uint64_t dig_core_base)
 {
 	/*  Powerup the PLL slices steps outlined by H/W */
 	WRITE_PLL_MEM_MAP_SYNTH_PD(base, state);
