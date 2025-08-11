@@ -37,6 +37,9 @@ PLAT_BL_COMMON_SOURCES	+=	drivers/adi/adrv906x/debug_xbar/debug_xbar.c \
 
 ifeq (${RMA_CLI},1)
 BL1_SOURCES		+=	drivers/adi/c2cc/adi_c2cc.c \
+					drivers/adi/c2cc/adi_c2cc_analysis.c \
+					drivers/adi/c2cc/adi_c2cc_training.c \
+					drivers/adi/c2cc/adi_c2cc_util.c \
 					plat/adi/adrv/adrv906x/adrv906x_dual.c \
 					plat/adi/adrv/adrv906x/adrv906x_rma.c \
 					plat/adi/adrv/adrv906x/aarch64/adrv906x_secondary_image.S
@@ -74,6 +77,9 @@ BL2_SOURCES		+=	${DDR_SOURCES} \
 				drivers/adi/adrv906x/legacy/temperature/temperature.c \
 				drivers/adi/adrv906x/legacy/utils/utils.c \
 				drivers/adi/c2cc/adi_c2cc.c \
+				drivers/adi/c2cc/adi_c2cc_analysis.c \
+				drivers/adi/c2cc/adi_c2cc_training.c \
+				drivers/adi/c2cc/adi_c2cc_util.c \
 				drivers/adi/i2c/adi_twi_i2c.c \
 				drivers/adi/mmc/adi_sdhci.c \
 				drivers/adi/phy/adi_sdhci_phy.c \
