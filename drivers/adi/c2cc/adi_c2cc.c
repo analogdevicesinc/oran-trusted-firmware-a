@@ -7,7 +7,6 @@
 #include <common/debug.h>
 #include <drivers/adi/adi_c2cc.h>
 #include "adi_c2cc_analysis.h"
-#include "adi_c2cc_training.h"
 #include "adi_c2cc_util.h"
 
 /* Background calibration */
@@ -28,16 +27,30 @@ bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params)
 {
 	uint32_t p2s_stats[ADI_C2C_TRIM_MAX];
 	uint32_t s2p_stats[ADI_C2C_TRIM_MAX];
+	uint8_t p2s_trim_delays[ADI_C2C_LANE_COUNT] = { 0 };
+	uint8_t s2p_trim_delays[ADI_C2C_LANE_COUNT] = { 0 };
+	uint8_t p2s_trim = ADI_C2C_TRIM_MAX;
+	uint8_t s2p_trim = ADI_C2C_TRIM_MAX;
 
 	if (!adi_c2cc_setup_train(params))
 		return false;
 
-	if (!adi_c2cc_run_train(p2s_stats, s2p_stats))
+	if (!adi_c2cc_run_train(p2s_stats, s2p_stats, p2s_trim_delays, s2p_trim_delays))
 		return false;
 
-	if (!adi_c2cc_process_train_data_and_apply(ADI_C2C_MIN_WINDOW_SIZE, NULL, p2s_stats, s2p_stats, &(params->tx_clk)))
+	if (!adi_c2cc_analyze_train_data(p2s_stats, s2p_stats, ADI_C2C_MIN_WINDOW_SIZE, ADI_C2C_TRIM_DELAY_MAX, ADI_C2C_MAX_TRIM_CENTER, p2s_trim_delays, s2p_trim_delays, NULL, NULL))
 		return false;
 
+	if (!adi_c2cc_run_train(p2s_stats, s2p_stats, p2s_trim_delays, s2p_trim_delays))
+		return false;
+
+	if (!adi_c2cc_analyze_train_data(p2s_stats, s2p_stats, ADI_C2C_MIN_WINDOW_SIZE, ADI_C2C_TRIM_DELAY_MAX, ADI_C2C_MAX_TRIM_CENTER, NULL, NULL, &p2s_trim, &s2p_trim))
+		return false;
+
+	if (!adi_c2cc_apply_training(p2s_trim, s2p_trim, &params->tx_clk))
+		return false;
+
+	INFO("%s: C2CC phy training complete.\n", __func__);
 	return true;
 }
 

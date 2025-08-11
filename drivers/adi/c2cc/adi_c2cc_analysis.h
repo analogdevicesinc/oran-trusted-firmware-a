@@ -7,6 +7,6 @@
 #ifndef ADI_C2CC_ANALYSIS_H
 #define ADI_C2CC_ANALYSIS_H
 
-uint8_t adi_c2cc_find_optimal_trim(uint32_t *stats, size_t min_size, uint8_t *trim_delays, size_t *eye_width);
+uint8_t adi_c2cc_find_optimal_trim(uint32_t *stats, size_t min_size, size_t max_spread, size_t max_center, uint8_t *trim_delays, size_t *eye_width);
 
 #endif /* ADI_C2CC_ANALYSIS_H */
