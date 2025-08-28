@@ -124,7 +124,7 @@ static void set_value(uint32_t gpio_mode_base_addr, int gpio, int value)
 	else
 		base_addr = gpio_mode_base_addr + adrv906x_reg_base_s[GET_GPIO_REG(gpio)][GPIO_CLEAR];
 
-	mmio_setbits_32(base_addr, bitmask);
+	mmio_write_32(base_addr, bitmask);
 }
 
 void adrv906x_gpio_init(uint32_t primary_base_address, uint32_t secondary_base_address)
