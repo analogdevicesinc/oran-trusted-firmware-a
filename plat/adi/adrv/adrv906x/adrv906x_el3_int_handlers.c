@@ -20,6 +20,7 @@
 #include <adrv906x_ddr.h>
 #include <adrv906x_def.h>
 #include <adrv906x_device_profile.h>
+#include <adrv906x_dual.h>
 #include <adrv906x_el3_int_handlers.h>
 #include <adrv906x_gpint.h>
 #include <adrv906x_irq_def.h>
@@ -369,6 +370,21 @@ static uint64_t __unused l4_error_handler(uint32_t id, uint32_t flags, void *han
 	return 0;
 }
 
+static uint64_t c2c_fault_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
+{
+	switch (id) {
+	case IRQ_C2C_NON_CRIT_INTR:
+		return adrv906x_c2c_warn_handler() ? 0 : -1;
+	case IRQ_C2C_CRIT_INTR:
+		return adrv906x_c2c_err_handler() ? 0 : -1;
+	default:
+		break;
+	}
+	plat_error_message("Invalid C2C interrupt ID");
+	return -1;
+}
+
+
 void plat_assign_interrupt_handlers(void)
 {
 	/* Set up handlers for GPINT0 */
@@ -397,6 +413,10 @@ void plat_assign_interrupt_handlers(void)
 	plat_request_intr_type_el3(IRQ_O_DFI_PHYUPD_ERR_INTR, ddr_phy_err_handler);
 	plat_request_intr_type_el3(IRQ_O_DFI_ALERT_ERR_INTR, ddr_phy_err_handler);
 	plat_request_intr_type_el3(IRQ_O_DWC_DDRPHY_INT_N, ddr_phy_err_handler);
+
+	/* Handlers for C2C error and warning events */
+	plat_request_intr_type_el3(IRQ_C2C_NON_CRIT_INTR, c2c_fault_handler);
+	plat_request_intr_type_el3(IRQ_C2C_CRIT_INTR, c2c_fault_handler);
 
 	/* Set up handlers for GPINT events */
 	plat_request_gpint_intr(CLKPLL_PLL_LOCKED_SYNC, primary_clkpll_unlock_gpint_handler, false);

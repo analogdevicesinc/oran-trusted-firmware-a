@@ -14,16 +14,26 @@ uintptr_t adi_c2cc_primary_addr_base = 0;
 uintptr_t adi_c2cc_secondary_addr_base = 0;
 bool adi_c2cc_loopback = false;
 
+uint32_t adi_c2cc_read32(uintptr_t addr)
+{
+	return mmio_read_32(addr);
+}
+
+void adi_c2cc_write32(uintptr_t addr, uint32_t val)
+{
+	mmio_write_32(addr, val);
+}
+
 uint32_t adi_c2cc_read_bf32(uintptr_t addr, uint8_t position, uint32_t mask)
 {
-	return (mmio_read_32(addr) & mask) >> position;
+	return (adi_c2cc_read32(addr) & mask) >> position;
 }
 
 void adi_c2cc_write_bf32(uintptr_t addr, uint8_t position, uint32_t mask, uint32_t val)
 {
-	uint32_t reg = (mmio_read_32(addr) & ~mask);
+	uint32_t reg = (adi_c2cc_read32(addr) & ~mask);
 
-	mmio_write_32(addr, reg | ((val << position) & mask));
+	adi_c2cc_write32(addr, reg | ((val << position) & mask));
 }
 
 bool adi_c2cc_wait_transactions(uintptr_t addr_base)

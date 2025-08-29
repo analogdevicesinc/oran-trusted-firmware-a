@@ -38,6 +38,35 @@ typedef enum {
 	C2C_DRIVE_LEVEL_3, /* ~1400mV signal swing */
 } c2c_drive_level_t;
 
+typedef enum {
+	C2C_ERR_ECC_1B = 0,
+	C2C_ERR_ECC_1B_COUNT_THRESHOLD,
+	C2C_ERR_START_BIT_1_BIT,
+	C2C_ERR_START_BIT_1B_COUNT_THRESHOLD,
+	C2C_ERR_ECC_2B,
+	C2C_ERR_START_BIT_2_BIT,
+	C2C_ERR_INT_TX_OL,
+	C2C_ERR_INT_RX_OL,
+	C2C_ERR_INVALID_HEADER,
+	C2C_ERR_TX_INTERRUPT_OL_COUNT_SATURATED,
+	C2C_ERR_RX_INTERRUPT_OL_COUNT_SATURATED,
+	C2C_ERR_BACKGROUND_CAL_SW_ERR,
+	C2C_ERR_BACKGROUND_CAL_SW_WARN,
+	C2C_ERR_BACKGROUND_CAL_HW_ERR,
+	C2C_ERR_BACKGROUND_CAL_HW_UPD,
+	C2C_ERR_PWR_UP_CAL_TX_IRQ,
+	C2C_ERR_PWR_UP_CAL_RX_IRQ,
+	C2C_ERR_TXN_IN_C2C_DISABLED,
+	C2C_ERR_TYPE_MAX /* keep at end of list */
+} c2c_err_type_t;
+
+typedef enum {
+	C2C_HANDLER_NONE		= 0,
+	C2C_HANDLER_NON_CRITICAL_INT	= 1,    /* Lower-priority ISR */
+	C2C_HANDLER_CRITICAL_INT	= 2,    /* Higher-priority ISR */
+	C2C_HANDLER_PIN_INT		= 4,    /* Routed to external GPIO */
+} c2c_err_handler_t;
+
 struct adi_c2cc_training_clock_settings {
 	uint8_t rosc_div;
 	uint8_t devclk_div;
@@ -85,6 +114,12 @@ void adi_c2cc_init(uintptr_t pri_base, uintptr_t sec_base, c2c_mode_t mode);
 bool adi_c2cc_enable(void);
 bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params);
 bool adi_c2cc_enable_hw_bg_cal(struct adi_c2cc_calibration_settings *params, struct adi_c2cc_training_generator_settings *prbs_params);
+
+/* used by BL31 */
+const char *adi_c2cc_get_err_name(c2c_err_type_t type);
+const char *adi_c2cc_get_err_description(c2c_err_type_t type);
+bool adi_c2cc_error_handler(c2c_err_handler_t type, uint32_t *errors);
+bool adi_c2cc_enable_error_handling(c2c_err_handler_t *params);
 
 /* used by adrv906x_cli.c */
 bool adi_c2cc_setup_train(struct adi_c2cc_training_settings *params);

@@ -107,10 +107,15 @@ BL31_SOURCES	+=	drivers/adi/adrv906x/clk/clk.c \
 				drivers/adi/adrv906x/gpio/adrv906x_gpio.c \
 				drivers/adi/adrv906x/transmuter/transmuter.c \
 				drivers/adi/adrv906x/transmuter/transmuter_def.c \
+				drivers/adi/c2cc/adi_c2cc.c \
+				drivers/adi/c2cc/adi_c2cc_analysis.c \
+				drivers/adi/c2cc/adi_c2cc_training.c \
+				drivers/adi/c2cc/adi_c2cc_util.c \
 				drivers/arm/sp805/sp805.c \
 				drivers/gpio/gpio.c \
 				plat/adi/adrv/adrv906x/adrv906x_bl31_setup.c \
 				plat/adi/adrv/adrv906x/adrv906x_ddr.c \
+				plat/adi/adrv/adrv906x/adrv906x_dual.c \
 				plat/adi/adrv/adrv906x/adrv906x_fixup_hw_config.c \
 				plat/adi/adrv/adrv906x/adrv906x_gpint.c \
 				plat/adi/adrv/adrv906x/adrv906x_el3_int_handlers.c \

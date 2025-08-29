@@ -161,3 +161,154 @@ bool adi_c2cc_enable_hw_bg_cal(struct adi_c2cc_calibration_settings *params, str
 
 	return true;
 }
+
+const char *adi_c2cc_get_err_name(c2c_err_type_t type)
+{
+	switch (type) {
+	case C2C_ERR_ECC_1B:
+		return "ERR_ECC_1B";
+	case C2C_ERR_ECC_1B_COUNT_THRESHOLD:
+		return "ERR_ECC_1B_COUNT_THRESHOLD";
+	case C2C_ERR_START_BIT_1_BIT:
+		return "ERR_START_BIT_1_BIT";
+	case C2C_ERR_START_BIT_1B_COUNT_THRESHOLD:
+		return "ERR_START_BIT_1B_COUNT_THRESHOLD";
+	case C2C_ERR_ECC_2B:
+		return "ERR_ECC_2B";
+	case C2C_ERR_START_BIT_2_BIT:
+		return "ERR_START_BIT_2_BIT";
+	case C2C_ERR_INT_TX_OL:
+		return "ERR_INT_TX_OL";
+	case C2C_ERR_INT_RX_OL:
+		return "ERR_INT_RX_OL";
+	case C2C_ERR_INVALID_HEADER:
+		return "ERR_INVALID_HEADER";
+	case C2C_ERR_TX_INTERRUPT_OL_COUNT_SATURATED:
+		return "ERR_TX_INTERRUPT_OL_COUNT_SATURATED";
+	case C2C_ERR_RX_INTERRUPT_OL_COUNT_SATURATED:
+		return "ERR_RX_INTERRUPT_OL_COUNT_SATURATED";
+	case C2C_ERR_BACKGROUND_CAL_SW_ERR:
+		return "ERR_BACKGROUND_CAL_SW_ERR";
+	case C2C_ERR_BACKGROUND_CAL_SW_WARN:
+		return "ERR_BACKGROUND_CAL_SW_WARN";
+	case C2C_ERR_BACKGROUND_CAL_HW_ERR:
+		return "ERR_BACKGROUND_CAL_HW_ERR";
+	case C2C_ERR_BACKGROUND_CAL_HW_UPD:
+		return "ERR_BACKGROUND_CAL_HW_UPD";
+	case C2C_ERR_PWR_UP_CAL_TX_IRQ:
+		return "ERR_PWR_UP_CAL_TX_IRQ";
+	case C2C_ERR_PWR_UP_CAL_RX_IRQ:
+		return "ERR_PWR_UP_CAL_RX_IRQ";
+	case C2C_ERR_TXN_IN_C2C_DISABLED:
+		return "ERR_TXN_IN_C2C_DISABLED";
+	default:
+		break;
+	}
+	return "ERR_UNKNOWN";
+}
+
+const char *adi_c2cc_get_err_description(c2c_err_type_t type)
+{
+	switch (type) {
+	case C2C_ERR_ECC_1B:
+		return "One or more ECC 1-bit error has been found in inflow stream, since the last status reset.";
+	case C2C_ERR_ECC_1B_COUNT_THRESHOLD:
+		return "The counter for ECC 1-bit error has crossed the threshold value.";
+	case C2C_ERR_START_BIT_1_BIT:
+		return "One or more 1-bit error has been found in start-nibble since the last status reset.";
+	case C2C_ERR_START_BIT_1B_COUNT_THRESHOLD:
+		return "The counter for 1-bit error in start bit has crossed the threshold value.";
+	case C2C_ERR_ECC_2B:
+		return "One or more ECC 2-bit error has been found in inflow stream, since the last status reset.";
+	case C2C_ERR_START_BIT_2_BIT:
+		return "One or more 2-bit error has been found in start-nibble since the last status reset.";
+	case C2C_ERR_INT_TX_OL:
+		return "One or more interrupt line in Tx has been found to overload. Some events in the line has been dropped, and will not be regenerated at destination chip output.";
+	case C2C_ERR_INT_RX_OL:
+		return "One or more interrupt line in Rx has been found to overload. Some events in the line has been dropped, and will not be regenerated at destination chip output.";
+	case C2C_ERR_INVALID_HEADER:
+		return "Invalid header has been found at depacketizer, this could be due to framing error or ECC 3- bit error.";
+	case C2C_ERR_TX_INTERRUPT_OL_COUNT_SATURATED:
+		return "The counter for tx_interrupt overload has been saturated.";
+	case C2C_ERR_RX_INTERRUPT_OL_COUNT_SATURATED:
+		return "The counter for rx_interrupt overload has been saturated.";
+	case C2C_ERR_BACKGROUND_CAL_SW_ERR:
+		return "Background cal software error.";
+	case C2C_ERR_BACKGROUND_CAL_SW_WARN:
+		return "Background cal software warn.";
+	case C2C_ERR_BACKGROUND_CAL_HW_ERR:
+		return "Background cal hardware error.";
+	case C2C_ERR_BACKGROUND_CAL_HW_UPD:
+		return "Background cal hardware update.";
+	case C2C_ERR_PWR_UP_CAL_TX_IRQ:
+		return "Trim done IRQ.";
+	case C2C_ERR_PWR_UP_CAL_RX_IRQ:
+		return "Trim done IRQ.";
+	case C2C_ERR_TXN_IN_C2C_DISABLED:
+		return "Transaction issued while c2c was disabled.";
+	default:
+		break;
+	}
+	return "Unknown error.";
+}
+
+bool adi_c2cc_error_handler(c2c_err_handler_t type, uint32_t *errors)
+{
+	uintptr_t pri_base = adi_c2cc_primary_addr_base;
+	uintptr_t sec_base = adi_c2cc_secondary_addr_base;
+	uint32_t value = 0;
+
+	if (pri_base == 0 || sec_base == 0) {
+		ERROR("%s: C2CC must be initialized first.\n", __func__);
+		return false;
+	}
+
+	switch (type) {
+	case C2C_HANDLER_NON_CRITICAL_INT:
+		value = ADI_C2CC_READ_NON_CRITICAL_INT_EN(pri_base);
+		break;
+	case C2C_HANDLER_CRITICAL_INT:
+		value = ADI_C2CC_READ_CRITICAL_INT_EN(pri_base);
+		break;
+	default:
+		ERROR("%s: C2CC invalid handler type.\n", __func__);
+		return false;
+	}
+
+	value = ADI_C2CC_READ_INT_STATUS(pri_base) & value;
+	if (errors)
+		*errors = value;
+	/* clear the interrupt; this is a clear-on-write register */
+	ADI_C2CC_WRITE_INT_STATUS(pri_base, value);
+	return true;
+}
+
+bool adi_c2cc_enable_error_handling(c2c_err_handler_t *params)
+{
+	uintptr_t pri_base = adi_c2cc_primary_addr_base;
+	uintptr_t sec_base = adi_c2cc_secondary_addr_base;
+	unsigned int i = 0;
+	uint32_t crit_ints = 0;
+	uint32_t non_crit_ints = 0;
+	uint32_t pin_ints = 0;
+
+	if (pri_base == 0 || sec_base == 0) {
+		ERROR("%s: C2CC must be initialized first.\n", __func__);
+		return false;
+	}
+
+	for (i = 0; i < C2C_ERR_TYPE_MAX; i++) {
+		if (params[i] & C2C_HANDLER_NON_CRITICAL_INT)
+			non_crit_ints |= (1 << i);
+		if (params[i] & C2C_HANDLER_CRITICAL_INT)
+			crit_ints |= (1 << i);
+		if (params[i] & C2C_HANDLER_PIN_INT)
+			pin_ints |= (1 << i);
+	}
+
+	ADI_C2CC_WRITE_NON_CRITICAL_INT_EN(pri_base, non_crit_ints);
+	ADI_C2CC_WRITE_CRITICAL_INT_EN(pri_base, crit_ints);
+	ADI_C2CC_WRITE_PIN_INT_EN(pri_base, pin_ints);
+
+	return true;
+}

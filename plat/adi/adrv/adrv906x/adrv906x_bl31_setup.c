@@ -19,6 +19,7 @@
 
 #include <adrv906x_board.h>
 #include <adrv906x_device_profile.h>
+#include <adrv906x_dual.h>
 #include <adrv906x_el3_int_handlers.h>
 #include <adrv906x_gpint.h>
 #include <adrv906x_mmap.h>
@@ -101,6 +102,9 @@ void plat_bl31_setup(void)
 	}
 
 	plat_assign_interrupt_handlers();
+
+	if (plat_get_dual_tile_enabled() && !adrv906x_c2c_enable_error_handling())
+		plat_error_message("Failed to setup C2CC error handling");
 
 	/* Do board-specific setup */
 	plat_board_bl31_setup();

@@ -120,6 +120,27 @@ static struct adi_c2cc_calibration_settings adrv906x_c2c_calibration_params = {
 	.multisample_delay	= ADI_ADRV906X_C2C_BGCAL_MULTISAMPLE_DELAY,
 };
 
+static c2c_err_handler_t adrv906x_c2c_error_handling[C2C_ERR_TYPE_MAX] = {
+	[C2C_ERR_ECC_1B] = C2C_HANDLER_NON_CRITICAL_INT,
+	[C2C_ERR_ECC_1B_COUNT_THRESHOLD] = C2C_HANDLER_CRITICAL_INT,
+	[C2C_ERR_START_BIT_1_BIT] = C2C_HANDLER_NON_CRITICAL_INT,
+	[C2C_ERR_START_BIT_1B_COUNT_THRESHOLD] = C2C_HANDLER_CRITICAL_INT,
+	[C2C_ERR_ECC_2B] = C2C_HANDLER_PIN_INT,
+	[C2C_ERR_START_BIT_2_BIT] = C2C_HANDLER_PIN_INT,
+	[C2C_ERR_INT_TX_OL] = C2C_HANDLER_NON_CRITICAL_INT,
+	[C2C_ERR_INT_RX_OL] = C2C_HANDLER_NON_CRITICAL_INT,
+	[C2C_ERR_INVALID_HEADER] = C2C_HANDLER_PIN_INT,
+	[C2C_ERR_TX_INTERRUPT_OL_COUNT_SATURATED] = C2C_HANDLER_NON_CRITICAL_INT,
+	[C2C_ERR_RX_INTERRUPT_OL_COUNT_SATURATED] = C2C_HANDLER_NON_CRITICAL_INT,
+	[C2C_ERR_BACKGROUND_CAL_SW_ERR] = C2C_HANDLER_PIN_INT,
+	[C2C_ERR_BACKGROUND_CAL_SW_WARN] = C2C_HANDLER_NON_CRITICAL_INT,
+	[C2C_ERR_BACKGROUND_CAL_HW_ERR] = C2C_HANDLER_PIN_INT,
+	[C2C_ERR_BACKGROUND_CAL_HW_UPD] = C2C_HANDLER_NON_CRITICAL_INT,
+	[C2C_ERR_PWR_UP_CAL_TX_IRQ] = C2C_HANDLER_CRITICAL_INT,
+	[C2C_ERR_PWR_UP_CAL_RX_IRQ] = C2C_HANDLER_CRITICAL_INT,
+	[C2C_ERR_TXN_IN_C2C_DISABLED] = C2C_HANDLER_CRITICAL_INT,
+};
+
 bool adrv906x_c2c_enable(void)
 {
 	adi_c2cc_init(C2CC_BASE, SEC_C2CC_BASE, C2C_MODE_NORMAL);
@@ -134,6 +155,64 @@ bool adrv906x_c2c_enable_high_speed(void)
 bool adrv906x_c2c_enable_hw_bg_cal(void)
 {
 	return adi_c2cc_enable_hw_bg_cal(&adrv906x_c2c_calibration_params, &adrv906x_c2c_training_params.generator);
+}
+
+bool adrv906x_c2c_enable_error_handling(void)
+{
+	adi_c2cc_init(C2CC_BASE, SEC_C2CC_BASE, C2C_MODE_NORMAL);
+	return adi_c2cc_enable_error_handling(adrv906x_c2c_error_handling);
+}
+
+bool adrv906x_c2c_warn_handler(void)
+{
+	uint32_t warnings = 0;
+	unsigned int i = 0;
+
+	if (!adi_c2cc_error_handler(C2C_HANDLER_NON_CRITICAL_INT, &warnings)) {
+		plat_error_message("Failed to read C2CC warning status.");
+		return false;
+	}
+
+	for (i = 0; i < C2C_ERR_TYPE_MAX; i++) {
+		const char *name;
+		const char *desc;
+
+		if ((warnings & (1 << i)) == 0)
+			continue;
+
+		name = adi_c2cc_get_err_name((c2c_err_type_t)i);
+		desc = adi_c2cc_get_err_description((c2c_err_type_t)i);
+
+		plat_warn_message("C2CC %s - %s", name, desc);
+	}
+
+	return true;
+}
+
+bool adrv906x_c2c_err_handler(void)
+{
+	uint32_t errors = 0;
+	unsigned int i = 0;
+
+	if (!adi_c2cc_error_handler(C2C_HANDLER_CRITICAL_INT, &errors)) {
+		plat_error_message("Failed to read C2CC error status.");
+		return false;
+	}
+
+	for (i = 0; i < C2C_ERR_TYPE_MAX; i++) {
+		const char *name;
+		const char *desc;
+
+		if ((errors & (1 << i)) == 0)
+			continue;
+
+		name = adi_c2cc_get_err_name((c2c_err_type_t)i);
+		desc = adi_c2cc_get_err_description((c2c_err_type_t)i);
+
+		plat_error_message("C2CC %s - %s", name, desc);
+	}
+
+	return true;
 }
 
 void adrv906x_release_secondary_reset(void)
