@@ -40,11 +40,15 @@
 #define ADI_C2CC_REG_TRAINPARAM6        0x1B4
 #define ADI_C2CC_REG_TSTCONFIG  0x10C
 #define ADI_C2CC_REG_DLYTRIM2   0x048
+#define ADI_C2CC_REG_TX_INT_OL_ID_START 0x230
+#define ADI_C2CC_REG_RX_INT_OL_ID_START 0x238
 
 #define ADI_C2CC_REG_CHECKPOLY(lane, edge)      (ADI_C2CC_REG_CHECKPOLY_START + ((lane) * 8) + ((edge) * 4))
 #define ADI_C2CC_REG_TRAINPOLY(lane, edge)      (ADI_C2CC_REG_TRAINPOLY_START + ((lane) * 8) + ((edge) * 4))
 #define ADI_C2CC_REG_TRAINSTAT1(lane, edge)     (ADI_C2CC_REG_TRAINSTAT1_START + ((lane) * 8) + ((edge) * 4))
 #define ADI_C2CC_REG_TRAINSTAT2(lane, edge)     (ADI_C2CC_REG_TRAINSTAT2_START + ((lane) * 8) + ((edge) * 4))
+#define ADI_C2CC_REG_TX_INT_OL_ID(n)            (ADI_C2CC_REG_TX_INT_OL_ID_START + ((n) * 4))
+#define ADI_C2CC_REG_RX_INT_OL_ID(n)            (ADI_C2CC_REG_RX_INT_OL_ID_START + ((n) * 4))
 
 /* bitfields */
 #define ADI_C2CC_BITP_CAL_BAD_CNT       0
@@ -255,6 +259,8 @@
 #define ADI_C2CC_READ_PIN_INT_EN(base)  ADI_C2CC_READ32((base) + ADI_C2CC_REG_PIN_INT_EN)
 #define ADI_C2CC_READ_INT_STATUS(base)  ADI_C2CC_READ32((base) + ADI_C2CC_REG_INT_STATUS)
 #define ADI_C2CC_READ_NON_INT_STATUS(base)  ADI_C2CC_READ32((base) + ADI_C2CC_REG_NON_INT_STATUS)
+#define ADI_C2CC_READ_TX_OL_INT_ID(base, n)    ADI_C2CC_READ32((base) + ADI_C2CC_REG_TX_INT_OL_ID(n))
+#define ADI_C2CC_READ_RX_OL_INT_ID(base, n)    ADI_C2CC_READ32((base) + ADI_C2CC_REG_RX_INT_OL_ID(n))
 
 /* write macros */
 #define ADI_C2CC_WRITE32        adi_c2cc_write32
@@ -313,6 +319,8 @@
 #define ADI_C2CC_WRITE_PIN_INT_EN(base, val)  ADI_C2CC_WRITE32((base) + ADI_C2CC_REG_PIN_INT_EN, (val))
 #define ADI_C2CC_WRITE_INT_STATUS(base, val)  ADI_C2CC_WRITE32((base) + ADI_C2CC_REG_INT_STATUS, (val))
 #define ADI_C2CC_WRITE_NON_INT_STATUS(base, val)  ADI_C2CC_WRITE32((base) + ADI_C2CC_REG_NON_INT_STATUS, (val))
+#define ADI_C2CC_WRITE_TX_OL_INT_ID(base, n, val)    ADI_C2CC_WRITE32((base) + ADI_C2CC_REG_TX_INT_OL_ID(n), (val))
+#define ADI_C2CC_WRITE_RX_OL_INT_ID(base, n, val)    ADI_C2CC_WRITE32((base) + ADI_C2CC_REG_RX_INT_OL_ID(n), (val))
 
 /* helper macros */
 #define ADI_C2CC_GET_EDGE_STAT(reg, lane, edge) ((reg) >> ((((lane) * 8) + ((edge) * 4)) & 0xF))

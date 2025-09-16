@@ -177,12 +177,12 @@ const char *adi_c2cc_get_err_name(c2c_err_type_t type)
 		return "ERR_ECC_2B";
 	case C2C_ERR_START_BIT_2_BIT:
 		return "ERR_START_BIT_2_BIT";
+	case C2C_ERR_INVALID_HEADER:
+		return "ERR_INVALID_HEADER";
 	case C2C_ERR_INT_TX_OL:
 		return "ERR_INT_TX_OL";
 	case C2C_ERR_INT_RX_OL:
 		return "ERR_INT_RX_OL";
-	case C2C_ERR_INVALID_HEADER:
-		return "ERR_INVALID_HEADER";
 	case C2C_ERR_TX_INTERRUPT_OL_COUNT_SATURATED:
 		return "ERR_TX_INTERRUPT_OL_COUNT_SATURATED";
 	case C2C_ERR_RX_INTERRUPT_OL_COUNT_SATURATED:
@@ -222,12 +222,12 @@ const char *adi_c2cc_get_err_description(c2c_err_type_t type)
 		return "One or more ECC 2-bit error has been found in inflow stream, since the last status reset.";
 	case C2C_ERR_START_BIT_2_BIT:
 		return "One or more 2-bit error has been found in start-nibble since the last status reset.";
+	case C2C_ERR_INVALID_HEADER:
+		return "Invalid header has been found at depacketizer, this could be due to framing error or ECC 3- bit error.";
 	case C2C_ERR_INT_TX_OL:
 		return "One or more interrupt line in Tx has been found to overload. Some events in the line has been dropped, and will not be regenerated at destination chip output.";
 	case C2C_ERR_INT_RX_OL:
 		return "One or more interrupt line in Rx has been found to overload. Some events in the line has been dropped, and will not be regenerated at destination chip output.";
-	case C2C_ERR_INVALID_HEADER:
-		return "Invalid header has been found at depacketizer, this could be due to framing error or ECC 3- bit error.";
 	case C2C_ERR_TX_INTERRUPT_OL_COUNT_SATURATED:
 		return "The counter for tx_interrupt overload has been saturated.";
 	case C2C_ERR_RX_INTERRUPT_OL_COUNT_SATURATED:
@@ -252,63 +252,98 @@ const char *adi_c2cc_get_err_description(c2c_err_type_t type)
 	return "Unknown error.";
 }
 
-bool adi_c2cc_error_handler(c2c_err_handler_t type, uint32_t *errors)
+static bool adi_c2cc_error_handler(uintptr_t base, c2c_err_handler_t type, uint32_t *errors, uint16_t *tx_ol_ids, uint16_t *rx_ol_ids)
 {
-	uintptr_t pri_base = adi_c2cc_primary_addr_base;
-	uintptr_t sec_base = adi_c2cc_secondary_addr_base;
 	uint32_t value = 0;
+	unsigned int i;
 
-	if (pri_base == 0 || sec_base == 0) {
-		ERROR("%s: C2CC must be initialized first.\n", __func__);
-		return false;
-	}
+	if (type & C2C_HANDLER_NON_CRITICAL_INT)
+		value |= ADI_C2CC_READ_NON_CRITICAL_INT_EN(base);
+	if (type & C2C_HANDLER_CRITICAL_INT)
+		value |= ADI_C2CC_READ_CRITICAL_INT_EN(base);
+	if (type & C2C_HANDLER_PIN_INT)
+		value |= ADI_C2CC_READ_PIN_INT_EN(base);
 
-	switch (type) {
-	case C2C_HANDLER_NON_CRITICAL_INT:
-		value = ADI_C2CC_READ_NON_CRITICAL_INT_EN(pri_base);
-		break;
-	case C2C_HANDLER_CRITICAL_INT:
-		value = ADI_C2CC_READ_CRITICAL_INT_EN(pri_base);
-		break;
-	default:
-		ERROR("%s: C2CC invalid handler type.\n", __func__);
-		return false;
-	}
-
-	value = ADI_C2CC_READ_INT_STATUS(pri_base) & value;
+	value = ADI_C2CC_READ_INT_STATUS(base) & value;
 	if (errors)
 		*errors = value;
+	if (value & (1 << C2C_ERR_INT_TX_OL)) {
+		for (i = 0; i < 2; i++) {
+			uint32_t reg = ADI_C2CC_READ_TX_OL_INT_ID(base, i);
+			ADI_C2CC_WRITE_TX_OL_INT_ID(base, i, 0);
+			if (tx_ol_ids) {
+				tx_ol_ids[2 * i] = reg & 0xFFFF;
+				tx_ol_ids[2 * i + 1] = reg >> 16;
+			}
+		}
+	}
+	if (value & (1 << C2C_ERR_INT_RX_OL)) {
+		for (i = 0; i < 2; i++) {
+			uint32_t reg = ADI_C2CC_READ_RX_OL_INT_ID(base, i);
+			ADI_C2CC_WRITE_RX_OL_INT_ID(base, i, 0);
+			if (rx_ol_ids) {
+				rx_ol_ids[2 * i] = reg & 0xFFFF;
+				rx_ol_ids[2 * i + 1] = reg >> 16;
+			}
+		}
+	}
 	/* clear the interrupt; this is a clear-on-write register */
-	ADI_C2CC_WRITE_INT_STATUS(pri_base, value);
+	ADI_C2CC_WRITE_INT_STATUS(base, value);
 	return true;
 }
 
-bool adi_c2cc_enable_error_handling(c2c_err_handler_t *params)
+bool adi_c2cc_primary_error_handler(c2c_err_handler_t type, uint32_t *errors, uint16_t *tx_ol_ids, uint16_t *rx_ol_ids)
 {
-	uintptr_t pri_base = adi_c2cc_primary_addr_base;
-	uintptr_t sec_base = adi_c2cc_secondary_addr_base;
-	unsigned int i = 0;
-	uint32_t crit_ints = 0;
-	uint32_t non_crit_ints = 0;
-	uint32_t pin_ints = 0;
+	uintptr_t base = adi_c2cc_primary_addr_base;
 
-	if (pri_base == 0 || sec_base == 0) {
+	if (base == 0) {
 		ERROR("%s: C2CC must be initialized first.\n", __func__);
 		return false;
 	}
 
-	for (i = 0; i < C2C_ERR_TYPE_MAX; i++) {
-		if (params[i] & C2C_HANDLER_NON_CRITICAL_INT)
-			non_crit_ints |= (1 << i);
-		if (params[i] & C2C_HANDLER_CRITICAL_INT)
-			crit_ints |= (1 << i);
-		if (params[i] & C2C_HANDLER_PIN_INT)
-			pin_ints |= (1 << i);
+	return adi_c2cc_error_handler(base, type, errors, tx_ol_ids, rx_ol_ids);
+}
+
+bool adi_c2cc_secondary_error_handler(c2c_err_handler_t type, uint32_t *errors, uint16_t *tx_ol_ids, uint16_t *rx_ol_ids)
+{
+	uintptr_t base = adi_c2cc_secondary_addr_base;
+
+	if (base == 0) {
+		ERROR("%s: C2CC must be initialized first.\n", __func__);
+		return false;
 	}
 
-	ADI_C2CC_WRITE_NON_CRITICAL_INT_EN(pri_base, non_crit_ints);
-	ADI_C2CC_WRITE_CRITICAL_INT_EN(pri_base, crit_ints);
-	ADI_C2CC_WRITE_PIN_INT_EN(pri_base, pin_ints);
+	return adi_c2cc_error_handler(base, type, errors, tx_ol_ids, rx_ol_ids);
+}
+
+bool adi_c2cc_enable_error_handling(c2c_err_handler_t *pri_params, c2c_err_handler_t *sec_params)
+{
+	uintptr_t base_addrs[2] = { adi_c2cc_primary_addr_base, adi_c2cc_secondary_addr_base };
+	c2c_err_handler_t *params[2] = { pri_params, sec_params };
+	unsigned int i, j;
+	uint32_t crit_ints, non_crit_ints, pin_ints;
+
+	if (base_addrs[0] == 0 || base_addrs[1] == 0) {
+		ERROR("%s: C2CC must be initialized first.\n", __func__);
+		return false;
+	}
+
+	for (i = 0; i < 2; i++) {
+		crit_ints = 0;
+		non_crit_ints = 0;
+		pin_ints = 0;
+		for (j = 0; j < C2C_ERR_TYPE_MAX; j++) {
+			if (params[i][j] & C2C_HANDLER_NON_CRITICAL_INT)
+				non_crit_ints |= (1 << j);
+			if (params[i][j] & C2C_HANDLER_CRITICAL_INT)
+				crit_ints |= (1 << j);
+			if (params[i][j] & C2C_HANDLER_PIN_INT)
+				pin_ints |= (1 << j);
+		}
+		ADI_C2CC_WRITE_NON_CRITICAL_INT_EN(base_addrs[i], non_crit_ints);
+		ADI_C2CC_WRITE_CRITICAL_INT_EN(base_addrs[i], crit_ints);
+		ADI_C2CC_WRITE_PIN_INT_EN(base_addrs[i], pin_ints);
+	}
 
 	return true;
 }

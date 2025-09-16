@@ -40,7 +40,7 @@ static uint64_t secondary_to_primary_gpint_handler(uint32_t id, uint32_t flags, 
 
 static uint64_t primary_clkpll_unlock_gpint_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
 {
-	/* Just print out additional info, we will be reset shortly after this handler completes by GPINT1 */
+	/* Just print out additional info, we will be reset by GPINT0 shortly after this GPINT1 handler completes */
 	plat_error_message("CLKPLL unlock event occurred on primary tile.\n");
 
 	return 0;
@@ -48,10 +48,22 @@ static uint64_t primary_clkpll_unlock_gpint_handler(uint32_t id, uint32_t flags,
 
 static uint64_t secondary_clkpll_unlock_gpint_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
 {
-	/* Just print out additional info, we will be reset shortly after this handler completes by GPINT1 */
+	/* Just print out additional info, we will be reset by GPINT0 shortly after this GPINT1 handler completes */
 	plat_error_message("CLKPLL unlock event occurred on secondary tile.\n");
 
 	return 0;
+}
+
+static uint64_t primary_c2c_gpint_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
+{
+	/* we will be reset by GPINT0 shortly after this GPINT1 handler completes */
+	return adrv906x_c2c_error_handler(C2C_HANDLER_PIN_INT, false, true) ? 0 : -1;
+}
+
+static uint64_t secondary_c2c_gpint_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
+{
+	/* we will be reset by GPINT0 shortly after this GPINT1 handler completes */
+	return adrv906x_c2c_error_handler(C2C_HANDLER_PIN_INT, true, true) ? 0 : -1;
 }
 
 static void plat_request_gpint_intr(uint32_t id, interrupt_type_handler_t handler, bool secondary)
@@ -374,16 +386,16 @@ static uint64_t c2c_fault_handler(uint32_t id, uint32_t flags, void *handle, voi
 {
 	switch (id) {
 	case IRQ_C2C_NON_CRIT_INTR:
-		return adrv906x_c2c_warn_handler() ? 0 : -1;
+		return adrv906x_c2c_error_handler(C2C_HANDLER_NON_CRITICAL_INT, false, false) ? 0 : -1;
 	case IRQ_C2C_CRIT_INTR:
-		return adrv906x_c2c_err_handler() ? 0 : -1;
+		return adrv906x_c2c_error_handler(C2C_HANDLER_CRITICAL_INT, false, false) ? 0 : -1;
+	case IRQ_C2C_OUT_HW_INTERRUPT_171:
+		return adrv906x_c2c_error_handler(C2C_HANDLER_NON_CRITICAL_INT, true, false) ? 0 : -1;
 	default:
 		break;
 	}
-	plat_error_message("Invalid C2C interrupt ID");
 	return -1;
 }
-
 
 void plat_assign_interrupt_handlers(void)
 {
@@ -417,9 +429,11 @@ void plat_assign_interrupt_handlers(void)
 	/* Handlers for C2C error and warning events */
 	plat_request_intr_type_el3(IRQ_C2C_NON_CRIT_INTR, c2c_fault_handler);
 	plat_request_intr_type_el3(IRQ_C2C_CRIT_INTR, c2c_fault_handler);
+	plat_request_intr_type_el3(IRQ_C2C_OUT_HW_INTERRUPT_171, c2c_fault_handler);
 
 	/* Set up handlers for GPINT events */
 	plat_request_gpint_intr(CLKPLL_PLL_LOCKED_SYNC, primary_clkpll_unlock_gpint_handler, false);
+	plat_request_gpint_intr(C2C_PINT_OUT, primary_c2c_gpint_handler, false);
 	plat_request_gpint_intr(GPINT_INTERRUPT_SECONDARY_TO_PRIMARY, secondary_to_primary_gpint_handler, false);
 
 	if (plat_get_dual_tile_enabled()) {
@@ -437,6 +451,7 @@ void plat_assign_interrupt_handlers(void)
 
 		/* Set up handlers for GPINT events */
 		plat_request_gpint_intr(CLKPLL_PLL_LOCKED_SYNC, secondary_clkpll_unlock_gpint_handler, true);
+		plat_request_gpint_intr(C2C_PINT_OUT, secondary_c2c_gpint_handler, true);
 		plat_request_gpint_intr(GPINT_INTERRUPT_SECONDARY_TO_PRIMARY, secondary_to_primary_gpint_handler, true);
 	}
 }

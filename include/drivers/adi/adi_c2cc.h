@@ -45,9 +45,9 @@ typedef enum {
 	C2C_ERR_START_BIT_1B_COUNT_THRESHOLD,
 	C2C_ERR_ECC_2B,
 	C2C_ERR_START_BIT_2_BIT,
+	C2C_ERR_INVALID_HEADER,
 	C2C_ERR_INT_TX_OL,
 	C2C_ERR_INT_RX_OL,
-	C2C_ERR_INVALID_HEADER,
 	C2C_ERR_TX_INTERRUPT_OL_COUNT_SATURATED,
 	C2C_ERR_RX_INTERRUPT_OL_COUNT_SATURATED,
 	C2C_ERR_BACKGROUND_CAL_SW_ERR,
@@ -118,8 +118,9 @@ bool adi_c2cc_enable_hw_bg_cal(struct adi_c2cc_calibration_settings *params, str
 /* used by BL31 */
 const char *adi_c2cc_get_err_name(c2c_err_type_t type);
 const char *adi_c2cc_get_err_description(c2c_err_type_t type);
-bool adi_c2cc_error_handler(c2c_err_handler_t type, uint32_t *errors);
-bool adi_c2cc_enable_error_handling(c2c_err_handler_t *params);
+bool adi_c2cc_primary_error_handler(c2c_err_handler_t type, uint32_t *errors, uint16_t *tx_ol_ids, uint16_t *rx_ol_ids);
+bool adi_c2cc_secondary_error_handler(c2c_err_handler_t type, uint32_t *errors, uint16_t *tx_ol_ids, uint16_t *rx_ol_ids);
+bool adi_c2cc_enable_error_handling(c2c_err_handler_t *pri_params, c2c_err_handler_t *sec_params);
 
 /* used by adrv906x_cli.c */
 bool adi_c2cc_setup_train(struct adi_c2cc_training_settings *params);

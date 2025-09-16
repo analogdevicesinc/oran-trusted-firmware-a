@@ -189,14 +189,14 @@ static void init(void)
 	/* Configure pinmux for GPINT0 on Primary */
 	plat_secure_pinctrl_set_group(gpint0_pin_grp, gpint0_pin_grp_members, true, PINCTRL_BASE);
 
-	/* Enable GPINT0 for CLK PLL un-lock on Primary, GIC error and L2-L3-L4 errors */
+	/* Enable GPINT0 for CLK PLL un-lock on Primary, C2C errors, GIC error and L2-L3-L4 errors */
 	settings.upper_word = CLKPLL_PLL_LOCKED_SYNC_MASK | L4_ECC_ERR_INTR_0_MASK | L4_ECC_ERR_INTR_1_MASK | L4_ECC_ERR_INTR_2_MASK;
-	settings.lower_word = GIC_ERR_INT_MASK | NERRIRQ_0_MASK | NERRIRQ_1_MASK | NERRIRQ_2_MASK | NERRIRQ_3_MASK | NERRIRQ_4_MASK;
+	settings.lower_word = GIC_ERR_INT_MASK | NERRIRQ_0_MASK | NERRIRQ_1_MASK | NERRIRQ_2_MASK | NERRIRQ_3_MASK | NERRIRQ_4_MASK | C2C_PINT_OUT_MASK;
 	adrv906x_gpint_enable(DIG_CORE_BASE, GPINT0, &settings);
 
-	/* Enable GPINT1 for CLK PLL un-lock and WDT1 on Primary */
+	/* Enable GPINT1 for CLK PLL un-lock, C2C errors, and WDT1 on Primary */
 	settings.upper_word = CLKPLL_PLL_LOCKED_SYNC_MASK;
-	settings.lower_word = WATCHDOG_A55_TIMEOUT_PIPED_1_MASK;
+	settings.lower_word = WATCHDOG_A55_TIMEOUT_PIPED_1_MASK | C2C_PINT_OUT_MASK;
 	adrv906x_gpint_enable(DIG_CORE_BASE, GPINT1, &settings);
 
 	/* Primary GPINT in dual-tile or dual-no-c2c */
@@ -224,14 +224,14 @@ static void init(void)
 		plat_secure_pinctrl_set_group(gpint0_pin_grp, gpint0_pin_grp_members, true, SEC_PINCTRL_BASE);
 		plat_secure_pinctrl_set_group(secondary_to_primary_pin_grp, secondary_to_primary_pin_grp_members, true, SEC_PINCTRL_BASE);
 
-		/* On Secondary, enable GPINT0 for CLK PLL un-lock, GPINT Interrupt Secondary to Primary, GIC error and L2-L3-L4 errors */
+		/* On Secondary, enable GPINT0 for CLK PLL un-lock, C2C errors, GPINT Interrupt Secondary to Primary, GIC error and L2-L3-L4 errors */
 		settings.upper_word = CLKPLL_PLL_LOCKED_SYNC_MASK | L4_ECC_ERR_INTR_0_MASK | L4_ECC_ERR_INTR_1_MASK | L4_ECC_ERR_INTR_2_MASK;
-		settings.lower_word = GPINT_INTERRUPT_SECONDARY_TO_PRIMARY_MASK | GIC_ERR_INT_MASK | NERRIRQ_0_MASK | NERRIRQ_1_MASK | NERRIRQ_2_MASK | NERRIRQ_3_MASK | NERRIRQ_4_MASK;
+		settings.lower_word = GPINT_INTERRUPT_SECONDARY_TO_PRIMARY_MASK | GIC_ERR_INT_MASK | NERRIRQ_0_MASK | NERRIRQ_1_MASK | NERRIRQ_2_MASK | NERRIRQ_3_MASK | NERRIRQ_4_MASK | C2C_PINT_OUT_MASK;
 		adrv906x_gpint_enable(SEC_DIG_CORE_BASE, GPINT0, &settings);
 
-		/* On Secondary, enable GPINT1 for CLK PLL un-lock and GPINT Interrupt Secondary to Primary */
+		/* On Secondary, enable GPINT1 for CLK PLL un-lock, C2C errors, and GPINT Interrupt Secondary to Primary */
 		settings.upper_word = CLKPLL_PLL_LOCKED_SYNC_MASK;
-		settings.lower_word = GPINT_INTERRUPT_SECONDARY_TO_PRIMARY_MASK;
+		settings.lower_word = GPINT_INTERRUPT_SECONDARY_TO_PRIMARY_MASK | C2C_PINT_OUT_MASK;
 		adrv906x_gpint_enable(SEC_DIG_CORE_BASE, GPINT1, &settings);
 	}
 

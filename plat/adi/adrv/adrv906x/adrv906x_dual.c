@@ -120,25 +120,49 @@ static struct adi_c2cc_calibration_settings adrv906x_c2c_calibration_params = {
 	.multisample_delay	= ADI_ADRV906X_C2C_BGCAL_MULTISAMPLE_DELAY,
 };
 
-static c2c_err_handler_t adrv906x_c2c_error_handling[C2C_ERR_TYPE_MAX] = {
-	[C2C_ERR_ECC_1B] = C2C_HANDLER_NON_CRITICAL_INT,
-	[C2C_ERR_ECC_1B_COUNT_THRESHOLD] = C2C_HANDLER_CRITICAL_INT,
-	[C2C_ERR_START_BIT_1_BIT] = C2C_HANDLER_NON_CRITICAL_INT,
-	[C2C_ERR_START_BIT_1B_COUNT_THRESHOLD] = C2C_HANDLER_CRITICAL_INT,
-	[C2C_ERR_ECC_2B] = C2C_HANDLER_PIN_INT,
-	[C2C_ERR_START_BIT_2_BIT] = C2C_HANDLER_PIN_INT,
-	[C2C_ERR_INT_TX_OL] = C2C_HANDLER_NON_CRITICAL_INT,
-	[C2C_ERR_INT_RX_OL] = C2C_HANDLER_NON_CRITICAL_INT,
-	[C2C_ERR_INVALID_HEADER] = C2C_HANDLER_PIN_INT,
-	[C2C_ERR_TX_INTERRUPT_OL_COUNT_SATURATED] = C2C_HANDLER_NON_CRITICAL_INT,
-	[C2C_ERR_RX_INTERRUPT_OL_COUNT_SATURATED] = C2C_HANDLER_NON_CRITICAL_INT,
-	[C2C_ERR_BACKGROUND_CAL_SW_ERR] = C2C_HANDLER_PIN_INT,
-	[C2C_ERR_BACKGROUND_CAL_SW_WARN] = C2C_HANDLER_NON_CRITICAL_INT,
-	[C2C_ERR_BACKGROUND_CAL_HW_ERR] = C2C_HANDLER_PIN_INT,
-	[C2C_ERR_BACKGROUND_CAL_HW_UPD] = C2C_HANDLER_NON_CRITICAL_INT,
-	[C2C_ERR_PWR_UP_CAL_TX_IRQ] = C2C_HANDLER_CRITICAL_INT,
-	[C2C_ERR_PWR_UP_CAL_RX_IRQ] = C2C_HANDLER_CRITICAL_INT,
-	[C2C_ERR_TXN_IN_C2C_DISABLED] = C2C_HANDLER_CRITICAL_INT,
+static c2c_err_handler_t adrv906x_c2c_error_handling[2][C2C_ERR_TYPE_MAX] = {
+	/* errors from primary controller */
+	[0] = {
+		[C2C_ERR_ECC_1B] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_ECC_1B_COUNT_THRESHOLD] = C2C_HANDLER_CRITICAL_INT,
+		[C2C_ERR_START_BIT_1_BIT] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_START_BIT_1B_COUNT_THRESHOLD] = C2C_HANDLER_CRITICAL_INT,
+		[C2C_ERR_ECC_2B] = C2C_HANDLER_PIN_INT,
+		[C2C_ERR_START_BIT_2_BIT] = C2C_HANDLER_PIN_INT,
+		[C2C_ERR_INT_TX_OL] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_INT_RX_OL] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_INVALID_HEADER] = C2C_HANDLER_PIN_INT,
+		[C2C_ERR_TX_INTERRUPT_OL_COUNT_SATURATED] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_RX_INTERRUPT_OL_COUNT_SATURATED] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_BACKGROUND_CAL_SW_ERR] = C2C_HANDLER_PIN_INT,
+		[C2C_ERR_BACKGROUND_CAL_SW_WARN] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_BACKGROUND_CAL_HW_ERR] = C2C_HANDLER_PIN_INT,
+		[C2C_ERR_BACKGROUND_CAL_HW_UPD] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_PWR_UP_CAL_TX_IRQ] = C2C_HANDLER_CRITICAL_INT,
+		[C2C_ERR_PWR_UP_CAL_RX_IRQ] = C2C_HANDLER_CRITICAL_INT,
+		[C2C_ERR_TXN_IN_C2C_DISABLED] = C2C_HANDLER_CRITICAL_INT,
+	},
+	/* errors from secondary controller */
+	[1] = {
+		[C2C_ERR_ECC_1B] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_ECC_1B_COUNT_THRESHOLD] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_START_BIT_1_BIT] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_START_BIT_1B_COUNT_THRESHOLD] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_ECC_2B] = C2C_HANDLER_PIN_INT,
+		[C2C_ERR_START_BIT_2_BIT] = C2C_HANDLER_PIN_INT,
+		[C2C_ERR_INT_TX_OL] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_INT_RX_OL] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_INVALID_HEADER] = C2C_HANDLER_PIN_INT,
+		[C2C_ERR_TX_INTERRUPT_OL_COUNT_SATURATED] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_RX_INTERRUPT_OL_COUNT_SATURATED] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_BACKGROUND_CAL_SW_ERR] = C2C_HANDLER_PIN_INT,
+		[C2C_ERR_BACKGROUND_CAL_SW_WARN] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_BACKGROUND_CAL_HW_ERR] = C2C_HANDLER_PIN_INT,
+		[C2C_ERR_BACKGROUND_CAL_HW_UPD] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_PWR_UP_CAL_TX_IRQ] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_PWR_UP_CAL_RX_IRQ] = C2C_HANDLER_NON_CRITICAL_INT,
+		[C2C_ERR_TXN_IN_C2C_DISABLED] = C2C_HANDLER_NON_CRITICAL_INT,
+	},
 };
 
 bool adrv906x_c2c_enable(void)
@@ -160,56 +184,54 @@ bool adrv906x_c2c_enable_hw_bg_cal(void)
 bool adrv906x_c2c_enable_error_handling(void)
 {
 	adi_c2cc_init(C2CC_BASE, SEC_C2CC_BASE, C2C_MODE_NORMAL);
-	return adi_c2cc_enable_error_handling(adrv906x_c2c_error_handling);
+	return adi_c2cc_enable_error_handling(adrv906x_c2c_error_handling[0], adrv906x_c2c_error_handling[1]);
 }
 
-bool adrv906x_c2c_warn_handler(void)
+bool adrv906x_c2c_error_handler(c2c_err_handler_t type, bool is_secondary, bool is_error)
 {
-	uint32_t warnings = 0;
+	uint32_t events = 0;
 	unsigned int i = 0;
+	uint16_t tx_ol_int_ids[4] = { 0 };
+	uint16_t rx_ol_int_ids[4] = { 0 };
 
-	if (!adi_c2cc_error_handler(C2C_HANDLER_NON_CRITICAL_INT, &warnings)) {
-		plat_error_message("Failed to read C2CC warning status.");
-		return false;
+	if (!is_secondary) {
+		if (!adi_c2cc_primary_error_handler(type, &events, tx_ol_int_ids, rx_ol_int_ids)) {
+			plat_error_message("Failed to read primary C2CC event status.");
+			return false;
+		}
+	} else {
+		if (!adi_c2cc_secondary_error_handler(type, &events, tx_ol_int_ids, rx_ol_int_ids)) {
+			plat_error_message("Failed to read secondary C2CC event status.");
+			return false;
+		}
 	}
 
 	for (i = 0; i < C2C_ERR_TYPE_MAX; i++) {
 		const char *name;
 		const char *desc;
 
-		if ((warnings & (1 << i)) == 0)
+		if ((events & (1 << i)) == 0)
 			continue;
 
 		name = adi_c2cc_get_err_name((c2c_err_type_t)i);
 		desc = adi_c2cc_get_err_description((c2c_err_type_t)i);
 
-		plat_warn_message("C2CC %s - %s", name, desc);
-	}
+		if (is_error)
+			plat_error_message("C2CC %s %s - %s", is_secondary ? "secondary" : "primary", name, desc);
+		else
+			plat_warn_message("C2CC %s %s - %s", is_secondary ? "secondary" : "primary", name, desc);
 
-	return true;
-}
-
-bool adrv906x_c2c_err_handler(void)
-{
-	uint32_t errors = 0;
-	unsigned int i = 0;
-
-	if (!adi_c2cc_error_handler(C2C_HANDLER_CRITICAL_INT, &errors)) {
-		plat_error_message("Failed to read C2CC error status.");
-		return false;
-	}
-
-	for (i = 0; i < C2C_ERR_TYPE_MAX; i++) {
-		const char *name;
-		const char *desc;
-
-		if ((errors & (1 << i)) == 0)
-			continue;
-
-		name = adi_c2cc_get_err_name((c2c_err_type_t)i);
-		desc = adi_c2cc_get_err_description((c2c_err_type_t)i);
-
-		plat_error_message("C2CC %s - %s", name, desc);
+		if (i == C2C_ERR_INT_TX_OL) {
+			if (is_error)
+				plat_error_message("C2CC %s TX_OL_ID 0x%04x 0x%04x 0x%04x 0x%04x", is_secondary ? "secondary" : "primary", tx_ol_int_ids[0], tx_ol_int_ids[1], tx_ol_int_ids[2], tx_ol_int_ids[3]);
+			else
+				plat_warn_message("C2CC %s TX_OL_ID 0x%04x 0x%04x 0x%04x 0x%04x", is_secondary ? "secondary" : "primary", tx_ol_int_ids[0], tx_ol_int_ids[1], tx_ol_int_ids[2], tx_ol_int_ids[3]);
+		} else if (i == C2C_ERR_INT_RX_OL) {
+			if (is_error)
+				plat_error_message("C2CC %s RX_OL_ID 0x%04x 0x%04x 0x%04x 0x%04x", is_secondary ? "secondary" : "primary", rx_ol_int_ids[0], rx_ol_int_ids[1], rx_ol_int_ids[2], rx_ol_int_ids[3]);
+			else
+				plat_warn_message("C2CC %s RX_OL_ID 0x%04x 0x%04x 0x%04x 0x%04x", is_secondary ? "secondary" : "primary", rx_ol_int_ids[0], rx_ol_int_ids[1], rx_ol_int_ids[2], rx_ol_int_ids[3]);
+		}
 	}
 
 	return true;
