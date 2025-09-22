@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2022, Analog Devices Incorporated - All Rights Reserved
+ * Copyright(c) 2025, Analog Devices Incorporated - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -182,7 +182,8 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_3200_pre_reset_init(uintptr_t base_addr_ctr
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_MP_PCFGR_1, 0x0000400f);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_MP_PCFGW_0, 0x0000000f);
 	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_MP_PCFGW_1, 0x0000000f);
-	/*These are overrides needed for turning on ECC, and adjusting the address map to tell the controller not to write to the space reserved for the inline ECC */
+
+	/* These are overrides needed for turning on ECC, and adjusting the address map to tell the controller not to write to the space reserved for the inline ECC */
 	if (ecc) {
 		mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCFG0, 0x013f7f34);
 		mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_ADDRMAP0, 0x001f1f1f);
@@ -198,6 +199,5 @@ ddr_error_t ddr_2gb_1rank_x16_1gbx16_3200_pre_reset_init(uintptr_t base_addr_ctr
 		mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_ADDRMAP10, 0x04040404);
 		mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_ADDRMAP11, 0x001f1f04);
 	}
-
 	return returnVal;
 }
