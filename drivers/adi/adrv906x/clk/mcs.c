@@ -424,8 +424,6 @@ static void setup_rfplls_reference_clock_dividers(enum adrv906x_tile_type tile)
 		pll_power_ctrl(1, 0, SEC_EAST_RFPLL_BASE, SEC_DIG_CORE_BASE);
 		pll_power_ctrl(1, 0, SEC_WEST_RFPLL_BASE, SEC_DIG_CORE_BASE);
 	}
-
-
 }
 
 static void setup_sysref_path_for_external_sysref_signal(enum adrv906x_tile_type tile)
