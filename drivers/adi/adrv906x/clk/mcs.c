@@ -410,9 +410,6 @@ static void setup_rfplls_reference_clock_dividers(enum adrv906x_tile_type tile)
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDER_PD(WEST_RFPLL_BASE, 0);
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDER_RESETB(EAST_RFPLL_BASE, 1);
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDER_RESETB(WEST_RFPLL_BASE, 1);
-
-		pll_power_ctrl(0, 0, EAST_RFPLL_BASE, DIG_CORE_BASE);
-		pll_power_ctrl(0, 0, WEST_RFPLL_BASE, DIG_CORE_BASE);
 	} else {
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDE_RATIO(SEC_EAST_RFPLL_BASE, 0);
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDE_RATIO(SEC_WEST_RFPLL_BASE, 0);
@@ -420,9 +417,6 @@ static void setup_rfplls_reference_clock_dividers(enum adrv906x_tile_type tile)
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDER_PD(SEC_WEST_RFPLL_BASE, 0);
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDER_RESETB(SEC_EAST_RFPLL_BASE, 1);
 		WRITE_PLL_MEM_MAP_REF_CLK_DIVIDER_RESETB(SEC_WEST_RFPLL_BASE, 1);
-
-		pll_power_ctrl(1, 0, SEC_EAST_RFPLL_BASE, SEC_DIG_CORE_BASE);
-		pll_power_ctrl(1, 0, SEC_WEST_RFPLL_BASE, SEC_DIG_CORE_BASE);
 	}
 }
 
@@ -437,10 +431,14 @@ static void setup_sysref_path_for_external_sysref_signal(enum adrv906x_tile_type
 	}
 }
 
-static void setup_mcs_clock_divider(const uintptr_t baseaddr)
+static void setup_mcs_clock_divider(const uintptr_t baseaddr, bool reset)
 {
 	WRITE_PLL_MEM_MAP_MCS_DEVICE_CLK_DIVIDER_SYNC_ENABLE(baseaddr, 1);
+	if (reset)
+		WRITE_PLL_MEM_MAP_LO_SYNC_RESETB(baseaddr, 0);
 	WRITE_PLL_MEM_MAP_LO_SYNC_RESETB(baseaddr, 1);
+	if (reset)
+		WRITE_PLL_MEM_MAP_MCS_RESETB(baseaddr, 0);
 	WRITE_PLL_MEM_MAP_MCS_RESETB(baseaddr, 1);
 }
 
@@ -452,14 +450,14 @@ static void enable_mcs_clkgen_sync(const uintptr_t baseaddr)
 static void setup_all_mcs_clock_dividers(enum adrv906x_tile_type tile)
 {
 	if (tile == ADRV906X_PRIMARY_TILE) {
-		setup_mcs_clock_divider(CLKPLL_BASE);
-		setup_mcs_clock_divider(EAST_RFPLL_BASE);
-		setup_mcs_clock_divider(WEST_RFPLL_BASE);
+		setup_mcs_clock_divider(CLKPLL_BASE, false);
+		setup_mcs_clock_divider(EAST_RFPLL_BASE, true);
+		setup_mcs_clock_divider(WEST_RFPLL_BASE, true);
 		enable_mcs_clkgen_sync(CLKPLL_BASE);
 	} else {
-		setup_mcs_clock_divider(SEC_CLKPLL_BASE);
-		setup_mcs_clock_divider(SEC_EAST_RFPLL_BASE);
-		setup_mcs_clock_divider(SEC_WEST_RFPLL_BASE);
+		setup_mcs_clock_divider(SEC_CLKPLL_BASE, false);
+		setup_mcs_clock_divider(SEC_EAST_RFPLL_BASE, true);
+		setup_mcs_clock_divider(SEC_WEST_RFPLL_BASE, true);
 		enable_mcs_clkgen_sync(SEC_CLKPLL_BASE);
 	}
 }
