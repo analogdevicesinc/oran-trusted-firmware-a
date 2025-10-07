@@ -16,7 +16,7 @@
  * DEFINES
  *------------------------------------------------------*/
 
-#define DEFAULT_TIMEOUT_US              3U
+#define DEFAULT_TIMEOUT_US              1000U
 #define DISABLE_IF_TIMEOUT_US           DEFAULT_TIMEOUT_US
 #define WR_DAP_RQ_REQ_TIMEOUT_US        DEFAULT_TIMEOUT_US
 #define RD_REQ_TIMEOUT_US               DEFAULT_TIMEOUT_US
