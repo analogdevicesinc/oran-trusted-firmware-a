@@ -423,10 +423,14 @@ static void setup_rfplls_reference_clock_dividers(enum adrv906x_tile_type tile)
 static void setup_sysref_path_for_external_sysref_signal(enum adrv906x_tile_type tile)
 {
 	if (tile == ADRV906X_PRIMARY_TILE) {
+		WRITE_CORE_SYSREF_SAMPLE_EN(DIG_CORE_BASE, 0);
 		WRITE_CORE_SYSREF_BUFFER_EN(DIG_CORE_BASE, 1);
+		udelay(2);
 		WRITE_CORE_SYSREF_SAMPLE_EN(DIG_CORE_BASE, 1);
 	} else {
+		WRITE_CORE_SYSREF_SAMPLE_EN(SEC_DIG_CORE_BASE, 0);
 		WRITE_CORE_SYSREF_BUFFER_EN(SEC_DIG_CORE_BASE, 1);
+		udelay(2);
 		WRITE_CORE_SYSREF_SAMPLE_EN(SEC_DIG_CORE_BASE, 1);
 	}
 }
