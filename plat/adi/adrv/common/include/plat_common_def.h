@@ -82,7 +82,7 @@
  * FW_CONFIG defines.
  */
 #ifndef FW_CONFIG_MAX_SIZE
-#define FW_CONFIG_MAX_SIZE              UL(0x2000)                                      /* 8KB max for FW_CONFIG */
+#define FW_CONFIG_MAX_SIZE              UL(0x8000)                                      /* 32KB max for FW_CONFIG */
 #endif
 #define FW_CONFIG_BASE                  (BL_RAM_BASE + sizeof(meminfo_t))               /* Place FW_CONFIG at the beginning of BL_RAM, after BL2 meminfo */
 #define FW_CONFIG_LIMIT                 (FW_CONFIG_BASE + FW_CONFIG_MAX_SIZE)
