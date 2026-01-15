@@ -124,6 +124,7 @@ BL31_SOURCES		+=	${PLAT_GIC_SOURCES} \
 				plat/adi/adrv/common/plat_pm.c \
 				plat/adi/adrv/common/plat_runtime_log.c \
 				plat/adi/adrv/common/plat_runtime_log_svc.c \
+				plat/adi/adrv/common/plat_ddr_edac_svc.c \
 				plat/adi/adrv/common/plat_sip_svc.c \
 				plat/adi/adrv/common/plat_wdt_svc.c
 

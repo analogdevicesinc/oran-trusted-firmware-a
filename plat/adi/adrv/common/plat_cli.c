@@ -347,8 +347,14 @@ static bool atoh(uint8_t *string, uint64_t *data)
 {
 	uint64_t value = 0u;
 	uint64_t digit = 0u;
-	uint64_t c = (uint64_t)*string++;
+	uint64_t c = 0;
 	uint8_t count = 0;
+
+	/* Skip over 0x/0X prefix */
+	if (string[0] == '0' && (string[1] == 'x' || string[1] == 'X'))
+		string += 2;
+
+	c = (uint64_t)*string++;
 
 	while ((c >= '0' && c <= '9') ||
 	       (c >= 'A' && c <= 'F') ||

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Analog Devices Incorporated, All Rights Reserved
+ * Copyright (c) 2026, Analog Devices Incorporated, All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -13,6 +13,7 @@
 #define CLK_CTL 0x20100000
 #define DDR_ADI_INTERFACE_BASE  0x202B4000
 #define DDR_CTL_BASE    0x202B0000
+#define DDR_PERF_MON_BASE       0x202B4000
 #define DDR_PHY_BASE    0x28000000
 #define DEBUG_XBAR_SOURCE_CONTROL_BASE  0x20218000
 #define DIG_CORE_BASE   0x18290000
@@ -55,6 +56,7 @@
 #define SEC_CLK_CTL     0x24100000
 #define SEC_DDR_ADI_INTERFACE_BASE      0x242B4000
 #define SEC_DDR_CTL_BASE        0x242B0000
+#define SEC_DDR_PERF_MON_BASE   0x242B4000
 #define SEC_DDR_PHY_BASE        0x2C000000
 #define SEC_DEBUG_XBAR_SOURCE_CONTROL_BASE      0x24218000
 #define SEC_DIG_CORE_BASE       0x1C290000

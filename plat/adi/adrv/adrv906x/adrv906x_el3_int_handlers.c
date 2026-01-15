@@ -193,24 +193,10 @@ static uint64_t secondary_gpint_handler(uint32_t id, uint32_t flags, void *handl
 	return gpint_handler(id, flags, handle, cookie, SEC_DIG_CORE_BASE);
 }
 
-static uint64_t ddr_ecc_uncorrected_err_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
-{
-	adrv906x_ddr_log_uncorrectable_error(DDR_CTL_BASE);
-	plat_error_handler(-EDECC);
-	/* We should never reach here, so if we do return bad status code so interrupt driver will report it */
-	return -1;
-}
-
 static uint64_t ddr_ap_err_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
 {
 	plat_warn_message("DDR Address Protection errors have exceeded threshold");
 	adrv906x_ddr_clear_ap_error(DDR_CTL_BASE);
-	return 0;
-}
-
-static uint64_t ddr_ecc_corrected_err_handler(uint32_t id, uint32_t flags, void *handle, void *cookie)
-{
-	adrv906x_ddr_log_correctable_error(DDR_CTL_BASE);
 	return 0;
 }
 
@@ -415,10 +401,6 @@ void plat_assign_interrupt_handlers(void)
 	plat_request_intr_type_el3(IRQ_L4_ECC_WRN_INTR_2, l4_warning_handler);
 
 	/* Handlers for DDR error and warning events */
-	plat_request_intr_type_el3(IRQ_ECC_CORRECTED_ERR_INTR, ddr_ecc_corrected_err_handler);
-	plat_request_intr_type_el3(IRQ_ECC_CORRECTED_ERR_INTR_FAULT, ddr_ecc_corrected_err_handler);
-	plat_request_intr_type_el3(IRQ_O_ECC_UNCORRECTED_ERR_INTR, ddr_ecc_uncorrected_err_handler);
-	plat_request_intr_type_el3(IRQ_O_ECC_UNCORRECTED_ERR_INTR_FAULT, ddr_ecc_uncorrected_err_handler);
 	plat_request_intr_type_el3(IRQ_O_ECC_AP_ERR_INTR, ddr_ap_err_handler);
 	plat_request_intr_type_el3(IRQ_O_ECC_AP_ERR_INTR_FAULT, ddr_ap_err_handler);
 	plat_request_intr_type_el3(IRQ_O_DFI_INTERNAL_ERR_INTR, ddr_phy_err_handler);

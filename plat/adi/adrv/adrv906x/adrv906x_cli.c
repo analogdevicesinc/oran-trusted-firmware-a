@@ -287,6 +287,111 @@ static int ddr_custom_values_command_function(uint8_t *command_buffer, bool help
 	return 0;
 }
 
+static void ddr_perf_callback_function(unsigned int index, ddr_perf_run_details_t *details, uint32_t count, void *userdata)
+{
+	printf("Performance Monitor Index: %u\n", index);
+	printf("  Data Select: %u\n", details->data_select);
+	printf("  Multibit Qualifier: %u\n", details->multibit_qualifier);
+	printf("  Multibit Compare Type: %u\n", details->multibit_compare_type);
+	printf("  Multibit Compare Value: 0x%02x\n", details->multibit_compare_value);
+	printf("  Multibit Enable Value: 0x%02x\n", details->multibit_enable_value);
+	printf("  Bus Select: %u\n", details->bus_select);
+	printf("  Bus Compare Type: %u\n", details->bus_compare_type);
+	printf("  Bus Compare Value: 0x%012lx\n", details->bus_compare_value);
+	printf("  Bus Enable Value: 0x%012lx\n", details->bus_enable_value);
+	printf("  Event Count: %u\n", count);
+}
+
+static int ddr_perf_conf_command_function(uint8_t *command_buffer, bool help)
+{
+	uint64_t value;
+	unsigned int index;
+	ddr_perf_run_details_t details = { 0 };
+
+	if (help) {
+		printf("ddrperfconf <index> <data_select> [bus_select] [cmp_typ] [cmp_val] [en_val]\n");
+		printf("                                     DDR performance monitoring commands.\n");
+	} else {
+		command_buffer = parse_next_param(10, command_buffer, &value);
+		if (command_buffer == NULL)
+			return -1;
+		index = (unsigned int)value;
+
+		command_buffer = parse_next_param(10, command_buffer, &value);
+		if (command_buffer == NULL)
+			return -1;
+		details.data_select = (ddr_perf_data_sel_t)value;
+
+		if (command_buffer)
+			command_buffer = parse_next_param(10, command_buffer, &value);
+		if (command_buffer != NULL)
+			details.bus_select = (ddr_perf_bus_sel_t)value;
+		else
+			details.bus_select = DFI_1_BUS;
+
+		if (command_buffer)
+			command_buffer = parse_next_param(10, command_buffer, &value);
+		if (command_buffer != NULL)
+			details.bus_compare_type = (ddr_perf_compare_type_t)value;
+		else
+			details.bus_compare_type = COMPARE_GREATER_THAN;
+
+		if (command_buffer)
+			command_buffer = parse_next_param(16, command_buffer, &value);
+		if (command_buffer != NULL)
+			details.bus_compare_value = value;
+		else
+			details.bus_compare_value = 0x00FFF000;
+
+		if (command_buffer)
+			command_buffer = parse_next_param(16, command_buffer, &value);
+		if (command_buffer != NULL)
+			details.bus_enable_value = value;
+		else
+			details.bus_enable_value = 0x1FFFF830;
+
+		details.enabled = true;
+		if (!ddr_perf_set_configuration(index, &details)) {
+			printf("Error configuring DDR performance monitoring on index %u\n", index);
+			return -1;
+		}
+	}
+	return 0;
+}
+
+static int ddr_perf_start_command_function(uint8_t *command_buffer, bool help)
+{
+	if (help) {
+		printf("ddrperfstart                         ");
+		printf("DDR performance monitoring commands.\n");
+	} else {
+		if (!ddr_perf_start(DDR_PERF_MON_BASE, ddr_perf_callback_function, NULL)) {
+			printf("Error starting DDR performance monitoring.\n");
+			return -1;
+		}
+
+		printf("DDR performance monitoring started.\n");
+		printf("Run 'ddrperfstop' to end the monitoring and see the results.\n");
+	}
+	return 0;
+}
+
+static int ddr_perf_stop_command_function(uint8_t *command_buffer, bool help)
+{
+	if (help) {
+		printf("ddrperfstop                         ");
+		printf("DDR performance monitoring commands.\n");
+	} else {
+		if (!ddr_perf_stop(DDR_PERF_MON_BASE)) {
+			printf("Error stopping DDR performance monitoring.\n");
+			return -1;
+		}
+
+		printf("DDR performance monitoring stopped.\n");
+	}
+	return 0;
+}
+
 /* This command performs the basic mem test for the DDR */
 static int ddr_mem_test_command_function(uint8_t *command_buffer, bool help)
 {
@@ -1431,6 +1536,9 @@ cli_command_t plat_command_list[] = {
 	{ "ddrremapinit",  ddr_iterative_init_remapping_command_function  },
 	{ "ddrtrain",	   ddr_custom_training_test_command_function	  },
 	{ "ddrvalues",	   ddr_custom_values_command_function		  },
+	{ "ddrperfconf",   ddr_perf_conf_command_function		  },
+	{ "ddrperfstart",  ddr_perf_start_command_function		  },
+	{ "ddrperfstop",   ddr_perf_stop_command_function		  },
 	{ "debugmuxshow",  xbar_show_command_function			  },
 	{ "debugmuxout",   xbar_output_command_function			  },
 	{ "debugmuxmap",   xbar_map_command_function			  },

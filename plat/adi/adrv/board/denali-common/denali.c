@@ -363,6 +363,14 @@ void plat_board_bl2_setup(void)
 
 void plat_board_bl31_setup(void)
 {
+	unsigned int i;
+	ddr_perf_run_details_t default_perf_config = {
+		.bus_select		= DFI_1_BUS,
+		.bus_compare_type	= COMPARE_GREATER_THAN,
+		.bus_compare_value	= 0x00FFF000,
+		.bus_enable_value	= 0x1FFFF830,
+	};
+
 	adrv906x_primary_gpio_set_direction(A55_GPIO_S_102_PIN, GPIO_DIR_OUT);
 	adrv906x_primary_gpio_set_value(A55_GPIO_S_102_PIN, GPIO_LEVEL_LOW);
 
@@ -375,6 +383,9 @@ void plat_board_bl31_setup(void)
 		/* Init POWER controller to control external power sequencer chip ADM1266 */
 		plat_secure_pinctrl_set_group(power_pin_grp, power_pin_grp_members, true, SEC_PINCTRL_BASE);
 	}
+
+	for (i = 0; i < DDR_PERF_EVENT_COUNTERS_TOTAL; i++)
+		ddr_perf_set_configuration(i, &default_perf_config);
 }
 
 static void __dead2 plat_board_psci_system_off(void)

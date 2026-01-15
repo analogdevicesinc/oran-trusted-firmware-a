@@ -28,6 +28,7 @@
 #define PLAT_SIP_SVC_PINCTRL            U(0xC2000001)
 #define PLAT_SIP_SVC_PINTMUX            U(0xC2000002)
 #define PLAT_SIP_SVC_LOG                U(0xC2000003)
+#define PLAT_SIP_SVC_DDR_EDAC           U(0xC2000004)
 
 /* Max function ID used by the common service.
  * IDs beyond this number, up to the SMCCC reserved

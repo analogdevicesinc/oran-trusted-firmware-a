@@ -14,6 +14,7 @@
 #include <plat_pinctrl_svc.h>
 #include <plat_pintmux_svc.h>
 #include <plat_runtime_log_svc.h>
+#include <plat_ddr_edac_svc.h>
 #include <plat_sip_svc.h>
 #include <plat_wdt_svc.h>
 
@@ -65,6 +66,9 @@ static uintptr_t sip_handler(unsigned int smc_fid,
 
 	case PLAT_SIP_SVC_LOG:
 		SMC_RET0(plat_runtime_log_smc_handler(smc_fid, x1, x2, x3, x4, cookie, handle, flags));
+
+	case PLAT_SIP_SVC_DDR_EDAC:
+		SMC_RET0(plat_ddr_edac_smc_handler(smc_fid, x1, x2, x3, x4, cookie, handle, flags));
 
 	default:
 		plat_runtime_warn_message("Unimplemented SiP Service Call: 0x%x ", smc_fid);

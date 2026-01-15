@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Analog Devices Incorporated - All Rights Reserved
+ * Copyright (c) 2026, Analog Devices Incorporated - All Rights Reserved
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -42,6 +42,47 @@ static bool ddr_check_ecc_error_status(uintptr_t base_addr_ctrl, bool correctabl
 		return ((mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCSTAT) & ECCSTAT_ECC_CORRECTED_ERR_MASK) >> ECCSTAT_ECC_CORRECTED_ERR_SHIFT) == 1;
 	else
 		return ((mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCSTAT) & ECCSTAT_ECC_UNCORRECTED_ERR_MASK) >> ECCSTAT_ECC_UNCORRECTED_ERR_SHIFT) == 1;
+}
+
+bool ddr_get_ecc_enabled_state(uintptr_t base_addr_ctrl)
+{
+	return ((mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCFG0) & ECCCFG0_ECC_MODE_MASK) >> ECCCFG0_ECC_MODE_SHIFT) != 0;
+}
+
+uint32_t ddr_get_address_map_offset(uintptr_t base_addr_ctrl, unsigned int bank)
+{
+	return mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ADDRMAP0 + (bank * 4));
+}
+
+ddr_dtype_t ddr_get_dtype(uintptr_t base_addr_ctrl)
+{
+	unsigned short data_width = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_MSTR) & MSTR_DATA_BUS_WIDTH_MASK) >> MSTR_DATA_BUS_WIDTH_SHIFT;
+
+	/* if halved; 8 bit data width */
+	if (data_width)
+		return DEV_X1;
+	/* if full; 16 bit data width */
+	return DEV_X2;
+}
+
+static bool ddr_is_ddr4(uintptr_t base_addr_ctrl)
+{
+	return (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_MSTR) & MSTR_DDR4_MASK) >> MSTR_DDR4_SHIFT != 0;
+}
+
+static bool ddr_is_ddr3(uintptr_t base_addr_ctrl)
+{
+	return (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_MSTR) & MSTR_DDR3_MASK) >> MSTR_DDR3_SHIFT != 0;
+}
+
+ddr_mtype_t ddr_get_mtype(uintptr_t base_addr_ctrl)
+{
+	if (ddr_is_ddr4(base_addr_ctrl))
+		return MEM_DDR4;
+	else if (ddr_is_ddr3(base_addr_ctrl))
+		return MEM_DDR3;
+	else
+		return MEM_DDR2;
 }
 
 /* Clears the AP error from the controller side so interrupt line is not continuously triggered */
@@ -107,4 +148,79 @@ bool ddr_get_ecc_error_info(uintptr_t base_addr_ctrl, bool correctable, ddr_ecc_
 	}
 
 	return true;
+}
+
+bool ddr_get_ecc_syndrome_mask(uintptr_t base_addr_ctrl, uint32_t *syndrome)
+{
+	if (!syndrome)
+		return false;
+
+	syndrome[0] = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCSYN0) & ECCCSYN0_ECC_CORR_SYNDROMES_31_0_MASK) >> ECCCSYN0_ECC_CORR_SYNDROMES_31_0_SHIFT;
+	syndrome[1] = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCSYN1) & ECCCSYN1_ECC_CORR_SYNDROMES_63_32_MASK) >> ECCCSYN1_ECC_CORR_SYNDROMES_63_32_SHIFT;
+	syndrome[2] = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCSYN2) & ECCCSYN2_ECC_CORR_SYNDROMES_71_64_MASK) >> ECCCSYN2_ECC_CORR_SYNDROMES_71_64_SHIFT;
+
+	return true;
+}
+
+void ddr_set_data_inject_poison(uintptr_t base_addr_ctrl, unsigned int rank, unsigned int col, unsigned int bank_grp, unsigned int bank, unsigned int row)
+{
+	uint32_t cfg;
+
+	cfg = (rank << ECCPOISONADDR0_ECC_POISON_RANK_SHIFT) & ECCPOISONADDR0_ECC_POISON_RANK_MASK;
+	cfg |= (col << ECCPOISONADDR0_ECC_POISON_COL_SHIFT) & ECCPOISONADDR0_ECC_POISON_COL_MASK;
+	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCPOISONADDR0, cfg);
+	cfg = (bank << ECCPOISONADDR1_ECC_POISON_BANK_SHIFT) & ECCPOISONADDR1_ECC_POISON_BANK_MASK;
+	cfg |= (bank_grp << ECCPOISONADDR1_ECC_POISON_BG_SHIFT) & ECCPOISONADDR1_ECC_POISON_BG_MASK;
+	cfg |= (row << ECCPOISONADDR1_ECC_POISON_ROW_SHIFT) & ECCPOISONADDR1_ECC_POISON_ROW_MASK;
+	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCPOISONADDR1, cfg);
+}
+
+void ddr_get_data_inject_poison(uintptr_t base_addr_ctrl, unsigned int *rank, unsigned int *col, unsigned int *bank_grp, unsigned int *bank, unsigned int *row)
+{
+	uint32_t cfg;
+
+	cfg = mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCPOISONADDR0);
+	if (rank)
+		*rank = (cfg & ECCPOISONADDR0_ECC_POISON_RANK_MASK) >> ECCPOISONADDR0_ECC_POISON_RANK_SHIFT;
+	if (col)
+		*col = (cfg & ECCPOISONADDR0_ECC_POISON_COL_MASK) >> ECCPOISONADDR0_ECC_POISON_COL_SHIFT;
+
+	cfg = mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCPOISONADDR1);
+	if (bank_grp)
+		*bank_grp = (cfg & ECCPOISONADDR1_ECC_POISON_BG_MASK) >> ECCPOISONADDR1_ECC_POISON_BG_SHIFT;
+	if (bank)
+		*bank = (cfg & ECCPOISONADDR1_ECC_POISON_BANK_MASK) >> ECCPOISONADDR1_ECC_POISON_BANK_SHIFT;
+	if (row)
+		*row = (cfg & ECCPOISONADDR1_ECC_POISON_ROW_MASK) >> ECCPOISONADDR1_ECC_POISON_ROW_SHIFT;
+}
+
+void ddr_set_data_poison_config(uintptr_t base_addr_ctrl, bool enable, bool double_error)
+{
+	uint32_t orig;
+	uint32_t cfg;
+
+	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_SWCTL, 0x00000000);
+	cfg = mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCFG1) | ~(ECCCFG1_DATA_POISON_EN_MASK | ECCCFG1_DATA_POISON_BIT_MASK);
+	orig = cfg;
+	if (enable)
+		cfg |= ECCCFG1_DATA_POISON_EN_MASK;
+	else
+		cfg &= ~ECCCFG1_DATA_POISON_EN_MASK;
+	if (double_error)
+		cfg |= ECCCFG1_DATA_POISON_BIT_MASK;
+	else
+		cfg &= ~ECCCFG1_DATA_POISON_BIT_MASK;
+	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCFG1, cfg);
+	mmio_write_32(base_addr_ctrl + DDR_UMCTL2_REGS_SWCTL, 0x00000001);
+}
+
+void ddr_get_data_poison_config(uintptr_t base_addr_ctrl, bool *enable, bool *double_error)
+{
+	uint32_t cfg;
+
+	cfg = mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCFG1);
+	if (enable)
+		*enable = (cfg & ECCCFG1_DATA_POISON_EN_MASK) >> ECCCFG1_DATA_POISON_EN_SHIFT;
+	if (double_error)
+		*double_error = (cfg & ECCCFG1_DATA_POISON_BIT_MASK) >> ECCCFG1_DATA_POISON_BIT_SHIFT;
 }

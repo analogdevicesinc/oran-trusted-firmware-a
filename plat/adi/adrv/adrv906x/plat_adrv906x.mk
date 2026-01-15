@@ -104,6 +104,7 @@ endif
 BL31_SOURCES	+=	drivers/adi/adrv906x/clk/clk.c \
 				drivers/adi/adrv906x/clk/mcs.c \
 				drivers/adi/adrv906x/ddr/ddr_edac.c \
+				drivers/adi/adrv906x/ddr/ddr_perf.c \
 				drivers/adi/adrv906x/gpio/adrv906x_gpio.c \
 				drivers/adi/adrv906x/transmuter/transmuter.c \
 				drivers/adi/adrv906x/transmuter/transmuter_def.c \
@@ -115,6 +116,7 @@ BL31_SOURCES	+=	drivers/adi/adrv906x/clk/clk.c \
 				drivers/gpio/gpio.c \
 				plat/adi/adrv/adrv906x/adrv906x_bl31_setup.c \
 				plat/adi/adrv/adrv906x/adrv906x_ddr.c \
+				plat/adi/adrv/adrv906x/adrv906x_ddr_edac.c \
 				plat/adi/adrv/adrv906x/adrv906x_dual.c \
 				plat/adi/adrv/adrv906x/adrv906x_fixup_hw_config.c \
 				plat/adi/adrv/adrv906x/adrv906x_gpint.c \
