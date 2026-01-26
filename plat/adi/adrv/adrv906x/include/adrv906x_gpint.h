@@ -29,6 +29,7 @@ void adrv906x_gpint_get_status(uintptr_t gpint_base_addr, struct gpint_settings 
 void adrv906x_gpint_get_masked_status(uintptr_t gpint_base_addr, struct gpint_settings *settings, uint32_t gpint);
 void adrv906x_gpint_enable(uintptr_t gpint_base_addr, uint32_t gpint, struct gpint_settings *settings);
 void adrv906x_gpint_disable(uintptr_t gpint_base_addr, uint32_t gpint, struct gpint_settings *settings);
+void adrv906x_gpint_reset(uintptr_t gpint_base_addr, uint32_t gpint);
 void adrv906x_gpint_warm_reset_enable(void);
 bool adrv906x_gpint_is_nonsecure(bool upper_word, uint64_t mask);
 void adrv906x_gpint_set_routing(struct gpint_settings *settings);

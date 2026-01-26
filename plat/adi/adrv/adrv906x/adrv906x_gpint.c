@@ -301,6 +301,19 @@ void adrv906x_gpint_disable(uintptr_t gpint_base_addr, uint32_t gpint, struct gp
 	}
 }
 
+/*
+ * Sets the GPINT (GPINT0 or GPINT1) enable/disable state for all interrupt signals to the hw default.
+ */
+void adrv906x_gpint_reset(uintptr_t gpint_base_addr, uint32_t gpint)
+{
+	int byte;
+
+	assert(gpint < GPINT_NUM);
+
+	for (byte = 0; byte < GPINT_BYTES; byte++)
+		mmio_write_8(gpint_base_addr + gpint_mask_offset[byte][gpint], byte == 9 ? 0x9f : 0xff);
+}
+
 void adrv906x_gpint_warm_reset_enable(void)
 {
 	/* Set a55_sys_cfg gpint_warm_rst_en bit to enable warm reset when GPINT0 gets asserted due to a catastrophic event */
