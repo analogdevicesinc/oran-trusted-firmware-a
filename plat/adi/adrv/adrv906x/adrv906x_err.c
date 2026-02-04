@@ -30,9 +30,8 @@ int plat_warm_reset(void)
 
 	/* disable GPINT0 */
 	adrv906x_gpint_reset(DIG_CORE_BASE, GPINT0);
-	if (plat_get_dual_tile_enabled()) {
+	if (plat_get_dual_tile_enabled())
 		adrv906x_gpint_reset(SEC_DIG_CORE_BASE, GPINT0);
-	}
 
 	/* Setup WDT1 to timeout immediately.
 	 * WDT1 timeout causes GPINT1 to fire to give the radio time
