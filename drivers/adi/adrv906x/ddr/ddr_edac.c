@@ -13,9 +13,17 @@
 #include "ddr_regmap.h"
 
 /* This table comes directly from section 2.39.5 in the DDR controller databook */
-#define DDR_CORRECTED_BIT_NUM_ENCODING_MAX      22
+#define DDR_CORRECTED_BIT_NUM_ENCODING_MAX      72
 static uint8_t ddr_corrected_bit_num_encoding[DDR_CORRECTED_BIT_NUM_ENCODING_MAX] = {
-	16, 17, 18, 0, 19, 1, 2, 3, 20, 4, 5, 6, 7, 8, 9, 10, 21, 11, 12, 13, 14, 15
+	64, 65, 66, 0, 67, 1, 2, 3,
+	68, 4, 5, 6, 7, 8, 9, 10,
+	69, 11, 12, 13, 14, 15, 16, 17,
+	18, 19, 20, 21, 22, 23, 24, 25,
+	70, 26, 27, 28, 29, 30, 31, 32,
+	33, 34, 35, 36, 37, 38, 39, 40,
+	41, 42, 43, 44, 45, 46, 47, 48,
+	49, 50, 51, 52, 53, 54, 55, 56,
+	71, 57, 58, 59, 60, 61, 62, 63
 };
 
 /* Returns the current count of correctable errors */
