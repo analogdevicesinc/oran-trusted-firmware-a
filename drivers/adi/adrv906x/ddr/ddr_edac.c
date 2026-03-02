@@ -160,12 +160,17 @@ bool ddr_get_ecc_error_info(uintptr_t base_addr_ctrl, bool correctable, ddr_ecc_
 
 bool ddr_get_ecc_syndrome_mask(uintptr_t base_addr_ctrl, uint32_t *syndrome)
 {
+	uint32_t mask = 0;
+
 	if (!syndrome)
 		return false;
 
 	syndrome[0] = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCSYN0) & ECCCSYN0_ECC_CORR_SYNDROMES_31_0_MASK) >> ECCCSYN0_ECC_CORR_SYNDROMES_31_0_SHIFT;
-	syndrome[1] = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCSYN1) & ECCCSYN1_ECC_CORR_SYNDROMES_63_32_MASK) >> ECCCSYN1_ECC_CORR_SYNDROMES_63_32_SHIFT;
-	syndrome[2] = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCSYN2) & ECCCSYN2_ECC_CORR_SYNDROMES_71_64_MASK) >> ECCCSYN2_ECC_CORR_SYNDROMES_71_64_SHIFT;
+	syndrome[1] = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCBITMASK0) & ECCBITMASK0_ECC_CORR_BIT_MASK_31_0_MASK) >> ECCBITMASK0_ECC_CORR_BIT_MASK_31_0_SHIFT;
+	syndrome[2] = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCSYN1) & ECCCSYN1_ECC_CORR_SYNDROMES_63_32_MASK) >> ECCCSYN1_ECC_CORR_SYNDROMES_63_32_SHIFT;
+	syndrome[3] = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCBITMASK1) & ECCBITMASK1_ECC_CORR_BIT_MASK_63_32_MASK) >> ECCBITMASK1_ECC_CORR_BIT_MASK_63_32_SHIFT;
+	syndrome[4] = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCCSYN2) & ECCCSYN2_ECC_CORR_SYNDROMES_71_64_MASK) >> ECCCSYN2_ECC_CORR_SYNDROMES_71_64_SHIFT;
+	syndrome[5] = (mmio_read_32(base_addr_ctrl + DDR_UMCTL2_REGS_ECCBITMASK2) & ECCBITMASK2_ECC_CORR_BIT_MASK_71_64_MASK) >> ECCBITMASK2_ECC_CORR_BIT_MASK_71_64_SHIFT;
 
 	return true;
 }

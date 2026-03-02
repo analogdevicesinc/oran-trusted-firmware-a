@@ -64,7 +64,7 @@ uintptr_t plat_ddr_edac_smc_handler(unsigned int smc_fid,
 {
 	func_id_t id;
 	uint32_t count;
-	uint32_t syndrome[3] = { 0 };
+	uint32_t syndrome[6] = { 0 };
 	struct ecc_error_info info;
 	struct ecc_poison_config poison_cfg;
 	bool enabled;
@@ -85,7 +85,7 @@ uintptr_t plat_ddr_edac_smc_handler(unsigned int smc_fid,
 		break;
 	case GET_SYNDROME_MASK:
 		plat_ddr_edac_get_syndrome_mask(DDR_CTL_BASE, syndrome);
-		SMC_RET4(handle, SMC_OK, syndrome[0], syndrome[1], syndrome[2]);
+		SMC_RET7(handle, SMC_OK, syndrome[0], syndrome[1], syndrome[2], syndrome[3], syndrome[4], syndrome[5]);
 		break;
 	case GET_DTYPE:
 		SMC_RET2(handle, SMC_OK, plat_ddr_edac_get_dtype(DDR_CTL_BASE));
