@@ -68,8 +68,8 @@ bool adi_c2cc_enable(void)
 	/* enable bi-directional bridged AXI transactions */
 	adi_c2cc_axi_control(pri_base, true);
 	adi_c2cc_axi_control(sec_base, true);
-	/* enable bi-directional bridged interrupts */
-	adi_c2cc_intr_control(pri_base, true);
+	/* enable secondary-to-primary bridged interrupts */
+	adi_c2cc_intr_control(pri_base, false);
 	adi_c2cc_intr_control(sec_base, true);
 
 	return true;
