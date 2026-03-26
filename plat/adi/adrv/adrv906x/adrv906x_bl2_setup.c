@@ -162,6 +162,11 @@ static void init(void)
 	}
 #endif
 
+	/* disable GPINT0 */
+	adrv906x_gpint_reset(DIG_CORE_BASE, GPINT0);
+	if (plat_get_dual_tile_enabled())
+		adrv906x_gpint_reset(SEC_DIG_CORE_BASE, GPINT0);
+
 	/* Report the GPINT status (which is sticky after a warm reset)
 	 * Do this here, before MCS, which triggers the clock PLL unlock
 	 * GPINT status to be set.

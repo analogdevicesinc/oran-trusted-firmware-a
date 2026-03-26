@@ -7,8 +7,6 @@
 #include <lib/mmio.h>
 
 #include <adrv906x_clkrst_def.h>
-#include <adrv906x_device_profile.h>
-#include <adrv906x_gpint.h>
 #include <adrv906x_ddr.h>
 #include <drivers/arm/sp805.h>
 #include <platform.h>
@@ -27,11 +25,6 @@
 int plat_warm_reset(void)
 {
 	int i;
-
-	/* disable GPINT0 */
-	adrv906x_gpint_reset(DIG_CORE_BASE, GPINT0);
-	if (plat_get_dual_tile_enabled())
-		adrv906x_gpint_reset(SEC_DIG_CORE_BASE, GPINT0);
 
 	/* Setup WDT1 to timeout immediately.
 	 * WDT1 timeout causes GPINT1 to fire to give the radio time
