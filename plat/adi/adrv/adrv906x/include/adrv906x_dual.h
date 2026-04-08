@@ -11,7 +11,7 @@
 #include <drivers/adi/adi_c2cc.h>
 
 bool adrv906x_c2c_enable(void);
-bool adrv906x_c2c_enable_high_speed(void);
+bool adrv906x_c2c_enable_high_speed(unsigned int trim_adjust);
 bool adrv906x_c2c_enable_hw_bg_cal(void);
 bool adrv906x_c2c_enable_error_handling(void);
 bool adrv906x_c2c_error_handler(c2c_err_handler_t type, bool is_secondary, bool is_error);

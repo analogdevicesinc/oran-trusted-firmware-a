@@ -23,7 +23,7 @@ static void adi_c2cc_phydig_enable(bool enable)
 	ADI_C2CC_WRITE_PHYDIG_LPBK_EN(adi_c2cc_primary_addr_base, enable);
 }
 
-bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params)
+bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params, unsigned int trim_adjust)
 {
 	uint32_t p2s_stats[ADI_C2C_TRIM_MAX];
 	uint32_t s2p_stats[ADI_C2C_TRIM_MAX];
@@ -46,6 +46,12 @@ bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params)
 
 	if (!adi_c2cc_analyze_train_data(p2s_stats, s2p_stats, ADI_C2C_MIN_WINDOW_SIZE, ADI_C2C_TRIM_DELAY_MAX, ADI_C2C_MAX_TRIM_CENTER, NULL, NULL, &p2s_trim, &s2p_trim))
 		return false;
+
+	if (trim_adjust) {
+		INFO("%s: Adjusting C2C training trims (+%u) based on temperature.\n", __func__, trim_adjust);
+		p2s_trim = p2s_trim + trim_adjust > ADI_C2C_TRIM_MAX - 1 ? ADI_C2C_TRIM_MAX - 1 : p2s_trim + trim_adjust;
+		s2p_trim = s2p_trim + trim_adjust > ADI_C2C_TRIM_MAX - 1 ? ADI_C2C_TRIM_MAX - 1 : s2p_trim + trim_adjust;
+	}
 
 	if (!adi_c2cc_apply_training(p2s_trim, s2p_trim, &params->tx_clk))
 		return false;

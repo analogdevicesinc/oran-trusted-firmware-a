@@ -241,8 +241,19 @@ static void init(void)
 	}
 
 	if (plat_get_dual_tile_enabled()) {
+		float clkpll_temp = 0.0f;
+		unsigned int trim_adjust = 0;
+
+		if (!tempr_read(&clkpll_temp, NULL))
+			ERROR("Failed to read clkpll temperature\n");
+
+		if ((int)clkpll_temp <= 0)
+			trim_adjust = 2;
+		else if ((int)clkpll_temp <= 25)
+			trim_adjust = 1;
+
 		INFO("Beginning training to enable C2C hi-speed AXI bridge.\n");
-		if (!adrv906x_c2c_enable_high_speed()) {
+		if (!adrv906x_c2c_enable_high_speed(trim_adjust)) {
 			plat_error_message("Failed to enable C2C hi-speed AXI bridge.");
 			/* TODO: Training is expected to fail on SystemC for now. */
 			if (!plat_is_sysc())

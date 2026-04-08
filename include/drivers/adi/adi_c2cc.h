@@ -112,7 +112,7 @@ struct adi_c2cc_calibration_settings {
 
 void adi_c2cc_init(uintptr_t pri_base, uintptr_t sec_base, c2c_mode_t mode);
 bool adi_c2cc_enable(void);
-bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params);
+bool adi_c2cc_enable_high_speed(struct adi_c2cc_training_settings *params, unsigned int trim_adjust);
 bool adi_c2cc_enable_hw_bg_cal(struct adi_c2cc_calibration_settings *params, struct adi_c2cc_training_generator_settings *prbs_params);
 
 /* used by BL31 */

@@ -11,6 +11,7 @@
 #include <drivers/adi/adi_te_interface.h>
 #include <drivers/adi/adi_c2cc.h>
 #include <drivers/adi/adrv906x/clk.h>
+#include <drivers/adi/adrv906x/temperature.h>
 #include <drivers/delay_timer.h>
 #include <lib/mmio.h>
 
@@ -171,9 +172,9 @@ bool adrv906x_c2c_enable(void)
 	return adi_c2cc_enable();
 }
 
-bool adrv906x_c2c_enable_high_speed(void)
+bool adrv906x_c2c_enable_high_speed(unsigned int trim_adjust)
 {
-	return adi_c2cc_enable_high_speed(&adrv906x_c2c_training_params);
+	return adi_c2cc_enable_high_speed(&adrv906x_c2c_training_params, trim_adjust);
 }
 
 bool adrv906x_c2c_enable_hw_bg_cal(void)
